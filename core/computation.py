@@ -2,7 +2,7 @@
 import pandas as pd
 import numpy as np
 from aztool_topo.util.misc import vectorize, round8
-from aztool_topo.structure.point import Point
+from aztool_topo.primitives.point import Point
 
 EARTH_C = 6371000
 

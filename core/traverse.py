@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from typing import List
-from structure.data import *
+from primitives.data import *
 from util.io import *
 
 
