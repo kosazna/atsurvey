@@ -64,21 +64,21 @@ def fmt_dist(stops):
     return joined_stops
 
 
-def join_stops_for_angle(midenismos, stasi, metrisi):
-    return '-'.join([midenismos, stasi, metrisi])
+# def join_stops_for_angle(midenismos, stasi, metrisi):
+#     return '-'.join([midenismos, stasi, metrisi])
+#
+#
+# def join_stops_for_dist(station, fs):
+#     return '-'.join(sorted([station, fs]))
 
 
-def join_stops_for_dist(station, fs):
-    return '-'.join(sorted([station, fs]))
-
-
-def meas_type(fs: str, h_angle: float):
-    if fs[0].isalpha() and h_angle == 0.0:
-        return 'midenismos'
-    elif fs[0].isalpha():
-        return 'stasi'
-    else:
-        return 'taximetriko'
+# def meas_type(fs: str, h_angle: float):
+#     if fs[0].isalpha() and h_angle == 0.0:
+#         return 'midenismos'
+#     elif fs[0].isalpha():
+#         return 'stasi'
+#     else:
+#         return 'taximetriko'
 
 
 def extract_workind_dir(data):

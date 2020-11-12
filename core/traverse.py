@@ -110,10 +110,10 @@ class OpenTraverse:
             self.odeusi.loc[i.Index, 'azimuth'] = a
 
         self.odeusi['dx_temp'] = self.odeusi['egsa_dist'] * np.sin(
-            grad_to_rad(self.odeusi['azimuth']))
+            grad2rad(self.odeusi['azimuth']))
 
         self.odeusi['dy_temp'] = self.odeusi['egsa_dist'] * np.cos(
-            grad_to_rad(self.odeusi['azimuth']))
+            grad2rad(self.odeusi['azimuth']))
 
         self.odeusi['dX'] = self.odeusi['dx_temp']
         self.odeusi['dY'] = self.odeusi['dy_temp']
@@ -341,10 +341,10 @@ class LinkTraverse(OpenTraverse):
         traverse_azimuth(self.odeusi, self.a_start)
 
         self.odeusi['dx_temp'] = self.odeusi['egsa_dist'] * np.sin(
-            grad_to_rad(self.odeusi['azimuth']))
+            grad2rad(self.odeusi['azimuth']))
 
         self.odeusi['dy_temp'] = self.odeusi['egsa_dist'] * np.cos(
-            grad_to_rad(self.odeusi['azimuth']))
+            grad2rad(self.odeusi['azimuth']))
 
         self._l1_temp_x = self.f2.x + self.odeusi['dx_temp'].sum()
         self._l1_temp_y = self.f2.y + self.odeusi['dy_temp'].sum()
@@ -547,10 +547,10 @@ class ClosedTraverse(OpenTraverse):
         traverse_azimuth(self.odeusi, self.a_start)
 
         self.odeusi['dx_temp'] = self.odeusi['egsa_dist'] * np.sin(
-            grad_to_rad(self.odeusi['azimuth']))
+            grad2rad(self.odeusi['azimuth']))
 
         self.odeusi['dy_temp'] = self.odeusi['egsa_dist'] * np.cos(
-            grad_to_rad(self.odeusi['azimuth']))
+            grad2rad(self.odeusi['azimuth']))
 
         self._l1_temp_x = self.f2.x + self.odeusi['dx_temp'].sum()
         self._l1_temp_y = self.f2.y + self.odeusi['dy_temp'].sum()

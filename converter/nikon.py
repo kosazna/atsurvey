@@ -2,7 +2,6 @@
 import pandas as pd
 import numpy as np
 from pathlib import Path
-from aztool_topo.util.misc import meas_type
 
 
 class NikonRawConverter:
@@ -16,6 +15,15 @@ class NikonRawConverter:
         self.taximetrika = None
         self.stats = None
         self.final = None
+
+    @staticmethod
+    def meas_type(fs: str, h_angle: float):
+        if fs[0].isalpha() and h_angle == 0.0:
+            return 'midenismos'
+        elif fs[0].isalpha():
+            return 'stasi'
+        else:
+            return 'taximetriko'
 
     def transform(self):
         to_keep = ['OB', 'SS', 'LS', '--Target Generic Prism: "My Prism"',
@@ -58,7 +66,7 @@ class NikonRawConverter:
         self.cleaned.reset_index(inplace=True, drop=True)
 
         self.cleaned['meas_type'] = self.cleaned.apply(
-            lambda x: meas_type(x['fs'], x['h_angle']), axis=1)
+            lambda x: self.meas_type(x['fs'], x['h_angle']), axis=1)
 
         self.cleaned.loc[self.cleaned['meas_type'] == 'midenismos', 'bs'] = '-'
 

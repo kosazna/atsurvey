@@ -10,12 +10,12 @@ EARTH_C = 6371000
 # ANGLES
 
 @vectorize
-def grad_to_rad(angle):
+def grad2rad(angle):
     return round8((angle * np.pi) / 200)
 
 
 @vectorize
-def rad_to_grad(angle):
+def rad2grad(angle):
     return round8((angle * 200) / np.pi)
 
 
@@ -45,7 +45,7 @@ def azimuth_from_cords(a: (tuple, Point, np.ndarray, pd.Series),
         dy = b[1] - a[1]
 
     delta = round8(np.arctan(abs(dx) / abs(dy)))
-    delta_grad = rad_to_grad(delta)
+    delta_grad = rad2grad(delta)
 
     if dx > 0 and dy > 0:
         return delta_grad if not reverse else 400 - delta_grad
@@ -78,12 +78,12 @@ def azimuth_from_measurement(start,
 
 @vectorize
 def slope_to_hor(distance, angle):
-    return round8(distance * np.sin(grad_to_rad(angle)))
+    return round8(distance * np.sin(grad2rad(angle)))
 
 
 @vectorize
 def p2p_dh(distance, angle, uo, us):
-    return round8(distance * np.cos(grad_to_rad(angle)) + uo - us)
+    return round8(distance * np.cos(grad2rad(angle)) + uo - us)
 
 
 @vectorize
@@ -126,12 +126,12 @@ def calc_k(x1, x2):
 
 @vectorize
 def calc_X(init_x, distance, azimuth):
-    return round8(init_x + distance * np.sin(grad_to_rad(azimuth)))
+    return round8(init_x + distance * np.sin(grad2rad(azimuth)))
 
 
 @vectorize
 def calc_Y(init_y, distance, azimuth):
-    return round8(init_y + distance * np.cos(grad_to_rad(azimuth)))
+    return round8(init_y + distance * np.cos(grad2rad(azimuth)))
 
 
 @vectorize

@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 import pandas as pd
 from pathlib import Path
-from aztool_topo.util.misc import join_stops_for_dist, join_stops_for_angle
 from aztool_topo.core.computation import slope_to_hor, p2p_dh, mean_dh_signed
 
 
@@ -15,15 +14,23 @@ class TraverseFormatter:
         self.final = None
         self.odeusi = None
 
+    @staticmethod
+    def join_stops_for_angle(midenismos, stasi, metrisi):
+        return '-'.join([midenismos, stasi, metrisi])
+
+    @staticmethod
+    def join_stops_for_dist(station, fs):
+        return '-'.join(sorted([station, fs]))
+
     def tranform(self):
         self.df.fillna('<NA>', inplace=True)
 
         self.df['angle'] = self.df.apply(
-            lambda x: join_stops_for_angle(x.bs, x.station, x.fs),
+            lambda x: self.join_stops_for_angle(x.bs, x.station, x.fs),
             axis=1)
 
         self.df['dist'] = self.df.apply(
-            lambda x: join_stops_for_dist(x['station'], x['fs']), axis=1)
+            lambda x: self.join_stops_for_dist(x['station'], x['fs']), axis=1)
 
         self.df['stop_dist'] = slope_to_hor(self.df.slope_dist,
                                             self.df.v_angle)
