@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-from .computation import *
-from .io import *
+from core.computation import *
+from util.io import *
 
 
 # noinspection PyTypeChecker

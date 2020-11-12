@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 import warnings
-from .project import *
-from .converter import *
+from core.project import *
 
 warnings.filterwarnings("ignore")
 

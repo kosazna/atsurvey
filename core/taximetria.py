@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from .data import *
+from structure.data import *
 
 
 class Sideshot(object):

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-from .traverse import *
-from .taximetria import *
+from core.traverse import *
+from core.taximetria import *
 from datetime import datetime
 from functools import partial
 

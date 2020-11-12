@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from typing import List
-from .data import *
-from .io import *
+from structure.data import *
+from util.io import *
 
 
 class OpenTraverse:

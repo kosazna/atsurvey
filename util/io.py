@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from .misc import *
+from util.misc import *
 from shutil import copy
 
 
