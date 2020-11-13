@@ -14,6 +14,8 @@ point_formatter = {'X': '{:.3f}',
 
 ANGLE_ROUND = 8
 DIST_ROUND = 8
+CORDS_ROUND = 6
+EARTH_C = 6371000
 
 
 def warning(s):
