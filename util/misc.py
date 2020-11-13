@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from util.config import *
+from aztool_topo.util.config import *
 import pandas as pd
 import numpy as np
 from pathlib import Path

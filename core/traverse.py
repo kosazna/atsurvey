@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 from typing import List
-from primitives.data import *
-from util.io import *
+from aztool_topo.core.computation import *
+from aztool_topo.primitives.data import *
+from aztool_topo.util.io import *
 
 
 class OpenTraverse:

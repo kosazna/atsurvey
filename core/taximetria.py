@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-from primitives.data import *
+from aztool_topo.primitives.data import *
+from aztool_topo.core.computation import *
 
 
 class Sideshot(object):

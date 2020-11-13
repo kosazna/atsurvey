@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from util.misc import *
+from aztool_topo.util.misc import *
 from shutil import copy
 
 

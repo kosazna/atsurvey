@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-from core.traverse import *
-from core.taximetria import *
+from aztool_topo.core.traverse import *
+from aztool_topo.core.taximetria import *
 from datetime import datetime
 from functools import partial
 

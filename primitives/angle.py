@@ -1,19 +1,6 @@
 # -*- coding: utf-8 -*-
-from aztool_topo.util.misc import round8, vectorize
-import numpy as np
-import pandas as pd
-
-ANGLE_ROUND = 8
-
-
-@vectorize
-def grad2rad(angle):
-    return round8((angle * np.pi) / 200)
-
-
-@vectorize
-def rad2grad(angle):
-    return round8((angle * 200) / np.pi)
+from aztool_topo.util.misc import *
+from aztool_topo.core.computation import grad2rad
 
 
 def resolve(angle):
