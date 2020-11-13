@@ -90,3 +90,18 @@ def resolve_angle(angle):
         return round(angle % 400, ANGLE_ROUND)
     else:
         return round(angle + abs(angle // 400) * 400, ANGLE_ROUND)
+
+
+@vectorize
+def determine_quartile(dx, dy):
+    delta = round(np.arctan(abs(dx) / abs(dy)), ANGLE_ROUND)
+    delta_grad = rad2grad(delta)
+
+    if dx > 0 and dy > 0:
+        return delta_grad
+    elif dx > 0 and dy < 0:
+        return 200 - delta_grad
+    elif dx < 0 and dy < 0:
+        return 200 + delta_grad
+    elif dx < 0 and dy > 0:
+        return 400 - delta_grad
