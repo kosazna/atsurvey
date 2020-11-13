@@ -10,6 +10,9 @@ class Angle:
     def __repr__(self):
         return f"Angle({self._angleG:.4f})"
 
+    def __len__(self):
+        return 1
+
     def __add__(self, other):
         if isinstance(other, Angle):
             _val = self.value + other.value
@@ -50,11 +53,6 @@ class Angle:
     def sin(self):
         return np.sin(self._angleR)
 
-    @property
-    def count(self):
-        return 1
-
-    @property
     def sum(self):
         return self._angleG
 
@@ -70,6 +68,9 @@ class Angles:
 
     def __repr__(self):
         return f"Angles({self._anglesG.round(4)})"
+
+    def __len__(self):
+        return len(self._anglesG)
 
     def __contains__(self, item):
         if isinstance(item, float):
@@ -108,11 +109,6 @@ class Angles:
     def sin(self):
         return np.sin(self._anglesR)
 
-    @property
-    def count(self):
-        return len(self._anglesG)
-
-    @property
     def sum(self):
         return self._anglesG.sum()
 
