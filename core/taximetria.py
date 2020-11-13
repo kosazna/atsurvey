@@ -21,8 +21,8 @@ class Sideshot(object):
         self.points = Container()
 
     def compute(self):
-        self.tm['h_dist'] = slope_to_hor(self.tm['slope_dist'],
-                                         self.tm['v_angle'])
+        self.tm['h_dist'] = slope2hor(self.tm['slope_dist'],
+                                      self.tm['v_angle'])
 
         self.tm['surf_dist'] = surface_distance(self.tm['h_dist'],
                                                 self.mean_elevation)

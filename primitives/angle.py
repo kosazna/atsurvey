@@ -1,15 +1,22 @@
 # -*- coding: utf-8 -*-
-from aztool_topo.util.misc import *
-from aztool_topo.core.computation import grad2rad
+from aztool_topo.core.computation import *
 
 
 def resolve(angle):
     if 0 <= angle <= 400:
-        return angle
+        return round(angle, ANGLE_ROUND)
     elif angle > 400:
         return round(angle % 400, ANGLE_ROUND)
     else:
         return round(angle + abs(angle // 400) * 400, ANGLE_ROUND)
+
+
+def vresolve(angles):
+    over_400 = np.where(angles > 400, angles % 400, angles)
+    under_0 = np.where(over_400 < 0, over_400 + abs(over_400 // 400) * 400,
+                       over_400)
+
+    return under_0.round(ANGLE_ROUND)
 
 
 class Angle:
@@ -77,17 +84,19 @@ class Angle:
         return self.round(400 - self._angleG)
 
 
-class Angles(Angle):
+class Angles:
     def __init__(self, angles):
-        super().__init__(angles)
-        self._anglesG: np.ndarray = self._load(self._angleG)
-        self._anglesR: np.ndarray = self._load(self._angleR)
+        self._anglesG: np.ndarray = vresolve(self._load(angles))
+        self._anglesR: np.ndarray = grad2rad(self._anglesG)
+
+    def __repr__(self):
+        return f"Angles({self._anglesG})"
 
     @staticmethod
     def _load(angles):
         if isinstance(angles, pd.Series):
             return angles.values
-        elif isinstance(angles, pd.Series):
+        elif isinstance(angles, np.ndarray):
             return angles
         elif isinstance(angles, list):
             return np.array(angles)
@@ -105,6 +114,22 @@ class Angles(Angle):
         return self._anglesG
 
     @property
+    def rad(self):
+        return self._anglesR
+
+    @property
+    def grad(self):
+        return self._anglesG
+
+    @property
+    def cos(self):
+        return np.cos(self._anglesR)
+
+    @property
+    def sin(self):
+        return np.sin(self._anglesR)
+
+    @property
     def count(self):
         return len(self._anglesG)
 
@@ -117,8 +142,8 @@ class Angles(Angle):
         return (400 - self._anglesG).round(ANGLE_ROUND)
 
     def resolve(self):
-        over_400 = np.where(self._anglesG > 400, self._angleG % 400,
-                            self._angleG)
+        over_400 = np.where(self._anglesG > 400, self._anglesG % 400,
+                            self._anglesG)
         under_0 = np.where(over_400 < 0, over_400 + abs(over_400 // 400) * 400,
                            over_400)
 

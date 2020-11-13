@@ -13,6 +13,7 @@ point_formatter = {'X': '{:.3f}',
                    'Z': '{:.3f}'}
 
 ANGLE_ROUND = 8
+DIST_ROUND = 8
 
 
 def warning(s):

@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
-import pandas as pd
-import numpy as np
-from aztool_topo.util.misc import vectorize, round8
+from aztool_topo.util.misc import *
 from aztool_topo.primitives.point import Point
 
 EARTH_C = 6371000
@@ -77,7 +75,7 @@ def azimuth_from_measurement(start,
 # DISTANCE
 
 @vectorize
-def slope_to_hor(distance, angle):
+def slope2hor(distance, angle):
     return round8(distance * np.sin(grad2rad(angle)))
 
 

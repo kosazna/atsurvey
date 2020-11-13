@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import pandas as pd
 from pathlib import Path
-from aztool_topo.core.computation import slope_to_hor, p2p_dh, mean_dh_signed
+from aztool_topo.core.computation import slope2hor, p2p_dh, mean_dh_signed
 
 
 class TraverseFormatter:
@@ -32,8 +32,8 @@ class TraverseFormatter:
         self.df['dist'] = self.df.apply(
             lambda x: self.join_stops_for_dist(x['station'], x['fs']), axis=1)
 
-        self.df['stop_dist'] = slope_to_hor(self.df.slope_dist,
-                                            self.df.v_angle)
+        self.df['stop_dist'] = slope2hor(self.df.slope_dist,
+                                         self.df.v_angle)
 
         miki = self.df.groupby('dist')['stop_dist'].mean()
 
