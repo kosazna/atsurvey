@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import warnings
+from aztool_topo.converter import *
 from aztool_topo.core import *
 
 warnings.filterwarnings("ignore")
