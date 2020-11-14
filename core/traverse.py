@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 from typing import List
-from aztool_topo.core.computation import *
-from aztool_topo.primitives.data import *
-from aztool_topo.util.io import *
+from aztool_topo.primitives import *
 
 
 class OpenTraverse:
@@ -58,7 +56,7 @@ class OpenTraverse:
 
     @property
     def info(self):
-        io = pd.DataFrame.from_dict(
+        out = pd.DataFrame.from_dict(
             {'traverse': [self.name],
              'stations': [self.stops_count],
              'length': [self.length],
@@ -69,7 +67,7 @@ class OpenTraverse:
              'wy': [np.nan],
              'wz': [np.nan]}, orient='index')
 
-        return io.style.format(traverse_formatter)
+        return out.style.format(traverse_formatter)
 
     def is_validated(self):
         needed_angles = fmt_angle(self.stops)
@@ -90,10 +88,10 @@ class OpenTraverse:
         # self.odeusi.loc[self.odeusi.index[-1], ['h_dist', 'dz_temp']] = np.nan
         # self.odeusi.loc[self.odeusi.index[-1], 'distance'] = np.nan
 
-        self.odeusi['surf_dist'] = surface_distance(self.odeusi['h_dist'],
-                                                    self.mean_elevation)
-        self.odeusi['egsa_dist'] = egsa_distance(self.odeusi['surf_dist'],
-                                                 self.k)
+        self.odeusi['surf_dist'] = hor2ref(self.odeusi['h_dist'],
+                                           self.mean_elevation)
+        self.odeusi['egsa_dist'] = ref2egsa(self.odeusi['surf_dist'],
+                                            self.k)
 
         self.length = self.odeusi['egsa_dist'].sum()
 
@@ -310,7 +308,7 @@ class LinkTraverse(OpenTraverse):
 
     @property
     def info(self):
-        io = pd.DataFrame.from_dict(
+        out = pd.DataFrame.from_dict(
             {'traverse': [self.name],
              'stations': [self.stops_count],
              'length': [self.length],
@@ -321,16 +319,16 @@ class LinkTraverse(OpenTraverse):
              'wy': [self.wy],
              'wz': [self.wz]})
 
-        return io.style.format(traverse_formatter).hide_index()
+        return out.style.format(traverse_formatter).hide_index()
 
     def compute(self):
         self.odeusi.loc[self.odeusi.index[-1], ['h_dist', 'dz_temp']] = np.nan
         self.odeusi.loc[self.odeusi.index[-1], 'distance'] = np.nan
 
-        self.odeusi['surf_dist'] = surface_distance(self.odeusi['h_dist'],
-                                                    self.mean_elevation)
-        self.odeusi['egsa_dist'] = egsa_distance(self.odeusi['surf_dist'],
-                                                 self.k)
+        self.odeusi['surf_dist'] = hor2ref(self.odeusi['h_dist'],
+                                           self.mean_elevation)
+        self.odeusi['egsa_dist'] = ref2egsa(self.odeusi['surf_dist'],
+                                            self.k)
 
         self.length = self.odeusi['egsa_dist'].sum()
 
@@ -516,7 +514,7 @@ class ClosedTraverse(OpenTraverse):
 
     @property
     def info(self):
-        io = pd.DataFrame.from_dict(
+        out = pd.DataFrame.from_dict(
             {'traverse': [self.name],
              'stations': [self.stops_count],
              'length': [self.length],
@@ -527,16 +525,16 @@ class ClosedTraverse(OpenTraverse):
              'wy': [self.wy],
              'wz': [self.wz]}, orient='index')
 
-        return io.style.format(traverse_formatter)
+        return out.style.format(traverse_formatter)
 
     def compute(self):
         self.odeusi.loc[self.odeusi.index[-1], ['h_dist', 'dz_temp']] = np.nan
         self.odeusi.loc[self.odeusi.index[-1], 'distance'] = np.nan
 
-        self.odeusi['surf_dist'] = surface_distance(self.odeusi['h_dist'],
-                                                    self.mean_elevation)
-        self.odeusi['egsa_dist'] = egsa_distance(self.odeusi['surf_dist'],
-                                                 self.k)
+        self.odeusi['surf_dist'] = hor2ref(self.odeusi['h_dist'],
+                                           self.mean_elevation)
+        self.odeusi['egsa_dist'] = ref2egsa(self.odeusi['surf_dist'],
+                                            self.k)
 
         self.length = self.odeusi['egsa_dist'].sum()
 

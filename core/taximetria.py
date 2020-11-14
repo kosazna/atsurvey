@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
-from aztool_topo.primitives.data import *
-from aztool_topo.core.computation import *
+from aztool_topo.primitives import *
 
 
 class Sideshot(object):
@@ -24,11 +23,11 @@ class Sideshot(object):
         self.tm['h_dist'] = slope2hor(self.tm['slope_dist'],
                                       self.tm['v_angle'])
 
-        self.tm['surf_dist'] = surface_distance(self.tm['h_dist'],
-                                                self.mean_elevation)
+        self.tm['surf_dist'] = hor2ref(self.tm['h_dist'],
+                                       self.mean_elevation)
 
-        self.tm['egsa_dist'] = egsa_distance(self.tm['surf_dist'],
-                                             self.k)
+        self.tm['egsa_dist'] = ref2egsa(self.tm['surf_dist'],
+                                        self.k)
 
         self.tm['azimuth'] = azimuth_from_measurement(self.a,
                                                       self.tm['h_angle'])

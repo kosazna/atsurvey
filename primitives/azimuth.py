@@ -53,19 +53,6 @@ class Azimuth(Angle):
 
         return cls(_azimuth)
 
-    @staticmethod
-    def traverse(measurements: pd.DataFrame, a_start: float):
-        hold = a_start
-        for i in measurements.itertuples():
-            _a = hold + i.h_angle_fixed + 200
-            if _a > 400:
-                a = round(_a % 400, 6)
-            else:
-                a = round(_a, 6)
-            hold = a
-
-            measurements.loc[i.Index, 'azimuth'] = a
-
 
 class Azimuths(Angles):
     def __init(self, angles):
@@ -114,5 +101,10 @@ class Azimuths(Angles):
 
         return cls(_azimuth)
 
-    def traverse(self,  a_start):
-        pass
+    def for_traverse(self, a_start):
+        _azimuths = [a_start.value]
+        for idx, angle in enumerate(self._anglesG):
+            _azimuth = Angle(_azimuths[idx] + angle + 200)
+            _azimuths.append(_azimuth)
+
+        return Azimuths(_azimuths)

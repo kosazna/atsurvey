@@ -4,6 +4,10 @@ import numpy as np
 from aztool_topo.util.config import *
 
 
+def round8(numbers):
+    return round(numbers, 8)
+
+
 def vectorize(func):
     def wrapper(*args, **kwargs):
         vector = False
@@ -65,6 +69,14 @@ def ref2egsa(distance, k=0.9996):
 @vectorize
 def p2p_dh(distance, angle, uo, us):
     return round(distance * np.cos(grad2rad(angle)) + uo - us, DIST_ROUND)
+
+
+@vectorize
+def mean_dh_signed(original, mean):
+    if original > 0:
+        return mean
+    else:
+        return 0 - mean
 
 
 @vectorize

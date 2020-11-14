@@ -1,10 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import warnings
-from aztool_topo.util import *
-from aztool_topo.primitives import *
 from aztool_topo.core import *
-from aztool_topo.converter import *
 
 warnings.filterwarnings("ignore")
 

@@ -1,39 +1,7 @@
 # -*- coding: utf-8 -*-
 from aztool_topo.util.config import *
 import pandas as pd
-import numpy as np
 from pathlib import Path
-
-
-def round8(numbers):
-    return round(numbers, 8)
-
-
-def vectorize(func):
-    def wrapper(*args, **kwargs):
-        vector = False
-
-        for i in args:
-            if isinstance(i, (np.ndarray, pd.Series)):
-                vector = True
-                break
-
-        if not vector:
-            for i in kwargs:
-                if isinstance(kwargs[i], (np.ndarray, pd.Series)):
-                    vector = True
-                    break
-
-        if vector:
-            vfunc = np.vectorize(func)
-        else:
-            vfunc = func
-
-        result = vfunc(*args, **kwargs)
-
-        return result
-
-    return wrapper
 
 
 def fmt_angle(stops):

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from aztool_topo.util.topofuncs import *
+from aztool_topo.util import *
 
 
 class Angle:

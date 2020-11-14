@@ -1,10 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from pathlib import Path
-import numpy as np
-import pandas as pd
-from aztool_topo.primitives.point import Point
-from aztool_topo.util.io import export_shp
+from aztool_topo.primitives.point import *
 
 
 # noinspection PyTypeChecker
