@@ -113,3 +113,6 @@ class Azimuths(Angles):
         _azimuth = _a_start.value + _meas.values + 200
 
         return cls(_azimuth)
+
+    def traverse(self,  a_start):
+        pass
