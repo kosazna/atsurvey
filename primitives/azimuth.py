@@ -10,6 +10,7 @@ class Azimuth(Angle):
         return f"Azimuth({self._angleG:.4f})"
 
     @classmethod
+    @vectorize
     def from_tuples(cls, a, b, reverse=False):
         dx = b[0] - a[0]
         dy = b[1] - a[1]
@@ -22,6 +23,7 @@ class Azimuth(Angle):
             return cls(_azimuth.value)
 
     @classmethod
+    @vectorize
     def from_points(cls, a, b, reverse=False):
         dx = b.x - a.x
         dy = b.y - a.y
@@ -74,8 +76,8 @@ class Azimuths(Angles):
 
     @classmethod
     def from_tuples(cls, a, b, reverse=False):
-        dx = b[0] - a[0]
-        dy = b[1] - a[1]
+        dx = np.array([i[0] for i in b]) - np.array([i[0] for i in a])
+        dy = np.array([i[1] for i in b]) - np.array([i[1] for i in a])
 
         _azimuth = Angles(determine_quartile(dx, dy))
 
@@ -86,8 +88,8 @@ class Azimuths(Angles):
 
     @classmethod
     def from_points(cls, a, b, reverse=False):
-        dx = b.x - a.x
-        dy = b.y - a.y
+        dx = np.array([i.x for i in b]) - np.array([i.x for i in a])
+        dy = np.array([i.y for i in b]) - np.array([i.y for i in a])
 
         _azimuth = Angles(determine_quartile(dx, dy))
 
