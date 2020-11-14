@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import pandas as pd
 from pathlib import Path
-from aztool_topo.core.computation import slope2hor, p2p_dh, mean_dh_signed
+from aztool_topo.util.topofuncs import slope2hor, p2p_dh, mean_dh_signed
 
 
 class TraverseFormatter:
