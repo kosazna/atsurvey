@@ -102,9 +102,9 @@ class Azimuths(Angles):
         return cls(_azimuth)
 
     def for_traverse(self, a_start):
-        _azimuths = [a_start.value]
+        _azimuths = [a_start]
         for idx, angle in enumerate(self._anglesG):
             _azimuth = Angle(_azimuths[idx] + angle + 200)
             _azimuths.append(_azimuth)
 
-        return Azimuths(_azimuths)
+        return Azimuths(_azimuths[1:])

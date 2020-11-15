@@ -3,6 +3,19 @@ from typing import List
 from aztool_topo.primitives import *
 
 
+def traverse_azimuth(measurements: pd.DataFrame, a_start: float):
+    hold = a_start
+    for i in measurements.itertuples():
+        _a = hold + i.h_angle_fixed + 200
+        if _a > 400:
+            a = round(_a % 400, 6)
+        else:
+            a = round(_a, 6)
+        hold = a
+
+        measurements.loc[i.Index, 'azimuth'] = a
+
+
 class OpenTraverse:
     def __init__(self, stops: list,
                  data: pd.DataFrame = None,
@@ -87,6 +100,16 @@ class OpenTraverse:
     def compute(self):
         # self.odeusi.loc[self.odeusi.index[-1], ['h_dist', 'dz_temp']] = np.nan
         # self.odeusi.loc[self.odeusi.index[-1], 'distance'] = np.nan
+
+        # dh = Distances(delta=self.odeusi['h_dist'])
+        # h_angle = Angles(self.odeusi['h_angle'])
+        # h_dist = Distances(horizontal=self.odeusi['h_dist'])
+        # ref_dist = h_dist.calc_reference(self.mean_elevation)
+        # egsa_dist = h_dist.calc_egsa(self.k)
+        # azimuths = Azimuths(h_angle).for_traverse(self.a_start)
+        # dx_temp = egsa_dist * azimuths.sin
+        # dy_temp = egsa_dist * azimuths.cos
+
 
         self.odeusi['surf_dist'] = hor2ref(self.odeusi['h_dist'],
                                            self.mean_elevation)
@@ -259,7 +282,8 @@ class LinkTraverse(OpenTraverse):
 
     @property
     def a_measured(self):
-        return azimuth_from_measurements(self.a_start, self.odeusi['h_angle'])
+        return Azimuth.from_measurements(self.a_start,
+                                         self.odeusi['h_angle']).value
 
     @property
     def angular_correction(self):
@@ -324,6 +348,17 @@ class LinkTraverse(OpenTraverse):
     def compute(self):
         self.odeusi.loc[self.odeusi.index[-1], ['h_dist', 'dz_temp']] = np.nan
         self.odeusi.loc[self.odeusi.index[-1], 'distance'] = np.nan
+
+        # dh = Distances(delta=tr.odeusi['dz_temp'])
+        # h_angle = Angles(tr.odeusi['h_angle'])
+        # h_dist = Distances(horizontal=tr.odeusi['h_dist'])
+        #
+        # ref_dist = h_dist.calc_reference(tr.mean_elevation)
+        # egsa_dist = h_dist.calc_egsa(tr.k)
+        # h_angle_fixed = h_angle + tr.angular_correction
+        # azimuths = Azimuths(h_angle_fixed).for_traverse(tr.a_start)
+        # dx_temp = egsa_dist * azimuths.sin
+        # dy_temp = egsa_dist * azimuths.cos
 
         self.odeusi['surf_dist'] = hor2ref(self.odeusi['h_dist'],
                                            self.mean_elevation)
@@ -465,7 +500,8 @@ class ClosedTraverse(OpenTraverse):
 
     @property
     def a_measured(self):
-        return azimuth_from_measurements(self.a_start, self.odeusi['h_angle'])
+        return Azimuth.from_measurements(self.a_start,
+                                         self.odeusi['h_angle']).value
 
     @property
     def angular_correction(self):

@@ -78,9 +78,19 @@ class Angles:
         elif isinstance(item, Angle):
             return item.value in self._anglesG
 
+    def __add__(self, other):
+        if isinstance(other, Angles):
+            _val = self.values + other.values
+        elif isinstance(other, (int, float, np.ndarray)):
+            _val = self.values + other
+        else:
+            raise TypeError(f"Unsupported addition type: {type(other)}")
+
+        return Angles(_val)
+
     @staticmethod
     def _load(angles):
-        if isinstance(angles, pd.Series):
+        if isinstance(angles, (pd.Series, Angles)):
             return angles.values
         elif isinstance(angles, np.ndarray):
             return angles
@@ -110,7 +120,7 @@ class Angles:
         return np.sin(self._anglesR)
 
     def sum(self):
-        return self._anglesG.sum()
+        return round(np.nansum(self._anglesG), ANGLE_ROUND)
 
     @property
     def reverse(self):

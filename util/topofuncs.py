@@ -96,12 +96,17 @@ def calc_Z(init_z, distance, angle, uo, us):
 
 @vectorize
 def resolve_angle(angle):
-    if 0 <= angle <= 400:
-        return round(angle, ANGLE_ROUND)
-    elif angle > 400:
-        return round(angle % 400, ANGLE_ROUND)
+    if isinstance(angle, float):
+        _angle = angle
     else:
-        return round(angle + abs(angle // 400) * 400, ANGLE_ROUND)
+        _angle = angle.value
+
+    if 0 <= _angle <= 400:
+        return round(_angle, ANGLE_ROUND)
+    elif _angle > 400:
+        return round(_angle % 400, ANGLE_ROUND)
+    else:
+        return round(_angle + abs(_angle // 400) * 400, ANGLE_ROUND)
 
 
 @vectorize
