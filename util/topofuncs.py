@@ -96,7 +96,7 @@ def calc_Z(init_z, distance, angle, uo, us):
 
 @vectorize
 def resolve_angle(angle):
-    if isinstance(angle, float):
+    if isinstance(angle, (float, int)):
         _angle = angle
     else:
         _angle = angle.value
