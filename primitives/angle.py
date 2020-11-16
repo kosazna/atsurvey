@@ -50,11 +50,11 @@ class Angle:
 
     @property
     def cos(self):
-        return np.cos(self._angleR)
+        return round(np.cos(self._angleR), ANGLE_ROUND)
 
     @property
     def sin(self):
-        return np.sin(self._angleR)
+        return round(np.sin(self._angleR), ANGLE_ROUND)
 
     def sum(self):
         return self._angleG
@@ -91,6 +91,13 @@ class Angles:
 
         return Angles(_val)
 
+    def __getitem__(self, item):
+        return self._anglesG[item]
+
+    def __setitem__(self, key, value):
+        self._anglesG[key] = value
+        self._anglesR = grad2rad(self._anglesG)
+
     @staticmethod
     def _load(angles):
         return val2array(angles, Angles)
@@ -109,11 +116,11 @@ class Angles:
 
     @property
     def cos(self):
-        return np.cos(self._anglesR)
+        return np.cos(self._anglesR).round(ANGLE_ROUND)
 
     @property
     def sin(self):
-        return np.sin(self._anglesR)
+        return np.sin(self._anglesR).round(ANGLE_ROUND)
 
     def sum(self):
         return round(np.nansum(self._anglesG), ANGLE_ROUND)
@@ -121,13 +128,3 @@ class Angles:
     @property
     def reverse(self):
         return (400 - self._anglesG).round(ANGLE_ROUND)
-
-    def resolve(self):
-        over_400 = np.where(self._anglesG > 400, self._anglesG % 400,
-                            self._anglesG)
-        under_0 = np.where(over_400 < 0, over_400 + abs(over_400 // 400) * 400,
-                           over_400)
-
-        self._anglesG = under_0.round(ANGLE_ROUND)
-
-        return self

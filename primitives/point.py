@@ -48,9 +48,9 @@ class Point(object):
 
 class Points:
     def __init__(self, x, y, z):
-        self.x = self._load(x)
-        self.y = self._load(y)
-        self.z = self._load(z)
+        self.x = self._load(x).round(CORDS_ROUND)
+        self.y = self._load(y).round(CORDS_ROUND)
+        self.z = self._load(z).round(CORDS_ROUND)
 
     @staticmethod
     def _load(coordinates):
@@ -58,9 +58,9 @@ class Points:
 
     @classmethod
     def from_traverse(cls, start, finish, dx, dy, dz):
-        _x = [start.x]
-        _y = [start.y]
-        _z = [start.z]
+        _x: list = [start.x]
+        _y: list = [start.y]
+        _z: list = [start.z]
 
         for idx, values in enumerate(zip(dx.values, dy.values, dz.values)):
             new_x = _x[idx] + values[0]
