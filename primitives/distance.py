@@ -98,6 +98,13 @@ class EGSADistance(Distance):
     def __repr__(self):
         return f"EGSADistance({self._distance:.4f})"
 
+    @classmethod
+    def from_points(cls, a, b):
+        dx = b.x - a.x
+        dy = b.y - a.y
+
+        return round(np.sqrt(dx ** 2 + dy ** 2), DIST_ROUND)
+
 
 class DeltaDistance(Distance):
     def __init__(self, distance):
@@ -130,6 +137,12 @@ class Distances:
     def __mul__(self, other):
         _deltas = self._distances * other
         return _deltas
+
+    def __getitem__(self, item):
+        return self._distances[item]
+
+    def __setitem__(self, key, value):
+        self._distances[key] = value
 
     @property
     def values(self):

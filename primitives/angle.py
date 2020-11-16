@@ -33,6 +33,9 @@ class Angle:
 
         return Angle(_val)
 
+    def __format__(self, format_spec):
+        return self._angleG.__format__(format_spec)
+
     @property
     def value(self):
         return self._angleG

@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from aztool_topo.primitives.distance import *
+from aztool_topo.primitives.azimuth import *
 
 
 class Point(object):
@@ -10,7 +11,6 @@ class Point(object):
                  x: float = 0.0,
                  y: float = 0.0,
                  z: float = 0.0):
-
         self.name = name
         self.x = x
         self.y = y
@@ -26,27 +26,11 @@ class Point(object):
     def split(self):
         return tuple([self.name, self.cords])
 
-    def azimuth(self, point, reverse: bool = False) -> float:
-        dx = point.x - self.x
-        dy = point.y - self.y
+    def azimuth(self, point, reverse: bool = False) -> Azimuth:
+        return Azimuth.from_points(self, point, reverse)
 
-        delta = round(np.arctan(abs(dx) / abs(dy)), 8)
-        delta_grad = round((delta * 200) / np.pi, 8)
-
-        if dx > 0 and dy > 0:
-            return delta_grad if not reverse else 400 - delta_grad
-        elif dx > 0 and dy < 0:
-            return 200 - delta_grad if not reverse else 200 + delta_grad
-        elif dx < 0 and dy < 0:
-            return 200 + delta_grad if not reverse else 200 - delta_grad
-        elif dx < 0 and dy > 0:
-            return 400 - delta_grad if not reverse else delta_grad
-
-    def distance(self, point) -> float:
-        dx = point.x - self.x
-        dy = point.y - self.y
-
-        return round(np.sqrt(dx ** 2 + dy ** 2), 8)
+    def distance(self, point) -> EGSADistance:
+        return EGSADistance.from_points(self, point)
 
     def offset(self, x=0.0, y=0.0, z=0.0):
         self.x = self.x + x
@@ -60,3 +44,34 @@ class Point(object):
         _z = self.z if z else 0.0
 
         return Point(_name, self.x, self.y, _z)
+
+
+class Points:
+    def __init__(self, x, y, z):
+        self.x = self._load(x)
+        self.y = self._load(y)
+        self.z = self._load(z)
+
+    @staticmethod
+    def _load(coordinates):
+        return val2array(coordinates)
+
+    @classmethod
+    def from_traverse(cls, start, finish, dx, dy, dz):
+        _x = [start.x]
+        _y = [start.y]
+        _z = [start.z]
+
+        for idx, values in enumerate(zip(dx.values, dy.values, dz.values)):
+            new_x = _x[idx] + values[0]
+            new_y = _y[idx] + values[1]
+            new_z = _z[idx] + values[2]
+            _x.append(new_x)
+            _y.append(new_y)
+            _z.append(new_z)
+
+        _x[-2] = finish.x
+        _y[-2] = finish.y
+        _z[-2] = finish.z
+
+        return cls(_x[:-1], _y[:-1], _z[:-1])

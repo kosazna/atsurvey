@@ -20,17 +20,21 @@ class Sideshot(object):
         self.points = Container()
 
     def compute(self):
-        self.tm['h_dist'] = slope2hor(self.tm['slope_dist'],
-                                      self.tm['v_angle'])
+        v_angles = Angles(self.tm['v_angle'])
+        h_angles = Angles(self.tm['h_angle'])
+        s_dist = SlopeDistances(self.tm['slope_dist'])
+        h_dist = s_dist.to_horizontal(v_angles)
+        ref_dist = h_dist.to_reference(self.mean_elevation)
+        egsa_dist = h_dist.to_egsa(self.k)
+        azimuths = Azimuths(h_angles).from_measurements(self.a, h_angles)
 
-        self.tm['surf_dist'] = hor2ref(self.tm['h_dist'],
-                                       self.mean_elevation)
+        self.tm['h_dist'] = h_dist.values
 
-        self.tm['egsa_dist'] = ref2egsa(self.tm['surf_dist'],
-                                        self.k)
+        self.tm['surf_dist'] = ref_dist.values
 
-        self.tm['azimuth'] = azimuth_from_measurement(self.a,
-                                                      self.tm['h_angle'])
+        self.tm['egsa_dist'] = egsa_dist.values
+
+        self.tm['azimuth'] = azimuths.values
 
         self.tm['X'] = calc_X(self.station.x,
                               self.tm['egsa_dist'],

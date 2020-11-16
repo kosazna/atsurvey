@@ -3,17 +3,17 @@ from typing import List
 from aztool_topo.primitives import *
 
 
-def traverse_azimuth(measurements: pd.DataFrame, a_start: float):
-    hold = a_start
-    for i in measurements.itertuples():
-        _a = hold + i.h_angle_fixed + 200
-        if _a > 400:
-            a = round(_a % 400, 6)
-        else:
-            a = round(_a, 6)
-        hold = a
-
-        measurements.loc[i.Index, 'azimuth'] = a
+# def traverse_azimuth(measurements: pd.DataFrame, a_start: float):
+#     hold = a_start
+#     for i in measurements.itertuples():
+#         _a = hold + i.h_angle_fixed + 200
+#         if _a > 400:
+#             a = round(_a % 400, 6)
+#         else:
+#             a = round(_a, 6)
+#         hold = a
+#
+#         measurements.loc[i.Index, 'azimuth'] = a
 
 
 class OpenTraverse:
@@ -65,7 +65,7 @@ class OpenTraverse:
 
     @property
     def k(self):
-        return round8(calc_k(self.f2.x, self.f1.x))
+        return round(calc_k(self.f2.x, self.f1.x), DIST_ROUND)
 
     @property
     def info(self):
@@ -98,48 +98,32 @@ class OpenTraverse:
         return True
 
     def compute(self):
-        # self.odeusi.loc[self.odeusi.index[-1], ['h_dist', 'dz_temp']] = np.nan
-        # self.odeusi.loc[self.odeusi.index[-1], 'distance'] = np.nan
+        h_angle = Angles(self.odeusi['h_angle'])
+        dz_temp = DeltaDistances(self.odeusi['dz_temp'])
+        h_dist = HorizontalDistances(self.odeusi['h_dist'])
+        dz_temp[-1] = np.nan
+        h_dist[-1] = np.nan
+        ref_dist = h_dist.to_reference(self.mean_elevation)
+        egsa_dist = ref_dist.to_egsa(self.k)
+        self.length = egsa_dist.sum()
 
-        # dh = Distances(delta=self.odeusi['h_dist'])
-        # h_angle = Angles(self.odeusi['h_angle'])
-        # h_dist = Distances(horizontal=self.odeusi['h_dist'])
-        # ref_dist = h_dist.calc_reference(self.mean_elevation)
-        # egsa_dist = h_dist.calc_egsa(self.k)
-        # azimuths = Azimuths(h_angle).for_traverse(self.a_start)
-        # dx_temp = egsa_dist * azimuths.sin
-        # dy_temp = egsa_dist * azimuths.cos
+        azimuths = Azimuths(h_angle).for_traverse(self.a_start)
+        dx_temp = DeltaDistances(egsa_dist * azimuths.sin)
+        dy_temp = DeltaDistances(egsa_dist * azimuths.cos)
+        dx = dx_temp
+        dy = dy_temp
+        dz = dz_temp
+        stations = Points.from_traverse(self.f2, self.f2, dx, dy, dz)
 
-
-        self.odeusi['surf_dist'] = hor2ref(self.odeusi['h_dist'],
-                                           self.mean_elevation)
-        self.odeusi['egsa_dist'] = ref2egsa(self.odeusi['surf_dist'],
-                                            self.k)
-
-        self.length = self.odeusi['egsa_dist'].sum()
-
-        self.odeusi['azimuth'] = 0
-
-        hold = self.a_start
-
-        for i in self.odeusi.itertuples():
-            _a = hold + i.h_angle + 200
-            if _a > 400:
-                a = _a % 400
-            else:
-                a = _a
-            hold = a
-            self.odeusi.loc[i.Index, 'azimuth'] = a
-
-        self.odeusi['dx_temp'] = self.odeusi['egsa_dist'] * np.sin(
-            grad2rad(self.odeusi['azimuth']))
-
-        self.odeusi['dy_temp'] = self.odeusi['egsa_dist'] * np.cos(
-            grad2rad(self.odeusi['azimuth']))
-
-        self.odeusi['dX'] = self.odeusi['dx_temp']
-        self.odeusi['dY'] = self.odeusi['dy_temp']
-        self.odeusi['dZ'] = self.odeusi['dz_temp']
+        self.odeusi['surf_dist'] = ref_dist.values
+        self.odeusi['egsa_dist'] = egsa_dist.values
+        self.odeusi['azimuth'] = azimuths.values
+        self.odeusi['dX'] = dx.values
+        self.odeusi['dY'] = dy.values
+        self.odeusi['dZ'] = dz.values
+        self.odeusi['X'] = stations.x
+        self.odeusi['Y'] = stations.y
+        self.odeusi['Z'] = stations.z
 
         self.odeusi[['bs', 'station', 'fs']] = self.odeusi['angle'].str.split(
             '-', expand=True)
@@ -147,45 +131,9 @@ class OpenTraverse:
         keep = ['bs', 'station', 'fs',
                 'h_dist', 'surf_dist', 'egsa_dist',
                 'h_angle', 'azimuth',
-                'dX', 'dY', 'dZ']
+                'dX', 'dY', 'dZ', 'X', 'Y', 'Z']
 
         self.odeusi = self.odeusi[keep]
-
-        self.odeusi['X'] = 0
-        self.odeusi['Y'] = 0
-        self.odeusi['Z'] = 0
-
-        self.odeusi.loc[
-            self.odeusi['station'] == self.f2.name, 'X'] = self.f2.x
-        self.odeusi.loc[
-            self.odeusi['station'] == self.f2.name, 'Y'] = self.f2.y
-        self.odeusi.loc[
-            self.odeusi['station'] == self.f2.name, 'Z'] = self.f2.z
-
-        hold_x = self.odeusi.loc[
-            self.odeusi['station'] == self.f2.name, 'X'][0]
-        hold_y = self.odeusi.loc[
-            self.odeusi['station'] == self.f2.name, 'Y'][0]
-        hold_z = self.odeusi.loc[
-            self.odeusi['station'] == self.f2.name, 'Z'][0]
-        hold_dx = self.odeusi.loc[
-            self.odeusi['station'] == self.f2.name, 'dX'][0]
-        hold_dy = self.odeusi.loc[
-            self.odeusi['station'] == self.f2.name, 'dY'][0]
-        hold_dz = self.odeusi.loc[
-            self.odeusi['station'] == self.f2.name, 'dZ'][0]
-
-        for i in self.odeusi.itertuples():
-            if i.station == self.f2.name:
-                pass
-            else:
-                hold_x = hold_x + hold_dx
-                hold_y = hold_y + hold_dy
-                hold_z = hold_z + hold_dz
-                self.odeusi.loc[i.Index, 'X'] = round8(hold_x)
-                self.odeusi.loc[i.Index, 'Y'] = round8(hold_y)
-                self.odeusi.loc[i.Index, 'Z'] = round8(hold_z)
-                hold_dx, hold_dy, hold_dz = i.dX, i.dY, i.dZ
 
         self.metrics = pd.DataFrame.from_dict(
             {'traverse': [self.name],
@@ -239,7 +187,7 @@ class LinkTraverse(OpenTraverse):
 
         self.l1 = finish[0] if finish else None
         self.l2 = finish[1] if finish else None
-        self.a_finish = self.l1.azimuth(self.l2)
+        self.a_finish: Azimuth = self.l1.azimuth(self.l2)
 
         self._l1_temp_x = 0
         self._l1_temp_y = 0
@@ -278,55 +226,55 @@ class LinkTraverse(OpenTraverse):
 
     @property
     def k(self):
-        return round8(calc_k(self.f2.x, self.l1.x))
+        return round(calc_k(self.f2.x, self.l1.x), DIST_ROUND)
 
     @property
     def a_measured(self):
-        return Azimuth.from_measurements(self.a_start,
-                                         self.odeusi['h_angle']).value
+        return Azimuth.from_measurements(self.a_start, self.odeusi['h_angle'])
 
     @property
     def angular_correction(self):
-        return round8(self.angular_misclosure / self.odeusi.shape[0])
+        return round(self.angular_misclosure / self.odeusi.shape[0],
+                     ANGLE_ROUND)
 
     @property
     def angular_misclosure(self):
-        return round8(self.a_finish - self.a_measured)
+        return round(self.a_finish.value - self.a_measured.value, ANGLE_ROUND)
 
     @property
     def horizontal_misclosure(self):
-        return round8(np.sqrt(self.wx ** 2 + self.wy ** 2))
+        return round(np.sqrt(self.wx ** 2 + self.wy ** 2), DIST_ROUND)
 
     @property
     def wx(self):
-        return round8(self.l1.x - self._l1_temp_x)
+        return round(self.l1.x - self._l1_temp_x, DIST_ROUND)
 
     @property
     def wy(self):
-        return round8(self.l1.y - self._l1_temp_y)
+        return round(self.l1.y - self._l1_temp_y, DIST_ROUND)
 
     @property
     def wz(self):
-        return round8(self.l1.z - self._l1_temp_z)
+        return round(self.l1.z - self._l1_temp_z, DIST_ROUND)
 
     @property
     def x_cor(self):
         try:
-            return self.wx / self.length
+            return round(self.wx / self.length, DIST_ROUND)
         except ZeroDivisionError:
             return 0
 
     @property
     def y_cor(self):
         try:
-            return self.wy / self.length
+            return round(self.wy / self.length, DIST_ROUND)
         except ZeroDivisionError:
             return 0
 
     @property
     def z_cor(self):
         try:
-            return self.wz / self.length
+            return round(self.wz / self.length, DIST_ROUND)
         except ZeroDivisionError:
             return 0
 
@@ -346,50 +294,36 @@ class LinkTraverse(OpenTraverse):
         return out.style.format(traverse_formatter).hide_index()
 
     def compute(self):
-        self.odeusi.loc[self.odeusi.index[-1], ['h_dist', 'dz_temp']] = np.nan
-        self.odeusi.loc[self.odeusi.index[-1], 'distance'] = np.nan
+        h_angle = Angles(self.odeusi['h_angle'])
+        dz_temp = DeltaDistances(self.odeusi['dz_temp'])
+        h_dist = HorizontalDistances(self.odeusi['h_dist'])
+        dz_temp[-1] = np.nan
+        h_dist[-1] = np.nan
+        ref_dist = h_dist.to_reference(self.mean_elevation)
+        egsa_dist = ref_dist.to_egsa(self.k)
+        self.length = egsa_dist.sum()
+        h_angle_fixed = h_angle + self.angular_correction
+        azimuths = Azimuths(h_angle_fixed).for_traverse(self.a_start)
+        dx_temp = DeltaDistances(egsa_dist * azimuths.sin)
+        dy_temp = DeltaDistances(egsa_dist * azimuths.cos)
+        self._l1_temp_x = self.f2.x + dx_temp.sum()
+        self._l1_temp_y = self.f2.y + dy_temp.sum()
+        self._l1_temp_z = self.f2.z + dz_temp.sum()
+        dx = DeltaDistances(dx_temp + self.x_cor * egsa_dist)
+        dy = DeltaDistances(dy_temp + self.y_cor * egsa_dist)
+        dz = DeltaDistances(dz_temp + self.z_cor * egsa_dist)
+        stations = Points.from_traverse(self.f2, self.l1, dx, dy, dz)
 
-        # dh = Distances(delta=tr.odeusi['dz_temp'])
-        # h_angle = Angles(tr.odeusi['h_angle'])
-        # h_dist = Distances(horizontal=tr.odeusi['h_dist'])
-        #
-        # ref_dist = h_dist.calc_reference(tr.mean_elevation)
-        # egsa_dist = h_dist.calc_egsa(tr.k)
-        # h_angle_fixed = h_angle + tr.angular_correction
-        # azimuths = Azimuths(h_angle_fixed).for_traverse(tr.a_start)
-        # dx_temp = egsa_dist * azimuths.sin
-        # dy_temp = egsa_dist * azimuths.cos
-
-        self.odeusi['surf_dist'] = hor2ref(self.odeusi['h_dist'],
-                                           self.mean_elevation)
-        self.odeusi['egsa_dist'] = ref2egsa(self.odeusi['surf_dist'],
-                                            self.k)
-
-        self.length = self.odeusi['egsa_dist'].sum()
-
-        self.odeusi['h_angle_fixed'] = self.odeusi[
-                                           'h_angle'] + self.angular_correction
-
-        self.odeusi['azimuth'] = 0
-
-        traverse_azimuth(self.odeusi, self.a_start)
-
-        self.odeusi['dx_temp'] = self.odeusi['egsa_dist'] * np.sin(
-            grad2rad(self.odeusi['azimuth']))
-
-        self.odeusi['dy_temp'] = self.odeusi['egsa_dist'] * np.cos(
-            grad2rad(self.odeusi['azimuth']))
-
-        self._l1_temp_x = self.f2.x + self.odeusi['dx_temp'].sum()
-        self._l1_temp_y = self.f2.y + self.odeusi['dy_temp'].sum()
-        self._l1_temp_z = self.f2.z + self.odeusi['dz_temp'].sum()
-
-        self.odeusi['dX'] = self.odeusi['dx_temp'] + self.x_cor * self.odeusi[
-            'egsa_dist']
-        self.odeusi['dY'] = self.odeusi['dy_temp'] + self.y_cor * self.odeusi[
-            'egsa_dist']
-        self.odeusi['dZ'] = self.odeusi['dz_temp'] + self.z_cor * self.odeusi[
-            'egsa_dist']
+        self.odeusi['surf_dist'] = ref_dist.values
+        self.odeusi['egsa_dist'] = egsa_dist.values
+        self.odeusi['h_angle_fixed'] = h_angle_fixed.values
+        self.odeusi['azimuth'] = azimuths.values
+        self.odeusi['dX'] = dx.values
+        self.odeusi['dY'] = dy.values
+        self.odeusi['dZ'] = dz.values
+        self.odeusi['X'] = stations.x
+        self.odeusi['Y'] = stations.y
+        self.odeusi['Z'] = stations.z
 
         self.odeusi[['bs', 'station', 'fs']] = self.odeusi['angle'].str.split(
             '-', expand=True)
@@ -397,49 +331,9 @@ class LinkTraverse(OpenTraverse):
         keep = ['bs', 'station', 'fs',
                 'h_dist', 'surf_dist', 'egsa_dist',
                 'h_angle', 'h_angle_fixed', 'azimuth',
-                'dX', 'dY', 'dZ']
+                'dX', 'dY', 'dZ', 'X', 'Y', 'Z']
 
         self.odeusi = self.odeusi[keep]
-
-        self.odeusi['X'] = 0
-        self.odeusi['Y'] = 0
-        self.odeusi['Z'] = 0
-
-        self.odeusi.loc[
-            self.odeusi['station'] == self.f2.name, 'X'] = self.f2.x
-        self.odeusi.loc[
-            self.odeusi['station'] == self.f2.name, 'Y'] = self.f2.y
-        self.odeusi.loc[
-            self.odeusi['station'] == self.f2.name, 'Z'] = self.f2.z
-
-        hold_x = self.odeusi.loc[
-            self.odeusi['station'] == self.f2.name, 'X'][0]
-        hold_y = self.odeusi.loc[
-            self.odeusi['station'] == self.f2.name, 'Y'][0]
-        hold_z = self.odeusi.loc[
-            self.odeusi['station'] == self.f2.name, 'Z'][0]
-        hold_dx = self.odeusi.loc[
-            self.odeusi['station'] == self.f2.name, 'dX'][0]
-        hold_dy = self.odeusi.loc[
-            self.odeusi['station'] == self.f2.name, 'dY'][0]
-        hold_dz = self.odeusi.loc[
-            self.odeusi['station'] == self.f2.name, 'dZ'][0]
-
-        for i in self.odeusi.itertuples():
-            if i.station == self.f2.name:
-                pass
-            elif i.station == self.l1.name:
-                self.odeusi.loc[i.Index, 'X'] = self.l1.x
-                self.odeusi.loc[i.Index, 'Y'] = self.l1.y
-                self.odeusi.loc[i.Index, 'Z'] = self.l1.z
-            else:
-                hold_x = hold_x + hold_dx
-                hold_y = hold_y + hold_dy
-                hold_z = hold_z + hold_dz
-                self.odeusi.loc[i.Index, 'X'] = round8(hold_x)
-                self.odeusi.loc[i.Index, 'Y'] = round8(hold_y)
-                self.odeusi.loc[i.Index, 'Z'] = round8(hold_z)
-                hold_dx, hold_dy, hold_dz = i.dX, i.dY, i.dZ
 
         self.metrics = pd.DataFrame.from_dict(
             {'traverse': [self.name],
@@ -500,51 +394,51 @@ class ClosedTraverse(OpenTraverse):
 
     @property
     def a_measured(self):
-        return Azimuth.from_measurements(self.a_start,
-                                         self.odeusi['h_angle']).value
+        return Azimuth.from_measurements(self.a_start, self.odeusi['h_angle'])
 
     @property
     def angular_correction(self):
-        return round8(self.angular_misclosure / self.odeusi.shape[0])
+        return round(self.angular_misclosure / self.odeusi.shape[0],
+                     ANGLE_ROUND)
 
     @property
     def angular_misclosure(self):
-        return round8(self.a_finish - self.a_measured)
+        return round(self.a_finish.value - self.a_measured.value, ANGLE_ROUND)
 
     @property
     def horizontal_misclosure(self):
-        return round8(np.sqrt(self.wx ** 2 + self.wy ** 2))
+        return round(np.sqrt(self.wx ** 2 + self.wy ** 2), DIST_ROUND)
 
     @property
     def wx(self):
-        return round8(self.odeusi['dx_temp'].sum())
+        return round(self.odeusi['dx_temp'].sum(), DIST_ROUND)
 
     @property
     def wy(self):
-        return round8(self.odeusi['dy_temp'].sum())
+        return round(self.odeusi['dy_temp'].sum(), DIST_ROUND)
 
     @property
     def wz(self):
-        return round8(self.odeusi['dz_temp'].sum())
+        return round(self.odeusi['dz_temp'].sum(), DIST_ROUND)
 
     @property
     def x_cor(self):
         try:
-            return self.wx / self.length
+            return round(self.wx / self.length, DIST_ROUND)
         except ZeroDivisionError:
             return 0
 
     @property
     def y_cor(self):
         try:
-            return self.wy / self.length
+            return round(self.wy / self.length, DIST_ROUND)
         except ZeroDivisionError:
             return 0
 
     @property
     def z_cor(self):
         try:
-            return self.wz / self.length
+            return round(self.wz / self.length, DIST_ROUND)
         except ZeroDivisionError:
             return 0
 
@@ -564,39 +458,36 @@ class ClosedTraverse(OpenTraverse):
         return out.style.format(traverse_formatter)
 
     def compute(self):
-        self.odeusi.loc[self.odeusi.index[-1], ['h_dist', 'dz_temp']] = np.nan
-        self.odeusi.loc[self.odeusi.index[-1], 'distance'] = np.nan
+        h_angle = Angles(self.odeusi['h_angle'])
+        dz_temp = DeltaDistances(self.odeusi['dz_temp'])
+        h_dist = HorizontalDistances(self.odeusi['h_dist'])
+        dz_temp[-1] = np.nan
+        h_dist[-1] = np.nan
+        ref_dist = h_dist.to_reference(self.mean_elevation)
+        egsa_dist = ref_dist.to_egsa(self.k)
+        self.length = egsa_dist.sum()
+        h_angle_fixed = h_angle + self.angular_correction
+        azimuths = Azimuths(h_angle_fixed).for_traverse(self.a_start)
+        dx_temp = DeltaDistances(egsa_dist * azimuths.sin)
+        dy_temp = DeltaDistances(egsa_dist * azimuths.cos)
+        self._l1_temp_x = self.f2.x + dx_temp.sum()
+        self._l1_temp_y = self.f2.y + dy_temp.sum()
+        self._l1_temp_z = self.f2.z + dz_temp.sum()
+        dx = DeltaDistances(dx_temp + self.x_cor * egsa_dist)
+        dy = DeltaDistances(dy_temp + self.y_cor * egsa_dist)
+        dz = DeltaDistances(dz_temp + self.z_cor * egsa_dist)
+        stations = Points.from_traverse(self.f2, self.f2, dx, dy, dz)
 
-        self.odeusi['surf_dist'] = hor2ref(self.odeusi['h_dist'],
-                                           self.mean_elevation)
-        self.odeusi['egsa_dist'] = ref2egsa(self.odeusi['surf_dist'],
-                                            self.k)
-
-        self.length = self.odeusi['egsa_dist'].sum()
-
-        self.odeusi['h_angle_fixed'] = self.odeusi[
-                                           'h_angle'] + self.angular_correction
-
-        self.odeusi['azimuth'] = 0
-
-        traverse_azimuth(self.odeusi, self.a_start)
-
-        self.odeusi['dx_temp'] = self.odeusi['egsa_dist'] * np.sin(
-            grad2rad(self.odeusi['azimuth']))
-
-        self.odeusi['dy_temp'] = self.odeusi['egsa_dist'] * np.cos(
-            grad2rad(self.odeusi['azimuth']))
-
-        self._l1_temp_x = self.f2.x + self.odeusi['dx_temp'].sum()
-        self._l1_temp_y = self.f2.y + self.odeusi['dy_temp'].sum()
-        self._l1_temp_z = self.f2.z + self.odeusi['dz_temp'].sum()
-
-        self.odeusi['dX'] = self.odeusi['dx_temp'] + self.x_cor * self.odeusi[
-            'egsa_dist']
-        self.odeusi['dY'] = self.odeusi['dy_temp'] + self.y_cor * self.odeusi[
-            'egsa_dist']
-        self.odeusi['dZ'] = self.odeusi['dz_temp'] + self.z_cor * self.odeusi[
-            'egsa_dist']
+        self.odeusi['surf_dist'] = ref_dist.values
+        self.odeusi['egsa_dist'] = egsa_dist.values
+        self.odeusi['h_angle_fixed'] = h_angle_fixed.values
+        self.odeusi['azimuth'] = azimuths.values
+        self.odeusi['dX'] = dx.values
+        self.odeusi['dY'] = dy.values
+        self.odeusi['dZ'] = dz.values
+        self.odeusi['X'] = stations.x
+        self.odeusi['Y'] = stations.y
+        self.odeusi['Z'] = stations.z
 
         self.odeusi[['bs', 'station', 'fs']] = self.odeusi['angle'].str.split(
             '-', expand=True)
@@ -604,45 +495,9 @@ class ClosedTraverse(OpenTraverse):
         keep = ['bs', 'station', 'fs',
                 'h_dist', 'surf_dist', 'egsa_dist',
                 'h_angle', 'h_angle_fixed', 'azimuth',
-                'dX', 'dY', 'dZ']
+                'dX', 'dY', 'dZ', 'X', 'Y', 'Z']
 
         self.odeusi = self.odeusi[keep]
-
-        self.odeusi['X'] = 0
-        self.odeusi['Y'] = 0
-        self.odeusi['Z'] = 0
-
-        self.odeusi.loc[
-            self.odeusi['station'] == self.f2.name, 'X'] = self.f2.x
-        self.odeusi.loc[
-            self.odeusi['station'] == self.f2.name, 'Y'] = self.f2.y
-        self.odeusi.loc[
-            self.odeusi['station'] == self.f2.name, 'Z'] = self.f2.z
-
-        hold_x = self.odeusi.loc[
-            self.odeusi['station'] == self.f2.name, 'X'][0]
-        hold_y = self.odeusi.loc[
-            self.odeusi['station'] == self.f2.name, 'Y'][0]
-        hold_z = self.odeusi.loc[
-            self.odeusi['station'] == self.f2.name, 'Z'][0]
-        hold_dx = self.odeusi.loc[
-            self.odeusi['station'] == self.f2.name, 'dX'][0]
-        hold_dy = self.odeusi.loc[
-            self.odeusi['station'] == self.f2.name, 'dY'][0]
-        hold_dz = self.odeusi.loc[
-            self.odeusi['station'] == self.f2.name, 'dZ'][0]
-
-        for i in self.odeusi.itertuples():
-            if i.station == self.f2.name:
-                pass
-            else:
-                hold_x = hold_x + hold_dx
-                hold_y = hold_y + hold_dy
-                hold_z = hold_z + hold_dz
-                self.odeusi.loc[i.Index, 'X'] = round8(hold_x)
-                self.odeusi.loc[i.Index, 'Y'] = round8(hold_y)
-                self.odeusi.loc[i.Index, 'Z'] = round8(hold_z)
-                hold_dx, hold_dy, hold_dz = i.dX, i.dY, i.dZ
 
         self.metrics = pd.DataFrame.from_dict(
             {'traverse': [self.name],
