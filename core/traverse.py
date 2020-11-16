@@ -3,19 +3,6 @@ from typing import List
 from aztool_topo.primitives import *
 
 
-# def traverse_azimuth(measurements: pd.DataFrame, a_start: float):
-#     hold = a_start
-#     for i in measurements.itertuples():
-#         _a = hold + i.h_angle_fixed + 200
-#         if _a > 400:
-#             a = round(_a % 400, 6)
-#         else:
-#             a = round(_a, 6)
-#         hold = a
-#
-#         measurements.loc[i.Index, 'azimuth'] = a
-
-
 class OpenTraverse:
     def __init__(self, stops: list,
                  data: pd.DataFrame = None,
