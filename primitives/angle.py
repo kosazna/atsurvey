@@ -90,14 +90,7 @@ class Angles:
 
     @staticmethod
     def _load(angles):
-        if isinstance(angles, (pd.Series, Angles)):
-            return angles.values
-        elif isinstance(angles, np.ndarray):
-            return angles
-        elif isinstance(angles, list):
-            return np.array(angles)
-        else:
-            raise TypeError(f"Unsupported init type: {type(angles)}")
+        return val2array(angles, Angles)
 
     @property
     def values(self):

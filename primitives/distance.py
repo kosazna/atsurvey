@@ -3,99 +3,112 @@ from aztool_topo.primitives.angle import *
 
 
 class Distance:
-    def __init__(self, slope=0.0,
-                 horizontal=0.0,
-                 reference=0.0,
-                 egsa=0.0,
-                 delta=0.0):
-        self._slope = slope
-        self._horizontal = horizontal
-        self._reference = reference
-        self._egsa = egsa
-        self._delta = delta
+    def __init__(self, distance):
+        self._distance = distance
 
     def __repr__(self):
-        msg = f"     Slope: {self._slope:.3f}\n" \
-              f"Horizontal: {self._horizontal:.3f}\n" \
-              f" Reference: {self._reference:.3f}\n" \
-              f"      EGSA: {self._egsa:.3f}"
+        return f"Distance({self._distance:.4f})"
 
-        return msg
+    def __len__(self):
+        return 1
 
-    def get_sd(self):
-        return self._slope
+    def __add__(self, other):
+        if isinstance(other, Distance):
+            _val = self.value + other.value
+        elif isinstance(other, (float, int)):
+            _val = self.value + other
+        else:
+            raise TypeError(f"Unsupported addition type: {type(other)}")
 
-    def set_sd(self, other):
-        self._slope = other
-        self._horizontal = self._reference = self._egsa = self._delta = 0.0
+        return Distance(_val)
 
-    def get_hd(self):
-        return self._horizontal
+    def __sub__(self, other):
+        if isinstance(other, Distance):
+            _val = self.value - other.value
+        elif isinstance(other, (float, int)):
+            _val = self.value - other
+        else:
+            raise TypeError(f"Unsupported subtraction type: {type(other)}")
 
-    def set_hd(self, other):
-        self._horizontal = other
-        self._slope = self._reference = self._egsa = self._delta = 0.0
+        return Distance(_val)
 
-    def get_rd(self):
-        return self._reference
+    @property
+    def value(self):
+        return self._distance
 
-    def set_rd(self, other):
-        self._reference = other
-        self._slope = self._horizontal = self._egsa = self._delta = 0.0
+    def sum(self):
+        return self.value
 
-    def get_egsa(self):
-        return self._egsa
 
-    def set_egsa(self, other):
-        self._egsa = other
-        self._slope = self._horizontal = self._reference = self._delta = 0.0
+class SlopeDistance(Distance):
+    def __init__(self, distance):
+        super().__init__(distance)
 
-    def get_delta(self):
-        return self._delta
+    def __repr__(self):
+        return f"SlopeDistance({self._distance:.4f})"
 
-    def calc_horizontal(self, vangle: Angle):
-        if not self._slope:
-            raise ValueError("Slope distance is not set")
-        self._horizontal = slope2hor(self._slope, vangle.value)
+    @vectorize
+    def to_horizontal(self, vangles):
+        _horizontal = slope2hor(self._distance, vangles.values)
 
-        return self
+        return HorizontalDistance(_horizontal)
 
-    def calc_reference(self, elevation):
-        if not self._horizontal:
-            raise ValueError("Horizontal distance is not set")
-        self._reference = hor2ref(self._horizontal, elevation)
+    @vectorize
+    def to_delta(self, vangle: Angle, sh, th):
+        _delta = p2p_dh(self._distance,
+                        vangle.value,
+                        sh,
+                        th)
 
-        return self
+        return DeltaDistance(_delta)
 
-    def calc_egsa(self, k):
-        if not self._reference:
-            raise ValueError("Reference distance is not set")
-        self._egsa = ref2egsa(self._reference, k)
 
-        return self
+class HorizontalDistance(Distance):
+    def __init__(self, distance):
+        super().__init__(distance)
 
-    def calc_dh(self, vangle: Angle, sh, th):
-        if not self._slope:
-            raise ValueError("Slope distance is not set")
-        self._delta = p2p_dh(self._slope, vangle.value, sh, th)
+    def __repr__(self):
+        return f"HorizontalDistance({self._distance:.4f})"
 
-        return self
+    @vectorize
+    def to_reference(self, elevation):
+        _reference = hor2ref(self._distance, elevation)
 
-    def calc_all(self, vangle, elevation, k):
-        self.calc_horizontal(vangle)
-        self.calc_reference(elevation)
-        self.calc_egsa(k)
+        return ReferenceDistance(_reference)
 
-        return self
+
+class ReferenceDistance(Distance):
+    def __init__(self, distance):
+        super().__init__(distance)
+
+    def __repr__(self):
+        return f"ReferenceDistance({self._distance:.4f})"
+
+    @vectorize
+    def to_egsa(self, k):
+        _egsa = ref2egsa(self._distance, k)
+
+        return EGSADistance(_egsa)
+
+
+class EGSADistance(Distance):
+    def __init__(self, distances):
+        super().__init__(distances)
+
+    def __repr__(self):
+        return f"EGSADistance({self._distance:.4f})"
+
+
+class DeltaDistance(Distance):
+    def __init__(self, distance):
+        super().__init__(distance)
+
+    def __repr__(self):
+        return f"DeltaDistance({self._distance:.4f})"
 
 
 class Distances:
     def __init__(self, distances):
-        # self._slope = self._load(slope)
-        # self._horizontal = self._load(horizontal)
-        # self._reference = self._load(reference)
-        # self._egsa = self._load(egsa)
-        # self._delta = self._load(delta)
         self._distances = self._load(distances)
 
     def __repr__(self):
@@ -124,89 +137,10 @@ class Distances:
 
     @staticmethod
     def _load(distances):
-        if distances is None:
-            return None
-        if isinstance(distances, (pd.Series, Distances)):
-            return distances.values
-        elif isinstance(distances, np.ndarray):
-            return distances
-        elif isinstance(distances, list):
-            return np.array(distances)
-        else:
-            raise TypeError(f"Unsupported init type: {type(distances)}")
+        return val2array(distances, Distances)
 
     def sum(self):
         return round(np.nansum(self._distances), DIST_ROUND)
-
-    # def get_sd(self):
-    #     return self._slopes
-    #
-    # def set_sd(self, other):
-    #     self._slope = self._load(other)
-    #     self._horizontal = self._reference = self._egsa = self._delta = None
-    #
-    # def get_hd(self):
-    #     return self._horizontal
-    #
-    # def set_hd(self, other):
-    #     self._horizontal = self._load(other)
-    #     self._slope = self._reference = self._egsa = self._delta = None
-    #
-    # def get_rd(self):
-    #     return self._reference
-    #
-    # def set_rd(self, other):
-    #     self._reference = self._load(other)
-    #     self._slope = self._horizontal = self._egsa = self._delta = None
-    #
-    # def get_egsa(self):
-    #     return self._egsa
-    #
-    # def set_egsa(self, other):
-    #     self._egsa = self._load(other)
-    #     self._slope = self._horizontal = self._reference = self._delta = None
-    #
-    # def get_delta(self):
-    #     return self._delta
-    #
-    # def calc_horizontal(self, vangles: Angles):
-    #     if self._slope is None:
-    #         raise ValueError("Slope distance is not set")
-    #     self._horizontal = slope2hor(self._slope, vangles.values)
-    #
-    #     return self
-    #
-    # def calc_reference(self, elevation):
-    #     if self._horizontal is None:
-    #         raise ValueError("Horizontal distance is not set")
-    #     self._reference = hor2ref(self._horizontal, elevation)
-    #
-    #     return self
-    #
-    # def calc_egsa(self, k):
-    #     if self._reference is None:
-    #         raise ValueError("Reference distance is not set")
-    #     self._egsa = ref2egsa(self._reference, k)
-    #
-    #     return self
-    #
-    # def calc_dh(self, vangles: Angles, sh, th):
-    #     if self._slope is None:
-    #         raise ValueError("Slope distance is not set")
-    #
-    #     self._delta = p2p_dh(self._slope,
-    #                          vangles.values,
-    #                          self._load(sh),
-    #                          self._load(th))
-    #
-    #     return self
-    #
-    # def calc_all(self, vangles: Angles, elevation, k):
-    #     self.calc_horizontal(vangles)
-    #     self.calc_reference(elevation)
-    #     self.calc_egsa(k)
-    #
-    #     return self
 
 
 class SlopeDistances(Distances):

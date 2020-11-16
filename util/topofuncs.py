@@ -122,3 +122,17 @@ def determine_quartile(dx, dy):
         return 200 + delta_grad
     elif dx < 0 and dy > 0:
         return 400 - delta_grad
+
+
+def val2array(values, plustype=None):
+    if isinstance(values, pd.Series):
+        return values.values
+    elif isinstance(values, np.ndarray):
+        return values
+    elif isinstance(values, list):
+        return np.array(values)
+    elif plustype is not None:
+        if isinstance(values, plustype):
+            return values.values
+    else:
+        raise TypeError(f"Unsupported init type: {type(values)}")
