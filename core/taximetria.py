@@ -25,7 +25,7 @@ class Sideshot(object):
         s_dist = SlopeDistances(self.tm['slope_dist'])
         h_dist = s_dist.to_horizontal(v_angles)
         ref_dist = h_dist.to_reference(self.mean_elevation)
-        egsa_dist = h_dist.to_egsa(self.k)
+        egsa_dist = ref_dist.to_egsa(self.k)
         azimuths = Azimuths(h_angles).from_measurements(self.a, h_angles)
 
         self.tm['h_dist'] = h_dist.values
