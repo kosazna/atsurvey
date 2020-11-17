@@ -10,31 +10,84 @@ class Angle:
     def __repr__(self):
         return f"Angle({self._angleG:.4f})"
 
-    def __len__(self):
-        return 1
-
-    def __add__(self, other):
-        if isinstance(other, Angle):
-            _val = self.value + other.value
-        elif isinstance(other, (float, int)):
-            _val = self.value + other
-        else:
-            raise TypeError(f"Unsupported addition type: {type(other)}")
-
-        return Angle(_val)
-
-    def __sub__(self, other):
-        if isinstance(other, Angle):
-            _val = self.value - other.value
-        elif isinstance(other, (float, int)):
-            _val = self.value - other
-        else:
-            raise TypeError(f"Unsupported subtraction type: {type(other)}")
-
-        return Angle(_val)
+    def __str__(self):
+        return f"{self._angleG:.4f}"
 
     def __format__(self, format_spec):
         return self._angleG.__format__(format_spec)
+
+    def __bool__(self):
+        return bool(self._angleG)
+
+    def __len__(self):
+        return 1
+
+    def __float__(self):
+        return float(self.value)
+
+    def __add__(self, other):
+        _val = self.value + instance2val(other)
+
+        return Angle(_val)
+
+    def __radd__(self, other):
+        return self.__add__(instance2val(other))
+
+    def __iadd__(self, other):
+        return self.__add__(instance2val(other))
+
+    def __sub__(self, other):
+        _val = self.value - instance2val(other)
+
+        return Angle(_val)
+
+    def __rsub__(self, other):
+        _val = self.value - instance2val(other)
+
+        return Angle(_val)
+
+    def __isub__(self, other):
+        return self.__sub__(instance2val(other))
+
+    def __mul__(self, other):
+        _val = self.value * instance2val(other)
+
+        return _val
+
+    def __rmul__(self, other):
+        _val = self.value * instance2val(other)
+
+        return _val
+
+    def __eq__(self, other):
+        _bool = self.value == instance2val(other)
+
+        return _bool
+
+    def __ne__(self, other):
+        _bool = self.value != instance2val(other)
+
+        return _bool
+
+    def __gt__(self, other):
+        _bool = self.value > instance2val(other)
+
+        return _bool
+
+    def __lt__(self, other):
+        _bool = self.value < instance2val(other)
+
+        return _bool
+
+    def __ge__(self, other):
+        _bool = self.value >= instance2val(other)
+
+        return _bool
+
+    def __le__(self, other):
+        _bool = self.value <= instance2val(other)
+
+        return _bool
 
     @property
     def value(self):
@@ -56,12 +109,12 @@ class Angle:
     def sin(self):
         return round(np.sin(self._angleR), ANGLE_ROUND)
 
-    def sum(self):
-        return self._angleG
-
     @property
     def reverse(self):
         return round(400 - self._angleG, ANGLE_ROUND)
+
+    def sum(self):
+        return self._angleG
 
 
 class Angles:
@@ -72,35 +125,61 @@ class Angles:
     def __repr__(self):
         return f"Angles({self._anglesG.round(4)})"
 
+    def __str__(self):
+        return f"{self._anglesG.round(4)}"
+
     def __len__(self):
         return len(self._anglesG)
 
+    def __iter__(self):
+        return iter(self._anglesG)
+
     def __contains__(self, item):
-        if isinstance(item, float):
+        if isinstance(item, (int, float)):
             return item in self._anglesG
         elif isinstance(item, Angle):
             return item.value in self._anglesG
+        elif isinstance(item, (list, tuple, np.ndarray, pd.Series, Angles)):
+            return all([i in self._anglesG for i in item])
 
     def __add__(self, other):
-        if isinstance(other, Angles):
-            _val = self.values + other.values
-        elif isinstance(other, (int, float, np.ndarray)):
-            _val = self.values + other
-        else:
-            raise TypeError(f"Unsupported addition type: {type(other)}")
+        _val = self.values + val2array(other)
 
         return Angles(_val)
 
+    def __radd__(self, other):
+        if other == 0:
+            return self
+        else:
+            return self.__add__(other)
+
+    def __sub__(self, other):
+        _val = self.values - val2array(other)
+
+        return Angles(_val)
+
+    def __rsub__(self, other):
+        if other == 0:
+            return self
+        else:
+            return self.__sub__(other)
+
     def __getitem__(self, item):
-        return self._anglesG[item]
+        try:
+            return self._anglesG[item]
+        except IndexError:
+            print(f"  -IndexError- Last index: {len(self) - 1}")
 
     def __setitem__(self, key, value):
-        self._anglesG[key] = value
-        self._anglesR = grad2rad(self._anglesG)
+        try:
+            self._anglesG[key] = value
+            self._anglesR = grad2rad(self._anglesG)
+        except IndexError:
+            print(f"  -IndexError- Last index: {len(self) - 1}")
 
     @staticmethod
     def _load(angles):
-        return val2array(angles, Angles)
+        return val2array(angles)
 
     @property
     def values(self):

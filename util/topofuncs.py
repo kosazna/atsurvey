@@ -2,6 +2,7 @@
 import pandas as pd
 import numpy as np
 from aztool_topo.util.config import *
+from typing import Union, Any
 
 
 def round8(numbers):
@@ -96,10 +97,10 @@ def calc_Z(init_z, distance, angle, uo, us):
 
 @vectorize
 def resolve_angle(angle):
-    if isinstance(angle, (float, int)):
-        _angle = angle
-    else:
+    if hasattr(angle, "value"):
         _angle = angle.value
+    else:
+        _angle = angle
 
     if 0 <= _angle <= 400:
         return round(_angle, ANGLE_ROUND)
@@ -124,15 +125,23 @@ def determine_quartile(dx, dy):
         return 400 - delta_grad
 
 
-def val2array(values, plustype=None):
-    if isinstance(values, pd.Series):
-        return values.values
-    elif isinstance(values, np.ndarray):
+def val2array(values: Any) -> np.ndarray:
+    if isinstance(values, (np.ndarray, int, float)):
         return values
-    elif isinstance(values, list):
+    elif isinstance(values, (list, tuple)):
         return np.array(values)
-    elif plustype is not None:
-        if isinstance(values, plustype):
-            return values.values
+    elif hasattr(values, "values"):
+        return values.values
+    elif hasattr(values, "value"):
+        return values.value
     else:
-        raise TypeError(f"Unsupported init type: {type(values)}")
+        raise TypeError(f"Unsupported type: {type(values)}")
+
+
+def instance2val(value: Any) -> Union[float, int]:
+    if hasattr(value, "value"):
+        return value.value
+    elif isinstance(value, (float, int)):
+        return value
+    else:
+        raise TypeError(f"Unsupported type: {type(value)}")

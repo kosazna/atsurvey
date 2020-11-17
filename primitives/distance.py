@@ -150,7 +150,7 @@ class Distances:
 
     @staticmethod
     def _load(distances):
-        return val2array(distances, Distances)
+        return val2array(distances)
 
     def sum(self):
         return round(np.nansum(self._distances), DIST_ROUND)
