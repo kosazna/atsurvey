@@ -9,28 +9,84 @@ class Distance:
     def __repr__(self):
         return f"Distance({self._distance:.4f})"
 
+    def __str__(self):
+        return f"{self._distance:.4f}"
+
+    def __format__(self, format_spec):
+        return self._distance.__format__(format_spec)
+
+    def __bool__(self):
+        return bool(self._distance)
+
     def __len__(self):
         return 1
 
+    def __float__(self):
+        return float(self.value)
+
     def __add__(self, other):
-        if isinstance(other, Distance):
-            _val = self.value + other.value
-        elif isinstance(other, (float, int)):
-            _val = self.value + other
-        else:
-            raise TypeError(f"Unsupported addition type: {type(other)}")
+        _val = self.value + instance2val(other)
 
         return Distance(_val)
+
+    def __radd__(self, other):
+        return self.__add__(instance2val(other))
+
+    def __iadd__(self, other):
+        return self.__add__(instance2val(other))
 
     def __sub__(self, other):
-        if isinstance(other, Distance):
-            _val = self.value - other.value
-        elif isinstance(other, (float, int)):
-            _val = self.value - other
-        else:
-            raise TypeError(f"Unsupported subtraction type: {type(other)}")
+        _val = self.value - instance2val(other)
 
         return Distance(_val)
+
+    def __rsub__(self, other):
+        _val = self.value - instance2val(other)
+
+        return Distance(_val)
+
+    def __isub__(self, other):
+        return self.__sub__(instance2val(other))
+
+    def __mul__(self, other):
+        _val = self.value * instance2val(other)
+
+        return _val
+
+    def __rmul__(self, other):
+        _val = self.value * instance2val(other)
+
+        return _val
+
+    def __eq__(self, other):
+        _bool = self.value == instance2val(other)
+
+        return _bool
+
+    def __ne__(self, other):
+        _bool = self.value != instance2val(other)
+
+        return _bool
+
+    def __gt__(self, other):
+        _bool = self.value > instance2val(other)
+
+        return _bool
+
+    def __lt__(self, other):
+        _bool = self.value < instance2val(other)
+
+        return _bool
+
+    def __ge__(self, other):
+        _bool = self.value >= instance2val(other)
+
+        return _bool
+
+    def __le__(self, other):
+        _bool = self.value <= instance2val(other)
+
+        return _bool
 
     @property
     def value(self):
@@ -121,28 +177,56 @@ class Distances:
     def __repr__(self):
         return f"Distances({self._distances.round(4)})"
 
+    def __str__(self):
+        return f"{self._distances.round(4)}"
+
     def __len__(self):
         return len(self._distances)
 
+    def __iter__(self):
+        return iter(self._distances)
+
+    def __contains__(self, item):
+        if isinstance(item, (int, float)):
+            return item in self._distances
+        elif isinstance(item, Angle):
+            return item.value in self._distances
+        elif isinstance(item, (list, tuple, np.ndarray, pd.Series, Angles)):
+            return all([i in self._distances for i in item])
+
     def __add__(self, other):
-        if isinstance(other, np.ndarray):
-            _other = other
-        elif isinstance(other, (pd.Series, Distances)):
-            _other = other.values
+        _val = self.values + val2array(other)
+
+        return Distances(_val)
+
+    def __radd__(self, other):
+        if other == 0:
+            return self
         else:
-            _other = np.array(other)
+            return self.__add__(other)
 
-        return self._distances + _other
+    def __sub__(self, other):
+        _val = self.values - val2array(other)
 
-    def __mul__(self, other):
-        _deltas = self._distances * other
-        return _deltas
+        return Distances(_val)
+
+    def __rsub__(self, other):
+        if other == 0:
+            return self
+        else:
+            return self.__sub__(other)
 
     def __getitem__(self, item):
-        return self._distances[item]
+        try:
+            return self._distances[item]
+        except IndexError:
+            print(f"  -IndexError- Last index: {len(self) - 1}")
 
     def __setitem__(self, key, value):
-        self._distances[key] = value
+        try:
+            self._distances[key] = value
+        except IndexError:
+            print(f"  -IndexError- Last index: {len(self) - 1}")
 
     @property
     def values(self):
