@@ -8,7 +8,8 @@ class NikonRawConverter:
     def __init__(self, file: str = None):
         self.working_dir = Path(file).parent
         self.basename = Path(file).stem
-        self.output = self.working_dir.joinpath(f'{self.basename}.xlsx')
+        self.output = self.working_dir.joinpath(
+            f'{self.basename}_Converted.xlsx')
         self.raw = pd.read_csv(file, skiprows=1, names=range(7), header=None)
         self.cleaned = None
         self.staseis = None
@@ -69,6 +70,11 @@ class NikonRawConverter:
             lambda x: self.meas_type(x['fs'], x['h_angle']), axis=1)
 
         self.cleaned.loc[self.cleaned['meas_type'] == 'midenismos', 'bs'] = '-'
+        self.cleaned["mid"] = np.arange(1, self.cleaned.shape[0] + 1)
+
+        self.cleaned = self.cleaned[
+            ['mid', 'meas_type', 'bs', 'station', 'fs', 'h_angle', 'v_angle',
+             'slope_dist', 'target_h', 'station_h']]
 
         indexes_to_delete = []
 
@@ -100,9 +106,6 @@ class NikonRawConverter:
 
     def export(self):
         with pd.ExcelWriter(self.output) as writer:
-            self.cleaned.to_excel(writer, sheet_name=f'RAW_cleaned',
-                                  index=False)
-
             self.final.to_excel(writer, sheet_name=f'All', index=False)
 
             self.staseis.to_excel(writer, sheet_name=f'Staseis', index=False)
@@ -112,3 +115,6 @@ class NikonRawConverter:
 
             self.stats.to_excel(writer, sheet_name=f'Statistics',
                                 index=False)
+
+            self.cleaned.to_excel(writer, sheet_name=f'RAW_cleaned',
+                                  index=False)

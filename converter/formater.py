@@ -54,14 +54,14 @@ class TraverseFormatter:
                                             self.df['abs_avg_dh'])
 
         self.final = self.df[
-            ['meas_type', 'bs', 'station', 'fs', 'h_angle', 'v_angle',
+            ['mid', 'meas_type', 'bs', 'station', 'fs', 'h_angle', 'v_angle',
              'slope_dist', 'target_h', 'station_h',
              'stop_dist', 'stop_dh', 'angle', 'dist', 'h_dist',
              'abs_avg_dh', 'dz_temp']]
 
         self.odeusi = self.df.loc[
-            self.df['h_angle'] != 0, ['angle', 'dist', 'h_angle', 'h_dist',
-                                      'dz_temp', ]].copy()
+            self.df['h_angle'] != 0, ['mid', 'angle', 'dist', 'h_angle',
+                                      'h_dist', 'dz_temp', ]].copy()
 
     def export(self):
         with pd.ExcelWriter(self.output) as writer:

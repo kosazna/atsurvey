@@ -126,14 +126,14 @@ def determine_quartile(dx, dy):
 
 
 def val2array(values: Any) -> np.ndarray:
-    if isinstance(values, (np.ndarray, int, float)):
-        return values
-    elif isinstance(values, (list, tuple)):
-        return np.array(values)
+    if hasattr(values, "value"):
+        return values.value
     elif hasattr(values, "values"):
         return values.values
-    elif hasattr(values, "value"):
-        return values.value
+    elif isinstance(values, (list, tuple, int, float)):
+        return np.array(values)
+    elif isinstance(values, np.ndarray):
+        return values
     else:
         raise TypeError(f"Unsupported type: {type(values)}")
 
