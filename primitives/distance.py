@@ -41,9 +41,7 @@ class Distance:
         return Distance(_val)
 
     def __rsub__(self, other):
-        _val = self.value - instance2val(other)
-
-        return Distance(_val)
+        return self.__sub__(instance2val(other))
 
     def __isub__(self, other):
         return self.__sub__(instance2val(other))

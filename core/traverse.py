@@ -3,38 +3,105 @@ from typing import List
 from aztool_topo.primitives import *
 
 
-class OpenTraverse:
+class Traverse:
     def __init__(self, stops: list,
-                 data: pd.DataFrame = None,
-                 start: List[Point] = None,
-                 working_dir: (str, Path) = None):
-
-        self.name = '-'.join(stops)
-        self.working_dir = working_dir
-
+                 data: pd.DataFrame,
+                 start: List[Point],
+                 finish: List[Point] = None,
+                 working_dir: Union[str, Path] = None):
+        self.name = self.name = '-'.join(stops)
+        self.working_dir = Path.home() if working_dir is None else working_dir
         self.stops = stops
-        self.stops_count = len(stops) - 1
+        self.stops_count = 0
         self.length = 0
         self.f1 = start[0] if start else None
         self.f2 = start[1] if start else None
-        self.a_start = self.f1.azimuth(self.f2)
-
+        self.l1 = finish[0] if finish else None
+        self.l2 = finish[1] if finish else None
+        self.a_start: Azimuth = self.f1.azimuth(self.f2)
+        self.a_finish: Azimuth = self.l1.azimuth(
+            self.l2) if self.l1 is not None else Azimuth(0)
+        self.stations = None
+        self.metrics = None
+        self._l1_temp_x = 0
+        self._l1_temp_y = 0
+        self._l1_temp_z = 0
         self.metriseis = data.copy()
         self.odeusi = pd.merge(pd.DataFrame(
             list(zip(fmt_angle(stops), fmt_dist(stops))),
             columns=['angle', 'distance']), self.metriseis, on='angle',
             how='left')
+        self.has_mids = False
+        self.mids = self._init_mids()
 
-        self.stations = None
-        self.metrics = None
+    def _init_mids(self):
+        if 'mid' in self.odeusi.columns:
+            self.has_mids = True
+            return self.odeusi['mid'].to_list()
+        else:
+            return [np.nan] * self.odeusi.shape[0]
 
     @classmethod
-    def from_excel(cls, file: (str, Path),
-                   stops: list,
-                   start: List[Point] = None):
+    def from_template(cls, file: Union[str, Path],
+                      stops: list,
+                      start: List[Point],
+                      finish: List[Point] = None):
         data = pd.read_excel(file, sheet_name='Traverse_Measurements')
         working_dir = Path(file).parent
-        return cls(stops, data, start, working_dir)
+        return cls(stops, data, start, finish, working_dir)
+
+    def is_validated(self):
+        needed_angles = fmt_angle(self.stops)
+        missing = [angle for angle in needed_angles if
+                   angle not in self.metriseis['angle'].values]
+
+        if missing:
+            print(
+                f"\n[ERROR] - Traverse can't be computed:\n  -> {self.name}\n")
+            print("Missing angles from measurements:")
+            for i in missing:
+                print(f'  -> ({i})')
+            print('=' * 80, end='\n')
+            return False
+        return True
+
+    def export(self):
+        file_to_export = self.odeusi.copy()
+
+        _dir = self.working_dir.joinpath('Traverses')
+
+        if not _dir.exists():
+            _dir.mkdir()
+
+        name = '-'.join(self.stops) + f'_{type(self).__name__}'
+        file_to_export.round(4).to_excel(_dir.joinpath(f'T_{name}.xlsx'),
+                                         index=False)
+
+        self.stations.round(4).to_excel(_dir.joinpath(f'S_{name}.xlsx'))
+
+    def to_shp(self, dst: (str, Path), name: str, round_z=2):
+        self.stations.to_shp(dst=dst, name=name, round_z=round_z)
+
+    def to_excel(self, dst: (str, Path), name: str, decimals=4):
+        self.stations.to_excel(dst=dst, name=name, decimals=decimals)
+
+    def to_csv(self, dst: (str, Path), name: str, decimals=4, point_id=False):
+        self.stations.to_csv(dst=dst, name=name, decimals=decimals,
+                             point_id=point_id)
+
+
+class OpenTraverse(Traverse):
+    def __init__(self, stops: list,
+                 data: pd.DataFrame,
+                 start: List[Point],
+                 finish: List[Point] = None,
+                 working_dir: Union[str, Path] = None):
+        super().__init__(stops=stops,
+                         data=data,
+                         start=start,
+                         finish=finish,
+                         working_dir=working_dir)
+        self.stops_count = len(stops) - 1
 
     def __repr__(self):
         msg = f"""
@@ -69,21 +136,6 @@ class OpenTraverse:
 
         return out.style.format(traverse_formatter)
 
-    def is_validated(self):
-        needed_angles = fmt_angle(self.stops)
-        missing = [angle for angle in needed_angles if
-                   angle not in self.metriseis['angle'].values]
-
-        if missing:
-            print(
-                f"\n[ERROR] - Traverse can't be computed:\n  -> {self.name}\n")
-            print("Missing angles from measurements:")
-            for i in missing:
-                print(f'  -> ({i})')
-            print('=' * 80, end='\n')
-            return False
-        return True
-
     def compute(self):
         h_angle = Angles(self.odeusi['h_angle'])
         dz_temp = DeltaDistances(self.odeusi['dz_temp'])
@@ -115,10 +167,16 @@ class OpenTraverse:
         self.odeusi[['bs', 'station', 'fs']] = self.odeusi['angle'].str.split(
             '-', expand=True)
 
-        keep = ['bs', 'station', 'fs',
-                'h_dist', 'surf_dist', 'egsa_dist',
-                'h_angle', 'azimuth',
-                'dX', 'dY', 'dZ', 'X', 'Y', 'Z']
+        if self.has_mids:
+            keep = ['mid', 'bs', 'station', 'fs',
+                    'h_dist', 'surf_dist', 'egsa_dist',
+                    'h_angle', 'azimuth',
+                    'dX', 'dY', 'dZ', 'X', 'Y', 'Z']
+        else:
+            keep = ['bs', 'station', 'fs',
+                    'h_dist', 'surf_dist', 'egsa_dist',
+                    'h_angle', 'azimuth',
+                    'dX', 'dY', 'dZ', 'X', 'Y', 'Z']
 
         self.odeusi = self.odeusi[keep]
 
@@ -135,59 +193,19 @@ class OpenTraverse:
 
         self.stations = Container(self.odeusi[['station', 'X', 'Y', 'Z']])
 
-    def export(self):
-        file_to_export = self.odeusi.copy()
 
-        _dir = self.working_dir.joinpath('Traverses')
-
-        if not _dir.exists():
-            _dir.mkdir()
-
-        name = '-'.join(self.stops) + f'_{type(self).__name__}'
-        file_to_export.round(4).to_excel(_dir.joinpath(f'T_{name}.xlsx'),
-                                         index=False)
-
-        self.stations.round(4).to_excel(_dir.joinpath(f'S_{name}.xlsx'))
-
-    def to_shp(self, dst: (str, Path), name: str, round_z=2):
-        self.stations.to_shp(dst=dst, name=name, round_z=round_z)
-
-    def to_excel(self, dst: (str, Path), name: str, decimals=4):
-        self.stations.to_excel(dst=dst, name=name, decimals=decimals)
-
-    def to_csv(self, dst: (str, Path), name: str, decimals=4, point_id=False):
-        self.stations.to_csv(dst=dst, name=name, decimals=decimals,
-                             point_id=point_id)
-
-
-class LinkTraverse(OpenTraverse):
+class LinkTraverse(Traverse):
     def __init__(self, stops: list,
-                 data: pd.DataFrame = None,
-                 start: List[Point] = None,
-                 finish: List[Point] = None,
-                 working_dir: (str, Path) = '.'):
-
-        super().__init__(stops=stops, data=data, start=start,
+                 data: pd.DataFrame,
+                 start: List[Point],
+                 finish: List[Point],
+                 working_dir: (str, Path) = None):
+        super().__init__(stops=stops,
+                         data=data,
+                         start=start,
+                         finish=finish,
                          working_dir=working_dir)
-
         self.stops_count = len(stops) - 2
-
-        self.l1 = finish[0] if finish else None
-        self.l2 = finish[1] if finish else None
-        self.a_finish: Azimuth = self.l1.azimuth(self.l2)
-
-        self._l1_temp_x = 0
-        self._l1_temp_y = 0
-        self._l1_temp_z = 0
-
-    @classmethod
-    def from_excel(cls, file: (str, Path),
-                   stops: list,
-                   start: List[Point] = None,
-                   finish: List[Point] = None):
-        data = pd.read_excel(file, sheet_name='Traverse_Measurements')
-        working_dir = Path(file).parent
-        return cls(stops, data, start, finish, working_dir)
 
     def __repr__(self):
         msg = f"""
@@ -315,10 +333,16 @@ class LinkTraverse(OpenTraverse):
         self.odeusi[['bs', 'station', 'fs']] = self.odeusi['angle'].str.split(
             '-', expand=True)
 
-        keep = ['bs', 'station', 'fs',
-                'h_dist', 'surf_dist', 'egsa_dist',
-                'h_angle', 'h_angle_fixed', 'azimuth',
-                'dX', 'dY', 'dZ', 'X', 'Y', 'Z']
+        if self.has_mids:
+            keep = ['mid', 'bs', 'station', 'fs',
+                    'h_dist', 'surf_dist', 'egsa_dist',
+                    'h_angle', 'h_angle_fixed', 'azimuth',
+                    'dX', 'dY', 'dZ', 'X', 'Y', 'Z']
+        else:
+            keep = ['bs', 'station', 'fs',
+                    'h_dist', 'surf_dist', 'egsa_dist',
+                    'h_angle', 'h_angle_fixed', 'azimuth',
+                    'dX', 'dY', 'dZ', 'X', 'Y', 'Z']
 
         self.odeusi = self.odeusi[keep]
 
@@ -336,30 +360,18 @@ class LinkTraverse(OpenTraverse):
         self.stations = Container(self.odeusi[['station', 'X', 'Y', 'Z']])
 
 
-class ClosedTraverse(OpenTraverse):
+class ClosedTraverse(Traverse):
     def __init__(self, stops: list,
-                 data: pd.DataFrame = None,
-                 start: List[Point] = None,
-                 working_dir: (str, Path) = '.'):
-
-        super().__init__(stops=stops, data=data, start=start,
+                 data: pd.DataFrame,
+                 start: List[Point],
+                 finish: List[Point] = None,
+                 working_dir: (str, Path) = None):
+        super().__init__(stops=stops,
+                         data=data,
+                         start=start,
+                         finish=finish,
                          working_dir=working_dir)
-
         self.stops_count = len(stops) - 3
-
-        self.a_finish = self.f2.azimuth(self.f1)
-
-        self._l1_temp_x = 0
-        self._l1_temp_y = 0
-        self._l1_temp_z = 0
-
-    @classmethod
-    def from_excel(cls, file: (str, Path),
-                   stops: list,
-                   start: List[Point] = None):
-        data = pd.read_excel(file, sheet_name='Traverse_Measurements')
-        working_dir = Path(file).parent
-        return cls(stops, data, start, working_dir)
 
     def __repr__(self):
         msg = f"""
@@ -378,6 +390,14 @@ class ClosedTraverse(OpenTraverse):
                 wZ: {self.wz:+.3f} m"""
 
         return msg
+
+    @property
+    def mean_elevation(self):
+        return round((self.f2.z + self.f1.z) / 2, 3)
+
+    @property
+    def k(self):
+        return round(calc_k(self.f2.x, self.f1.x), DIST_ROUND)
 
     @property
     def a_measured(self):
@@ -479,10 +499,16 @@ class ClosedTraverse(OpenTraverse):
         self.odeusi[['bs', 'station', 'fs']] = self.odeusi['angle'].str.split(
             '-', expand=True)
 
-        keep = ['bs', 'station', 'fs',
-                'h_dist', 'surf_dist', 'egsa_dist',
-                'h_angle', 'h_angle_fixed', 'azimuth',
-                'dX', 'dY', 'dZ', 'X', 'Y', 'Z']
+        if self.has_mids:
+            keep = ['mid', 'bs', 'station', 'fs',
+                    'h_dist', 'surf_dist', 'egsa_dist',
+                    'h_angle', 'h_angle_fixed', 'azimuth',
+                    'dX', 'dY', 'dZ', 'X', 'Y', 'Z']
+        else:
+            keep = ['bs', 'station', 'fs',
+                    'h_dist', 'surf_dist', 'egsa_dist',
+                    'h_angle', 'h_angle_fixed', 'azimuth',
+                    'dX', 'dY', 'dZ', 'X', 'Y', 'Z']
 
         self.odeusi = self.odeusi[keep]
 
