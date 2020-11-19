@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from aztool_topo.util.config import *
 import pandas as pd
+import json
 from pathlib import Path
 
 
@@ -57,3 +58,36 @@ def parse_stops(stationsstr, keep=0):
 def styler(data: pd.DataFrame, formatter: dict):
     return data.style.format(formatter).apply(warning,
                                               subset=['angular'])
+
+
+def load_json(path):
+    """
+    Loads json file to a dictionary.
+
+    :param path: str
+        Path of json file.
+    :return: dict
+        Python dictionary of the json file.
+    """
+
+    try:
+        with open(path, "r") as status_f:
+            data = json.load(status_f)
+        return data
+    except IOError:
+        print(f'\n!! NO SUCH FILE : {path}\n')
+
+
+def write_json(path, data):
+    """
+    Writes python dictionary to a json file (indent=2).
+
+    :param path: str
+        Path to write the json file.
+    :param data: dict
+        Python dictionary.
+    :return: Nothing
+    """
+
+    with open(path, "w") as p_file:
+        json.dump(data, p_file, indent=2)
