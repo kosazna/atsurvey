@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from aztool_topo.core.traverse import *
 from aztool_topo.core.taximetria import *
-from datetime import datetime
+from aztool_topo.core.project_logger import *
 from functools import partial
 
 
@@ -15,9 +15,8 @@ class SurveyProject:
                  working_dir: (str, Path) = None):
 
         self.name = name
-        self.time = datetime.now().strftime('%d/%m/%Y %H:%M:%S')
-        self.working_dir = working_dir if working_dir else extract_workind_dir(
-            traverses)
+        self.time = timestamp()
+        self.pwd = AZTTPaths(working_dir)
 
         self.t_data = load_data(traverse_data)
         self.s_data = load_data(sideshot_data)
@@ -32,6 +31,24 @@ class SurveyProject:
 
         self.c_sideshots = []
         self.c_sideshots_count = 0
+
+        self.logger = AZTTPLogger(self)
+
+    @staticmethod
+    def open(project_name):
+        with open(AZTTPaths().aztt_projects, "r") as history:
+            _history = json.load(history)
+
+        _dir = Path(_history[project_name]['directory'])
+        _filename = _dir.joinpath(f"{project_name}.azttp")
+
+        with open(_filename, 'rb') as azttp:
+            _project = pickle.load(azttp)
+
+        return _project
+
+    def save(self):
+        self.logger.save()
 
     @classmethod
     def from_single_file(cls, file):
@@ -65,19 +82,19 @@ class SurveyProject:
                                           parse_stops(traverse.stations, 1)),
                                       finish=self.point2obj(
                                           parse_stops(traverse.stations, -1)),
-                                      working_dir=self.working_dir)
+                                      working_dir=self.pwd.uwd)
                 elif traverse.t_type == 'ClosedTraverse':
                     tr = ClosedTraverse(stops=parse_stops(self.stations),
                                         data=self.t_data,
                                         start=self.point2obj(
                                             parse_stops(traverse.stations, 1)),
-                                        working_dir=self.working_dir)
+                                        working_dir=self.pwd.uwd)
                 else:
                     tr = OpenTraverse(stops=parse_stops(traverse.stations),
                                       data=self.t_data,
                                       start=self.point2obj(
                                           parse_stops(traverse.stations, 1)),
-                                      working_dir=self.working_dir)
+                                      working_dir=self.pwd.uwd)
 
                 if tr.is_validated():
                     tr.compute()
@@ -96,12 +113,14 @@ class SurveyProject:
 
             self.c_traverses_count = len(self.c_traverses)
 
+            self.logger.update(self)
+
             return styler(self.c_traverses_info, traverse_formatter)
         else:
             print("\nNo traverse was computed")
 
     def export_traverses(self):
-        _out = self.working_dir.joinpath('Project_Traverses.xlsx')
+        _out = self.pwd.uwd.joinpath('Project_Traverses.xlsx')
 
         with pd.ExcelWriter(_out) as writer:
             self.c_traverses_info.round(4).to_excel(writer, sheet_name='Info')
@@ -148,5 +167,6 @@ class SurveyProject:
             self.c_sideshots_count = len(self.sideshots)
 
             print(f"[{self.c_sideshots_count}] points were calculated.")
+            self.logger.update(self)
         else:
             print('No sideshots were computed')

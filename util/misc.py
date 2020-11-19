@@ -2,7 +2,12 @@
 from aztool_topo.util.config import *
 import pandas as pd
 import json
+from datetime import datetime
 from pathlib import Path
+
+
+def timestamp():
+    return datetime.now().strftime('%d/%m/%Y %H:%M:%S')
 
 
 def fmt_angle(stops):

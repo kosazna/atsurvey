@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from typing import List
 from aztool_topo.primitives import *
+from aztool_topo.util.paths import *
 
 
 class Traverse:
@@ -10,7 +11,7 @@ class Traverse:
                  finish: List[Point] = None,
                  working_dir: Union[str, Path] = None):
         self.name = self.name = '-'.join(stops)
-        self.working_dir = Path.home() if working_dir is None else working_dir
+        self.paths = AZTTPaths(working_dir)
         self.stops = stops
         self.stops_count = 0
         self.length = 0
@@ -19,7 +20,8 @@ class Traverse:
         self.l1 = finish[0] if finish is not None else NonePoint()
         self.l2 = finish[1] if finish is not None else NonePoint()
         self.a_start: Azimuth = self.f1.azimuth(self.f2)
-        self.a_finish: Azimuth = self.l1.azimuth(self.l2) if not isinstance(self.l1, NonePoint) else Azimuth(0)
+        self.a_finish: Azimuth = self.l1.azimuth(self.l2) if not isinstance(
+            self.l1, NonePoint) else Azimuth(0)
         self.stations = None
         self.metrics = None
         self._l1_temp_x = 0
@@ -35,7 +37,7 @@ class Traverse:
 
     def __repr__(self):
         msg = f"Traverse stops: {'-'.join(self.stops)}\n" \
-              f"Stops count: {self.stops_count:12}\n"\
+              f"Stops count: {self.stops_count:12}\n" \
               f"Traverse length: {self.length:.3f} m\n" \
               f"Mean Elevation: {self.mean_elevation:} m\n" \
               f"k: {self.k:.4f}\n\n" \
@@ -171,7 +173,7 @@ class Traverse:
     def export(self):
         file_to_export = self.odeusi.copy()
 
-        _dir = self.working_dir.joinpath('Traverses')
+        _dir = self.paths.uwd_traverses
 
         if not _dir.exists():
             _dir.mkdir()
