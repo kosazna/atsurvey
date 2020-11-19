@@ -42,13 +42,10 @@ class Container:
             return self._series[key]
         except KeyError:
             print(f"\n[ERROR] - Point doesn't exist: [{key}]\n")
-            return Point('ExceptionPoint', np.nan, np.nan, np.nan)
+            return NonePoint
 
     def __setitem__(self, key, value):
         self._series[key] = value
-
-    # def __call__(self):
-    #     self._data, self._series = transform_split(self._data.sort_index())
 
     def __contains__(self, item):
         if isinstance(item, str):

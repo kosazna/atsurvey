@@ -51,9 +51,9 @@ class SurveyProject:
         self.logger.save()
 
     @classmethod
-    def from_single_file(cls, file):
+    def from_single_file(cls, file, project_name=None):
         _path = Path(file)
-        _name = _path.stem
+        _name = _path.stem if project_name is None else project_name
         _all_data = pd.ExcelFile(_path)
         _traverse_data = _all_data.parse('Traverse_Measurements')
         _sideshot_data = _all_data.parse('Taximetrika')
@@ -119,18 +119,7 @@ class SurveyProject:
         else:
             print("\nNo traverse was computed")
 
-    def export_traverses(self):
-        _out = self.pwd.uwd.joinpath('Project_Traverses.xlsx')
-
-        with pd.ExcelWriter(_out) as writer:
-            self.c_traverses_info.round(4).to_excel(writer, sheet_name='Info')
-
-            for i, traverse in enumerate(self.c_traverses, 1):
-                traverse.odeusi.round(4).to_excel(writer,
-                                                  index=False,
-                                                  sheet_name=str(i))
-
-    def compute_taximetria(self, exclude=None):
+    def compute_sideshots(self, exclude=None):
         def exclusion(group_check, items):
             return not bool(set(group_check).intersection(items))
 
@@ -170,3 +159,22 @@ class SurveyProject:
             self.logger.update(self)
         else:
             print('No sideshots were computed')
+
+    def export_traverses(self):
+        _out = self.pwd.uwd.joinpath('Project_Traverses.xlsx')
+
+        with pd.ExcelWriter(_out) as writer:
+            self.c_traverses_info.round(4).to_excel(writer, sheet_name='Info')
+
+            for i, traverse in enumerate(self.c_traverses, 1):
+                traverse.odeusi.round(4).to_excel(writer,
+                                                  index=False,
+                                                  sheet_name=str(i))
+
+        self.stations.to_shp(self.pwd.uwd, "Project_Stations")
+
+    def export_sideshots(self, csv_point_id=False):
+        self.sideshots.to_excel(self.pwd.uwd, "Project_Sideshots")
+        self.sideshots.to_csv(self.pwd.uwd, "Project_Sideshots",
+                              point_id=csv_point_id)
+        self.sideshots.to_shp(self.pwd.uwd, "Project_Sideshots")
