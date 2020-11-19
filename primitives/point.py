@@ -75,3 +75,8 @@ class Points:
         _z[-2] = finish.z
 
         return cls(_x[:-1], _y[:-1], _z[:-1])
+
+
+class NonePoint(Point):
+    def __init__(self):
+        super().__init__("None", 0, 0, 0)

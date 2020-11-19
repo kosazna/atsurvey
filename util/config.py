@@ -21,3 +21,4 @@ EARTH_C = 6371000
 def warning(s):
     accepted = s.between(-0.1, 0.1)
     return ['color: red' if not v else '' for v in accepted]
+

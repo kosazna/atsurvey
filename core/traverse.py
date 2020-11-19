@@ -14,13 +14,12 @@ class Traverse:
         self.stops = stops
         self.stops_count = 0
         self.length = 0
-        self.f1 = start[0] if start else None
-        self.f2 = start[1] if start else None
-        self.l1 = finish[0] if finish else None
-        self.l2 = finish[1] if finish else None
+        self.f1 = start[0]
+        self.f2 = start[1]
+        self.l1 = finish[0] if finish is not None else NonePoint()
+        self.l2 = finish[1] if finish is not None else NonePoint()
         self.a_start: Azimuth = self.f1.azimuth(self.f2)
-        self.a_finish: Azimuth = self.l1.azimuth(
-            self.l2) if self.l1 is not None else Azimuth(0)
+        self.a_finish: Azimuth = self.l1.azimuth(self.l2) if not isinstance(self.l1, NonePoint) else Azimuth(0)
         self.stations = None
         self.metrics = None
         self._l1_temp_x = 0
@@ -33,6 +32,24 @@ class Traverse:
             how='left')
         self.has_mids = False
         self.mids = self._init_mids()
+
+    def __repr__(self):
+        msg = f"Traverse stops: {'-'.join(self.stops)}\n" \
+              f"Stops count: {self.stops_count:12}\n"\
+              f"Traverse length: {self.length:.3f} m\n" \
+              f"Mean Elevation: {self.mean_elevation:} m\n" \
+              f"k: {self.k:.4f}\n\n" \
+              f"α{self.f1.name}-{self.f2.name} : {self.a_start:.4f} g\n" \
+              f"α{self.l1.name}-{self.l2.name} : {self.a_finish:.4f} g\n" \
+              f"α'{self.l1.name}-{self.l2.name} : {self.a_measured:.4f} g\n" \
+              f"Angular Misclosure: {self.angular_misclosure:.4f} g\n" \
+              f"Angular Correction: {self.angular_correction:.4f} g\n\n" \
+              f"Horizontal Misclosure: {self.horizontal_misclosure:.3f} m\n" \
+              f"wX: {self.wx:.3f} m\n" \
+              f"wY: {self.wy:.3f} m\n" \
+              f"wZ: {self.wz:.3f} m"
+
+        return msg
 
     def _init_mids(self):
         if 'mid' in self.odeusi.columns:
@@ -49,6 +66,92 @@ class Traverse:
         data = pd.read_excel(file, sheet_name='Traverse_Measurements')
         working_dir = Path(file).parent
         return cls(stops, data, start, finish, working_dir)
+
+    @property
+    def mean_elevation(self):
+        if isinstance(self, LinkTraverse):
+            return round((self.f2.z + self.l1.z) / 2, 3)
+        return round((self.f2.z + self.f1.z) / 2, 3)
+
+    @property
+    def k(self):
+        if isinstance(self, LinkTraverse):
+            return round(calc_k(self.f2.x, self.l1.x), DIST_ROUND)
+        return round(calc_k(self.f2.x, self.f1.x), DIST_ROUND)
+
+    @property
+    def a_measured(self):
+        return Azimuth.from_measurements(self.a_start, self.odeusi['h_angle'])
+
+    @property
+    def angular_misclosure(self):
+        if self.a_finish:
+            return round(self.a_finish.value - self.a_measured.value,
+                         ANGLE_ROUND)
+        return 0.0
+
+    @property
+    def angular_correction(self):
+        return round(self.angular_misclosure / self.odeusi.shape[0],
+                     ANGLE_ROUND)
+
+    @property
+    def wx(self):
+        if isinstance(self.l1, NonePoint):
+            return 0.0
+        return round(self.l1.x - self._l1_temp_x, DIST_ROUND)
+
+    @property
+    def wy(self):
+        if isinstance(self.l1, NonePoint):
+            return 0.0
+        return round(self.l1.y - self._l1_temp_y, DIST_ROUND)
+
+    @property
+    def wz(self):
+        if isinstance(self.l1, NonePoint):
+            return 0.0
+        return round(self.l1.z - self._l1_temp_z, DIST_ROUND)
+
+    @property
+    def horizontal_misclosure(self):
+        return round(np.sqrt(self.wx ** 2 + self.wy ** 2), DIST_ROUND)
+
+    @property
+    def x_cor(self):
+        try:
+            return round(self.wx / self.length, DIST_ROUND)
+        except ZeroDivisionError:
+            return 0
+
+    @property
+    def y_cor(self):
+        try:
+            return round(self.wy / self.length, DIST_ROUND)
+        except ZeroDivisionError:
+            return 0
+
+    @property
+    def z_cor(self):
+        try:
+            return round(self.wz / self.length, DIST_ROUND)
+        except ZeroDivisionError:
+            return 0
+
+    @property
+    def info(self):
+        out = pd.DataFrame.from_dict(
+            {'traverse': [self.name],
+             'stations': [self.stops_count],
+             'length': [self.length],
+             'mean_elev': [self.mean_elevation],
+             'angular': [self.angular_misclosure],
+             'horizontal': [self.horizontal_misclosure],
+             'wx': [self.wx],
+             'wy': [self.wy],
+             'wz': [self.wz]})
+
+        return out.style.format(traverse_formatter).hide_index()
 
     def is_validated(self):
         needed_angles = fmt_angle(self.stops)
@@ -102,39 +205,6 @@ class OpenTraverse(Traverse):
                          finish=finish,
                          working_dir=working_dir)
         self.stops_count = len(stops) - 1
-
-    def __repr__(self):
-        msg = f"""
-            Traverse stops: {'-'.join(self.stops)}  [{self.stops_count}]\n
-            Traverse length: {self.length:.3f} m
-            Mean Elevation: {self.mean_elevation} m
-            k: {self.k:.4f}\n
-            α{self.f1.name}-{self.f2.name} : {self.a_start:.4f} g"""
-
-        return msg
-
-    @property
-    def mean_elevation(self):
-        return round((self.f2.z + self.f1.z) / 2, 3)
-
-    @property
-    def k(self):
-        return round(calc_k(self.f2.x, self.f1.x), DIST_ROUND)
-
-    @property
-    def info(self):
-        out = pd.DataFrame.from_dict(
-            {'traverse': [self.name],
-             'stations': [self.stops_count],
-             'length': [self.length],
-             'mean_elev': [self.mean_elevation],
-             'angular': [np.nan],
-             'horizontal': [np.nan],
-             'wx': [np.nan],
-             'wy': [np.nan],
-             'wz': [np.nan]}, orient='index')
-
-        return out.style.format(traverse_formatter)
 
     def compute(self):
         h_angle = Angles(self.odeusi['h_angle'])
@@ -206,97 +276,6 @@ class LinkTraverse(Traverse):
                          finish=finish,
                          working_dir=working_dir)
         self.stops_count = len(stops) - 2
-
-    def __repr__(self):
-        msg = f"""
-            Traverse stops: {'-'.join(self.stops)}  [{self.stops_count}]\n
-            Traverse length: {self.length:.3f} m
-            Mean Elevation: {self.mean_elevation} m
-            k: {self.k:.4f}\n
-            α{self.f1.name}-{self.f2.name} : {self.a_start:.4f} g
-            α{self.l1.name}-{self.l2.name} : {self.a_finish:.4f} g
-            α'{self.l1.name}-{self.l2.name} : {self.a_measured:.4f} g
-            Angular Misclosure: {self.angular_misclosure:+.4f} g
-            Angular Correction: {self.angular_correction:+.4f} g\n
-            Horizontal Misclosure: {self.horizontal_misclosure:.3f} m
-            wX: {self.wx:+.3f} m
-            wY: {self.wy:+.3f} m
-            wZ: {self.wz:+.3f} m"""
-
-        return msg
-
-    @property
-    def mean_elevation(self):
-        return round((self.f2.z + self.l1.z) / 2, 3)
-
-    @property
-    def k(self):
-        return round(calc_k(self.f2.x, self.l1.x), DIST_ROUND)
-
-    @property
-    def a_measured(self):
-        return Azimuth.from_measurements(self.a_start, self.odeusi['h_angle'])
-
-    @property
-    def angular_correction(self):
-        return round(self.angular_misclosure / self.odeusi.shape[0],
-                     ANGLE_ROUND)
-
-    @property
-    def angular_misclosure(self):
-        return round(self.a_finish.value - self.a_measured.value, ANGLE_ROUND)
-
-    @property
-    def horizontal_misclosure(self):
-        return round(np.sqrt(self.wx ** 2 + self.wy ** 2), DIST_ROUND)
-
-    @property
-    def wx(self):
-        return round(self.l1.x - self._l1_temp_x, DIST_ROUND)
-
-    @property
-    def wy(self):
-        return round(self.l1.y - self._l1_temp_y, DIST_ROUND)
-
-    @property
-    def wz(self):
-        return round(self.l1.z - self._l1_temp_z, DIST_ROUND)
-
-    @property
-    def x_cor(self):
-        try:
-            return round(self.wx / self.length, DIST_ROUND)
-        except ZeroDivisionError:
-            return 0
-
-    @property
-    def y_cor(self):
-        try:
-            return round(self.wy / self.length, DIST_ROUND)
-        except ZeroDivisionError:
-            return 0
-
-    @property
-    def z_cor(self):
-        try:
-            return round(self.wz / self.length, DIST_ROUND)
-        except ZeroDivisionError:
-            return 0
-
-    @property
-    def info(self):
-        out = pd.DataFrame.from_dict(
-            {'traverse': [self.name],
-             'stations': [self.stops_count],
-             'length': [self.length],
-             'mean_elev': [self.mean_elevation],
-             'angular': [self.angular_misclosure],
-             'horizontal': [self.horizontal_misclosure],
-             'wx': [self.wx],
-             'wy': [self.wy],
-             'wz': [self.wz]})
-
-        return out.style.format(traverse_formatter).hide_index()
 
     def compute(self):
         h_angle = Angles(self.odeusi['h_angle'])
@@ -391,78 +370,78 @@ class ClosedTraverse(Traverse):
 
         return msg
 
-    @property
-    def mean_elevation(self):
-        return round((self.f2.z + self.f1.z) / 2, 3)
-
-    @property
-    def k(self):
-        return round(calc_k(self.f2.x, self.f1.x), DIST_ROUND)
-
-    @property
-    def a_measured(self):
-        return Azimuth.from_measurements(self.a_start, self.odeusi['h_angle'])
-
-    @property
-    def angular_correction(self):
-        return round(self.angular_misclosure / self.odeusi.shape[0],
-                     ANGLE_ROUND)
-
-    @property
-    def angular_misclosure(self):
-        return round(self.a_finish.value - self.a_measured.value, ANGLE_ROUND)
-
-    @property
-    def horizontal_misclosure(self):
-        return round(np.sqrt(self.wx ** 2 + self.wy ** 2), DIST_ROUND)
-
-    @property
-    def wx(self):
-        return round(self.odeusi['dx_temp'].sum(), DIST_ROUND)
-
-    @property
-    def wy(self):
-        return round(self.odeusi['dy_temp'].sum(), DIST_ROUND)
-
-    @property
-    def wz(self):
-        return round(self.odeusi['dz_temp'].sum(), DIST_ROUND)
-
-    @property
-    def x_cor(self):
-        try:
-            return round(self.wx / self.length, DIST_ROUND)
-        except ZeroDivisionError:
-            return 0
-
-    @property
-    def y_cor(self):
-        try:
-            return round(self.wy / self.length, DIST_ROUND)
-        except ZeroDivisionError:
-            return 0
-
-    @property
-    def z_cor(self):
-        try:
-            return round(self.wz / self.length, DIST_ROUND)
-        except ZeroDivisionError:
-            return 0
-
-    @property
-    def info(self):
-        out = pd.DataFrame.from_dict(
-            {'traverse': [self.name],
-             'stations': [self.stops_count],
-             'length': [self.length],
-             'mean_elev': [self.mean_elevation],
-             'angular': [self.angular_misclosure],
-             'horizontal': [self.horizontal_misclosure],
-             'wx': [self.wx],
-             'wy': [self.wy],
-             'wz': [self.wz]}, orient='index')
-
-        return out.style.format(traverse_formatter)
+    # @property
+    # def mean_elevation(self):
+    #     return round((self.f2.z + self.f1.z) / 2, 3)
+    #
+    # @property
+    # def k(self):
+    #     return round(calc_k(self.f2.x, self.f1.x), DIST_ROUND)
+    #
+    # @property
+    # def a_measured(self):
+    #     return Azimuth.from_measurements(self.a_start, self.odeusi['h_angle'])
+    #
+    # @property
+    # def angular_correction(self):
+    #     return round(self.angular_misclosure / self.odeusi.shape[0],
+    #                  ANGLE_ROUND)
+    #
+    # @property
+    # def angular_misclosure(self):
+    #     return round(self.a_finish.value - self.a_measured.value, ANGLE_ROUND)
+    #
+    # @property
+    # def horizontal_misclosure(self):
+    #     return round(np.sqrt(self.wx ** 2 + self.wy ** 2), DIST_ROUND)
+    #
+    # @property
+    # def wx(self):
+    #     return round(self.odeusi['dx_temp'].sum(), DIST_ROUND)
+    #
+    # @property
+    # def wy(self):
+    #     return round(self.odeusi['dy_temp'].sum(), DIST_ROUND)
+    #
+    # @property
+    # def wz(self):
+    #     return round(self.odeusi['dz_temp'].sum(), DIST_ROUND)
+    #
+    # @property
+    # def x_cor(self):
+    #     try:
+    #         return round(self.wx / self.length, DIST_ROUND)
+    #     except ZeroDivisionError:
+    #         return 0
+    #
+    # @property
+    # def y_cor(self):
+    #     try:
+    #         return round(self.wy / self.length, DIST_ROUND)
+    #     except ZeroDivisionError:
+    #         return 0
+    #
+    # @property
+    # def z_cor(self):
+    #     try:
+    #         return round(self.wz / self.length, DIST_ROUND)
+    #     except ZeroDivisionError:
+    #         return 0
+    #
+    # @property
+    # def info(self):
+    #     out = pd.DataFrame.from_dict(
+    #         {'traverse': [self.name],
+    #          'stations': [self.stops_count],
+    #          'length': [self.length],
+    #          'mean_elev': [self.mean_elevation],
+    #          'angular': [self.angular_misclosure],
+    #          'horizontal': [self.horizontal_misclosure],
+    #          'wx': [self.wx],
+    #          'wy': [self.wy],
+    #          'wz': [self.wz]}, orient='index')
+    #
+    #     return out.style.format(traverse_formatter)
 
     def compute(self):
         h_angle = Angles(self.odeusi['h_angle'])
