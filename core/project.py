@@ -51,7 +51,7 @@ class SurveyProject:
                    known_points=_known_points,
                    working_dir=_working_dir)
 
-    def point2obj(self, points: (list, tuple)) -> List[Point]:
+    def point2obj(self, points: Union[list, tuple]) -> List[Point]:
         return [self.stations[points[0]], self.stations[points[1]]]
 
     def compute_traverses(self):
