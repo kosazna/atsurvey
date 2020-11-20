@@ -1,0 +1,6 @@
+<RCC>
+  <qresource prefix="layers">
+    <file alias="cog">static/cog_icon_125002.png</file>
+    <file alias="logo">static/main_layer.png</file>
+  </qresource>
+</RCC>
