@@ -5,7 +5,7 @@ from pathlib import Path
 
 
 def load_data(data, sheet_name: str = None):
-    if isinstance(data, str):
+    if isinstance(data, (str, Path)):
         _sheet = 0 if sheet_name is None else sheet_name
         return pd.read_excel(data, sheet_name=_sheet)
     return data

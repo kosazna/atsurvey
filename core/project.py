@@ -22,8 +22,9 @@ class SurveyProject:
         self.t_data = load_data(traverse_data)
         self.s_data = load_data(sideshot_data)
         self.t_list = load_data(traverses)
+        self.known = load_data(known_points)
 
-        self.stations = Container(load_data(known_points))
+        self.stations = Container(self.known)
         self.sideshots = Container()
 
         self.c_traverses = []
@@ -34,6 +35,7 @@ class SurveyProject:
         self.c_sideshots_count = 0
 
         self.logger = AZTTPLogger(self)
+        self.pdgui = None
 
     @staticmethod
     def open(project_name):
@@ -74,6 +76,8 @@ class SurveyProject:
 
     def compute_traverses(self):
         self.c_traverses = []
+        self.c_traverses_count = 0
+        self.c_traverses_info = None
         for traverse in self.t_list.itertuples():
             if traverse.compute == 1:
                 if traverse.t_type == 'LinkTraverse':
@@ -125,6 +129,7 @@ class SurveyProject:
             return not bool(set(group_check).intersection(items))
 
         self.c_sideshots = []
+        self.c_sideshots_count = 0
 
         all_groups = self.s_data.groupby(['station', 'bs'])
 
@@ -187,8 +192,15 @@ class SurveyProject:
         sideshot_data = self.s_data
         sideshots = self.sideshots.data
 
-        _data = show(known_points,
-                     traverses,
-                     traverse_data,
-                     sideshot_data,
-                     sideshots)
+        self.pdgui = show(known_points,
+                          traverses,
+                          traverse_data,
+                          sideshot_data,
+                          sideshots)
+
+    def save_changes(self):
+        self.stations = Container(self.pdgui.get_dataframes()['known_points'])
+        self.t_list = self.pdgui.get_dataframes()['traverses']
+        self.t_data = self.pdgui.get_dataframes()['traverse_data']
+        self.s_data = self.pdgui.get_dataframes()['sideshot_data']
+        self.sideshots = Container(self.pdgui.get_dataframes()['sideshots'])
