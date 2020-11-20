@@ -3,6 +3,7 @@ from aztool_topo.core.traverse import *
 from aztool_topo.core.taximetria import *
 from aztool_topo.core.project_logger import *
 from functools import partial
+from pandasgui import show
 
 
 class SurveyProject:
@@ -178,3 +179,16 @@ class SurveyProject:
         self.sideshots.to_csv(self.pwd.uwd, "Project_Sideshots",
                               point_id=csv_point_id)
         self.sideshots.to_shp(self.pwd.uwd, "Project_Sideshots")
+
+    def edit(self):
+        known_points = self.stations.data
+        traverses = self.t_list
+        traverse_data = self.t_data
+        sideshot_data = self.s_data
+        sideshots = self.sideshots.data
+
+        _data = show(known_points,
+                     traverses,
+                     traverse_data,
+                     sideshot_data,
+                     sideshots)
