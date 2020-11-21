@@ -27,4 +27,3 @@ XLS_EXTS = [".xls", ".xlsx"]
 def warning(s):
     accepted = s.between(-0.1, 0.1)
     return ['color: red' if not v else '' for v in accepted]
-
