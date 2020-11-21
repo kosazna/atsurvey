@@ -3,7 +3,6 @@ from aztool_topo.core.traverse import *
 from aztool_topo.core.taximetria import *
 from aztool_topo.core.project_logger import *
 from functools import partial
-from pandasgui import show
 
 
 class SurveyProject:
@@ -168,9 +167,9 @@ class SurveyProject:
             self.c_traverses_info.round(4).to_excel(writer, sheet_name='Info')
 
             for i, traverse in enumerate(self.c_traverses, 1):
-                traverse.odeusi.round(4).to_excel(writer,
-                                                  index=False,
-                                                  sheet_name=str(i))
+                traverse.traverse.round(4).to_excel(writer,
+                                                    index=False,
+                                                    sheet_name=str(i))
 
         self.stations.to_shp(self.pwd.uwd, "Project_Stations")
 
@@ -181,6 +180,7 @@ class SurveyProject:
         self.sideshots.to_shp(self.pwd.uwd, "Project_Sideshots")
 
     def edit(self):
+        from pandasgui import show
         known_points = self.stations.data
         traverses = self.t_list
         traverse_data = self.t_data

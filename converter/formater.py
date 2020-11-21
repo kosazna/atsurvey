@@ -1,18 +1,25 @@
 # -*- coding: utf-8 -*-
-import pandas as pd
-from pathlib import Path
+from aztool_topo.converter.nikon import *
 from aztool_topo.util.topofuncs import slope2hor, p2p_dh, mean_dh_signed
 
 
-class TraverseFormatter:
-    def __init__(self, file: (str, Path) = None, sheet_name: str = 'Staseis'):
-        self.working_dir = Path(file).parent
-        self.basename = Path(file).stem
-        self.output = self.working_dir.joinpath(
-            f'{self.basename}_Transformed.xlsx')
-        self.df = pd.read_excel(file, sheet_name=sheet_name)
+class NikonTraverseFormatter:
+    def __init__(self, file: Union[str, Path] = None,
+                 sheet_name: str = 'stations'):
+        self.filepath = Path(file)
+        self.wd = self.filepath.parent
+        self.basename = self.filepath.stem
+        self.df = load_data(self.filepath, sheet_name=sheet_name)
+
+        self.out_xlsx = self.wd.joinpath(f'{self.basename}_Transformed.xlsx')
+        self.out_pickle = self.wd.joinpath(f'{self.basename}_Transformed.attf')
+
         self.final = None
-        self.odeusi = None
+        self.traverse = None
+
+    @classmethod
+    def from_converter(cls, converter: NikonRawConverter):
+        pass
 
     @staticmethod
     def join_stops_for_angle(midenismos, stasi, metrisi):
@@ -59,15 +66,17 @@ class TraverseFormatter:
              'stop_dist', 'stop_dh', 'angle', 'dist', 'h_dist',
              'abs_avg_dh', 'dz_temp']]
 
-        self.odeusi = self.df.loc[
+        self.traverse = self.df.loc[
             self.df['h_angle'] != 0, ['mid', 'angle', 'dist', 'h_angle',
                                       'h_dist', 'dz_temp', ]].copy()
 
+        return self
+
     def export(self):
-        with pd.ExcelWriter(self.output) as writer:
-            self.odeusi.round(6).to_excel(writer,
-                                          sheet_name='Traverse_Measurements',
-                                          index=False)
+        with pd.ExcelWriter(self.out_xlsx) as writer:
+            self.traverse.round(6).to_excel(writer,
+                                            sheet_name='Traverse_Measurements',
+                                            index=False)
 
             self.final.round(6).to_excel(writer, sheet_name='Processed_Data',
                                          index=False)

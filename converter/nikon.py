@@ -1,30 +1,36 @@
 # -*- coding: utf-8 -*-
-import pandas as pd
 import numpy as np
-from pathlib import Path
+from typing import Union
+from aztool_topo.util.io import *
 
 
 class NikonRawConverter:
-    def __init__(self, file: str = None):
-        self.working_dir = Path(file).parent
-        self.basename = Path(file).stem
-        self.output = self.working_dir.joinpath(
-            f'{self.basename}_Converted.xlsx')
-        self.raw = pd.read_csv(file, skiprows=1, names=range(7), header=None)
-        self.cleaned = None
-        self.staseis = None
-        self.taximetrika = None
-        self.stats = None
-        self.final = None
+    def __init__(self, file: Union[str, Path] = None):
+        self.filepath = Path(file)
+        self.wd = self.filepath.parent
+        self.basename = self.filepath.stem
+        self.raw = load_data(self.filepath,
+                             skiprows=1,
+                             names=range(7),
+                             header=None)
+
+        self.out_xlsx = self.wd.joinpath(f'{self.basename}_Converted.xlsx')
+        self.out_pickle = self.wd.joinpath(f'{self.basename}_Converted.attm')
+
+        self.cleaned = pd.DataFrame()
+        self.stations = pd.DataFrame()
+        self.sideshots = pd.DataFrame()
+        self.all = pd.DataFrame()
+        self.convert_map = dict()
 
     @staticmethod
     def meas_type(fs: str, h_angle: float):
         if fs[0].isalpha() and h_angle == 0.0:
-            return 'midenismos'
+            return 'backsight'
         elif fs[0].isalpha():
-            return 'stasi'
+            return 'station'
         else:
-            return 'taximetriko'
+            return 'sideshot'
 
     def transform(self):
         to_keep = ['OB', 'SS', 'LS', '--Target Generic Prism: "My Prism"',
@@ -70,11 +76,17 @@ class NikonRawConverter:
             lambda x: self.meas_type(x['fs'], x['h_angle']), axis=1)
 
         self.cleaned.loc[self.cleaned['meas_type'] == 'midenismos', 'bs'] = '-'
-        self.cleaned["mid"] = np.arange(1, self.cleaned.shape[0] + 1)
+        self.cleaned["mid"] = np.arange(1, self.cleaned.shape[0] + 1,
+                                        dtype=np.uint16)
 
         self.cleaned = self.cleaned[
             ['mid', 'meas_type', 'bs', 'station', 'fs', 'h_angle', 'v_angle',
              'slope_dist', 'target_h', 'station_h']]
+
+        self.cleaned = self.cleaned.astype({'meas_type': pd.StringDtype(),
+                                            'bs': pd.StringDtype(),
+                                            'station': pd.StringDtype(),
+                                            'fs': pd.StringDtype()})
 
         indexes_to_delete = []
 
@@ -92,29 +104,24 @@ class NikonRawConverter:
             except KeyError:
                 pass
 
-        self.final = self.cleaned.drop(indexes_to_delete)
+        self.all = self.cleaned.drop(indexes_to_delete)
 
-        self.staseis = self.final.loc[
+        self.stations = self.all.loc[
             self.cleaned['fs'].str.contains('^[a-zA-Z]+[0-9]+', regex=True)]
 
-        self.taximetrika = self.final.loc[
+        self.sideshots = self.all.loc[
             self.cleaned['fs'].str.contains(r'^\d+', regex=True)]
 
-        self.stats = self.taximetrika.groupby('station', as_index=False)[
-            'fs'].count().sort_values(by='fs')
-        self.stats['sunola'] = self.stats['fs'].cumsum()
+        self.convert_map = {'all': self.all,
+                            'stations': self.stations,
+                            'sideshots': self.sideshots,
+                            'raw': self.cleaned}
 
-    def export(self):
-        with pd.ExcelWriter(self.output) as writer:
-            self.final.to_excel(writer, sheet_name=f'All', index=False)
+    def export_xlsx(self):
+        with pd.ExcelWriter(self.out_xlsx) as writer:
+            for name, df in self.convert_map.items():
+                df.to_excel(writer, sheet_name=name, index=False)
 
-            self.staseis.to_excel(writer, sheet_name=f'Staseis', index=False)
-
-            self.taximetrika.to_excel(writer, sheet_name=f'Taximetrika',
-                                      index=False)
-
-            self.stats.to_excel(writer, sheet_name=f'Statistics',
-                                index=False)
-
-            self.cleaned.to_excel(writer, sheet_name=f'RAW_cleaned',
-                                  index=False)
+    def export_pickle(self):
+        with open(self.out_pickle, 'wb') as pkl_file:
+            pickle.dump(self.convert_map, pkl_file)

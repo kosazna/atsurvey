@@ -1,14 +1,32 @@
 # -*- coding: utf-8 -*-
 import pandas as pd
+import pickle
 from shutil import copy
 from pathlib import Path
+from aztool_topo.util.config import *
 
 
-def load_data(data, sheet_name: str = None):
-    if isinstance(data, str):
-        _sheet = 0 if sheet_name is None else sheet_name
-        return pd.read_excel(data, sheet_name=_sheet)
-    return data
+def load_data(data, **kwargs):
+    if isinstance(data, (str, Path)):
+        _file = Path(data)
+        _ext = _file.suffix
+
+        if _ext in [AZT_PROJECT_EXT, AZT_FILE_EXT]:
+            return pd.read_pickle(_file)
+        elif _ext == AZT_FILE_MAP_EXT:
+            with open(_file, 'rb') as pkl_file:
+                return pickle.load(pkl_file)
+        elif _ext in XLS_EXTS:
+            # _sheet = 0 if sheet_name is None else sheet_name
+            return pd.read_excel(_file, **kwargs)
+        elif _ext == ".csv":
+            return pd.read_csv(_file, **kwargs)
+        else:
+            raise TypeError(f"Can't load file type: {_ext}")
+    elif isinstance(data, pd.DataFrame):
+        return data
+    else:
+        raise TypeError(f"Can't load data: {data}")
 
 
 def copy_shp(file: (str, Path), dst: (str, Path)):
