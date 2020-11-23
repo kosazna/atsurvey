@@ -4,7 +4,7 @@ from aztool_topo.util.paths import *
 from aztool_topo.util.misc import *
 
 
-class ATTPLogger:
+class ATTProjectState:
     def __init__(self, project=None):
         self._paths = ATTPaths()
         self._history = self._load()

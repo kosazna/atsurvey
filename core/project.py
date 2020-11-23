@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from aztool_topo.core.traverse import *
 from aztool_topo.core.sideshot import *
-from aztool_topo.core.project_logger import *
+from aztool_topo.core.state import *
 from functools import partial
 
 
@@ -29,7 +29,7 @@ class SurveyProject:
         self.c_sideshots = []
         self.c_sideshots_count = 0
 
-        self.logger = ATTPLogger(self)
+        self.state = ATTProjectState(self)
         self.pdgui = None
 
     @staticmethod
@@ -46,7 +46,7 @@ class SurveyProject:
         return _project
 
     def save(self):
-        self.logger.save()
+        self.state.save()
 
     @classmethod
     def from_excel_file(cls, file, project_name=None):
@@ -113,7 +113,7 @@ class SurveyProject:
 
             self.c_traverses_count = len(self.c_traverses)
 
-            self.logger.update(self)
+            self.state.update(self)
 
             return styler(self.c_traverses_info, traverse_formatter)
         else:
@@ -157,7 +157,7 @@ class SurveyProject:
             self.c_sideshots_count = len(self.sideshots)
 
             print(f"[{self.c_sideshots_count}] points were calculated.")
-            self.logger.update(self)
+            self.state.update(self)
         else:
             print('No sideshots were computed')
 
