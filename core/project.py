@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from aztool_topo.core.traverse import *
-from aztool_topo.core.taximetria import *
+from aztool_topo.core.sideshot import *
 from aztool_topo.core.project_logger import *
 from functools import partial
 

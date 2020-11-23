@@ -24,7 +24,7 @@ def load_data(data, **kwargs):
         else:
             raise TypeError(f"Can't load file type: {_ext}")
     elif isinstance(data, pd.DataFrame):
-        return data
+        return data.copy()
     else:
         raise TypeError(f"Can't load data: {data}")
 

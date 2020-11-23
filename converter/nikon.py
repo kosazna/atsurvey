@@ -17,7 +17,7 @@ class NikonRawConverter:
         self.out_xlsx = self.wd.joinpath(f'{self.basename}_Converted.xlsx')
         self.out_pickle = self.wd.joinpath(f'{self.basename}_Converted.attm')
 
-        self.cleaned = pd.DataFrame()
+        self.processed = pd.DataFrame()
         self.stations = pd.DataFrame()
         self.sideshots = pd.DataFrame()
         self.all = pd.DataFrame()
@@ -67,31 +67,32 @@ class NikonRawConverter:
 
         df2['station'].fillna('<NA>', inplace=True)
 
-        self.cleaned = df2.loc[
+        self.processed = df2.loc[
             df2['station'].str.contains('^[a-zA-Z]+[0-9]+', regex=True)].copy()
 
-        self.cleaned.reset_index(inplace=True, drop=True)
+        self.processed.reset_index(inplace=True, drop=True)
 
-        self.cleaned['meas_type'] = self.cleaned.apply(
+        self.processed['meas_type'] = self.processed.apply(
             lambda x: self.meas_type(x['fs'], x['h_angle']), axis=1)
 
-        self.cleaned.loc[self.cleaned['meas_type'] == 'midenismos', 'bs'] = '-'
-        self.cleaned["mid"] = np.arange(1, self.cleaned.shape[0] + 1,
-                                        dtype=np.uint16)
+        self.processed.loc[
+            self.processed['meas_type'] == 'midenismos', 'bs'] = '-'
+        self.processed["mid"] = np.arange(1, self.processed.shape[0] + 1,
+                                          dtype=np.uint16)
 
-        self.cleaned = self.cleaned[
+        self.processed = self.processed[
             ['mid', 'meas_type', 'bs', 'station', 'fs', 'h_angle', 'v_angle',
              'slope_dist', 'target_h', 'station_h']]
 
-        self.cleaned = self.cleaned.astype({'meas_type': pd.StringDtype(),
-                                            'bs': pd.StringDtype(),
-                                            'station': pd.StringDtype(),
-                                            'fs': pd.StringDtype()})
+        self.processed = self.processed.astype({'meas_type': pd.StringDtype(),
+                                                'bs': pd.StringDtype(),
+                                                'station': pd.StringDtype(),
+                                                'fs': pd.StringDtype()})
 
         indexes_to_delete = []
 
-        search = self.cleaned.loc[
-            self.cleaned['meas_type'] == 'midenismos'].copy()
+        search = self.processed.loc[
+            self.processed['meas_type'] == 'backsight'].copy()
 
         search.reset_index(inplace=True)
 
@@ -104,18 +105,18 @@ class NikonRawConverter:
             except KeyError:
                 pass
 
-        self.all = self.cleaned.drop(indexes_to_delete)
+        self.all = self.processed.drop(indexes_to_delete)
 
         self.stations = self.all.loc[
-            self.cleaned['fs'].str.contains('^[a-zA-Z]+[0-9]+', regex=True)]
+            self.processed['fs'].str.contains('^[a-zA-Z]+[0-9]+', regex=True)]
 
         self.sideshots = self.all.loc[
-            self.cleaned['fs'].str.contains(r'^\d+', regex=True)]
+            self.processed['fs'].str.contains(r'^\d+', regex=True)]
 
         self.convert_map = {'all': self.all,
                             'stations': self.stations,
                             'sideshots': self.sideshots,
-                            'raw': self.cleaned}
+                            'raw': self.processed}
 
     def export_xlsx(self):
         with pd.ExcelWriter(self.out_xlsx) as writer:

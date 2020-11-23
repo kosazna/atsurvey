@@ -2,6 +2,7 @@
 from typing import List
 from aztool_topo.primitives import *
 from aztool_topo.util.paths import *
+from aztool_topo.converter.formater import TraverseFormatter
 
 
 class Traverse:
@@ -27,12 +28,10 @@ class Traverse:
         self._l1_temp_x = 0
         self._l1_temp_y = 0
         self._l1_temp_z = 0
-        self.metriseis = data.copy()
-        self.odeusi = pd.merge(pd.DataFrame(
-            list(zip(fmt_angle(stops), fmt_dist(stops))),
-            columns=['angle', 'distance']), self.metriseis, on='angle',
-            how='left')
-        self.has_mids = False
+        self.data = load_data(data)
+        self.formatter = TraverseFormatter(self.pick_data()).tranform()
+        self.traverse = self.formatter.get_data()
+        self._has_mids = False
         self.mids = self._init_mids()
 
     def __repr__(self):
@@ -53,19 +52,26 @@ class Traverse:
 
         return msg
 
+    def pick_data(self):
+        _picked = self.data.loc[(self.data['bs'].isin(self.stops)) & (
+            self.data['station'].isin(self.stops)) & (
+                                    self.data['fs'].isin(self.stops))].copy()
+
+        return _picked
+
     def _init_mids(self):
-        if 'mid' in self.odeusi.columns:
-            self.has_mids = True
-            return self.odeusi['mid'].to_list()
+        if 'mid' in self.traverse.columns:
+            self._has_mids = True
+            return self.traverse['mid'].to_list()
         else:
-            return [np.nan] * self.odeusi.shape[0]
+            return [np.nan] * self.traverse.shape[0]
 
     @classmethod
     def from_template(cls, file: Union[str, Path],
                       stops: list,
                       start: List[Point],
                       finish: List[Point] = None):
-        data = pd.read_excel(file, sheet_name='Traverse_Measurements')
+        data = pd.read_excel(file, sheet_name='all')
         working_dir = Path(file).parent
         return cls(stops, data, start, finish, working_dir)
 
@@ -83,7 +89,8 @@ class Traverse:
 
     @property
     def a_measured(self):
-        return Azimuth.from_measurements(self.a_start, self.odeusi['h_angle'])
+        return Azimuth.from_measurements(self.a_start,
+                                         self.traverse['h_angle'])
 
     @property
     def angular_misclosure(self):
@@ -94,7 +101,7 @@ class Traverse:
 
     @property
     def angular_correction(self):
-        return round(self.angular_misclosure / self.odeusi.shape[0],
+        return round(self.angular_misclosure / self.traverse.shape[0],
                      ANGLE_ROUND)
 
     @property
@@ -158,7 +165,7 @@ class Traverse:
     def is_validated(self):
         needed_angles = fmt_angle(self.stops)
         missing = [angle for angle in needed_angles if
-                   angle not in self.metriseis['angle'].values]
+                   angle not in self.formatter.angles]
 
         if missing:
             print(
@@ -171,7 +178,7 @@ class Traverse:
         return True
 
     def export(self):
-        file_to_export = self.odeusi.copy()
+        file_to_export = self.traverse.copy()
 
         _dir = self.paths.uwd_traverses
 
@@ -190,7 +197,8 @@ class Traverse:
     def to_excel(self, dst: (str, Path), name: str, decimals=4):
         self.stations.to_excel(dst=dst, name=name, decimals=decimals)
 
-    def to_csv(self, dst: (str, Path), name: str, decimals=4, point_id=False):
+    def to_csv(self, dst: (str, Path), name: str, decimals=4,
+               point_id=False):
         self.stations.to_csv(dst=dst, name=name, decimals=decimals,
                              point_id=point_id)
 
@@ -209,61 +217,59 @@ class OpenTraverse(Traverse):
         self.stops_count = len(stops) - 1
 
     def compute(self):
-        h_angle = Angles(self.odeusi['h_angle'])
-        dz_temp = DeltaDistances(self.odeusi['dz_temp'])
-        h_dist = HorizontalDistances(self.odeusi['h_dist'])
-        dz_temp[-1] = np.nan
-        h_dist[-1] = np.nan
-        ref_dist = h_dist.to_reference(self.mean_elevation)
-        egsa_dist = ref_dist.to_egsa(self.k)
-        self.length = egsa_dist.sum()
+        if self.is_validated():
+            h_angle = Angles(self.traverse['h_angle'])
+            dz_temp = DeltaDistances(self.traverse['dz_temp'])
+            h_dist = HorizontalDistances(self.traverse['h_dist'])
+            dz_temp[-1] = np.nan
+            h_dist[-1] = np.nan
+            ref_dist = h_dist.to_reference(self.mean_elevation)
+            egsa_dist = ref_dist.to_egsa(self.k)
+            self.length = egsa_dist.sum()
 
-        azimuths = Azimuths(h_angle).for_traverse(self.a_start)
-        dx_temp = DeltaDistances(egsa_dist * azimuths.sin)
-        dy_temp = DeltaDistances(egsa_dist * azimuths.cos)
-        dx = dx_temp
-        dy = dy_temp
-        dz = dz_temp
-        stations = Points.from_traverse(self.f2, self.f2, dx, dy, dz)
+            azimuths = Azimuths(h_angle).for_traverse(self.a_start)
+            dx_temp = DeltaDistances(egsa_dist * azimuths.sin)
+            dy_temp = DeltaDistances(egsa_dist * azimuths.cos)
+            dx = dx_temp
+            dy = dy_temp
+            dz = dz_temp
+            stations = Points.from_traverse(self.f2, self.f2, dx, dy, dz)
 
-        self.odeusi['surf_dist'] = ref_dist.values
-        self.odeusi['egsa_dist'] = egsa_dist.values
-        self.odeusi['azimuth'] = azimuths.values
-        self.odeusi['dX'] = dx.values
-        self.odeusi['dY'] = dy.values
-        self.odeusi['dZ'] = dz.values
-        self.odeusi['X'] = stations.x
-        self.odeusi['Y'] = stations.y
-        self.odeusi['Z'] = stations.z
+            self.traverse['surf_dist'] = ref_dist.values
+            self.traverse['egsa_dist'] = egsa_dist.values
+            self.traverse['azimuth'] = azimuths.values
+            self.traverse['dX'] = dx.values
+            self.traverse['dY'] = dy.values
+            self.traverse['dZ'] = dz.values
+            self.traverse['X'] = stations.x
+            self.traverse['Y'] = stations.y
+            self.traverse['Z'] = stations.z
 
-        self.odeusi[['bs', 'station', 'fs']] = self.odeusi['angle'].str.split(
-            '-', expand=True)
+            if self._has_mids:
+                keep = ['mid', 'bs', 'station', 'fs',
+                        'h_dist', 'surf_dist', 'egsa_dist',
+                        'h_angle', 'azimuth',
+                        'dX', 'dY', 'dZ', 'X', 'Y', 'Z']
+            else:
+                keep = ['bs', 'station', 'fs',
+                        'h_dist', 'surf_dist', 'egsa_dist',
+                        'h_angle', 'azimuth',
+                        'dX', 'dY', 'dZ', 'X', 'Y', 'Z']
 
-        if self.has_mids:
-            keep = ['mid', 'bs', 'station', 'fs',
-                    'h_dist', 'surf_dist', 'egsa_dist',
-                    'h_angle', 'azimuth',
-                    'dX', 'dY', 'dZ', 'X', 'Y', 'Z']
-        else:
-            keep = ['bs', 'station', 'fs',
-                    'h_dist', 'surf_dist', 'egsa_dist',
-                    'h_angle', 'azimuth',
-                    'dX', 'dY', 'dZ', 'X', 'Y', 'Z']
+            self.traverse = self.traverse[keep]
 
-        self.odeusi = self.odeusi[keep]
+            self.metrics = pd.DataFrame.from_dict(
+                {'traverse': [self.name],
+                 'stations': [self.stops_count],
+                 'length': [self.length],
+                 'mean_elev': [self.mean_elevation],
+                 'angular': [np.nan],
+                 'horizontal': [np.nan],
+                 'wx': [np.nan],
+                 'wy': [np.nan],
+                 'wz': [np.nan]}, orient='index')
 
-        self.metrics = pd.DataFrame.from_dict(
-            {'traverse': [self.name],
-             'stations': [self.stops_count],
-             'length': [self.length],
-             'mean_elev': [self.mean_elevation],
-             'angular': [np.nan],
-             'horizontal': [np.nan],
-             'wx': [np.nan],
-             'wy': [np.nan],
-             'wz': [np.nan]}, orient='index')
-
-        self.stations = Container(self.odeusi[['station', 'X', 'Y', 'Z']])
+            self.stations = Container(self.traverse[['station', 'X', 'Y', 'Z']])
 
 
 class LinkTraverse(Traverse):
@@ -280,65 +286,63 @@ class LinkTraverse(Traverse):
         self.stops_count = len(stops) - 2
 
     def compute(self):
-        h_angle = Angles(self.odeusi['h_angle'])
-        dz_temp = DeltaDistances(self.odeusi['dz_temp'])
-        h_dist = HorizontalDistances(self.odeusi['h_dist'])
-        dz_temp[-1] = np.nan
-        h_dist[-1] = np.nan
-        ref_dist = h_dist.to_reference(self.mean_elevation)
-        egsa_dist = ref_dist.to_egsa(self.k)
-        self.length = egsa_dist.sum()
-        h_angle_fixed = h_angle + self.angular_correction
-        azimuths = Azimuths(h_angle_fixed).for_traverse(self.a_start)
-        dx_temp = DeltaDistances(egsa_dist * azimuths.sin)
-        dy_temp = DeltaDistances(egsa_dist * azimuths.cos)
-        self._l1_temp_x = self.f2.x + dx_temp.sum()
-        self._l1_temp_y = self.f2.y + dy_temp.sum()
-        self._l1_temp_z = self.f2.z + dz_temp.sum()
-        dx = DeltaDistances(dx_temp + self.x_cor * egsa_dist)
-        dy = DeltaDistances(dy_temp + self.y_cor * egsa_dist)
-        dz = DeltaDistances(dz_temp + self.z_cor * egsa_dist)
-        stations = Points.from_traverse(self.f2, self.l1, dx, dy, dz)
+        if self.is_validated():
+            h_angle = Angles(self.traverse['h_angle'])
+            dz_temp = DeltaDistances(self.traverse['dz_temp'])
+            h_dist = HorizontalDistances(self.traverse['h_dist'])
+            dz_temp[-1] = np.nan
+            h_dist[-1] = np.nan
+            ref_dist = h_dist.to_reference(self.mean_elevation)
+            egsa_dist = ref_dist.to_egsa(self.k)
+            self.length = egsa_dist.sum()
+            h_angle_fixed = h_angle + self.angular_correction
+            azimuths = Azimuths(h_angle_fixed).for_traverse(self.a_start)
+            dx_temp = DeltaDistances(egsa_dist * azimuths.sin)
+            dy_temp = DeltaDistances(egsa_dist * azimuths.cos)
+            self._l1_temp_x = self.f2.x + dx_temp.sum()
+            self._l1_temp_y = self.f2.y + dy_temp.sum()
+            self._l1_temp_z = self.f2.z + dz_temp.sum()
+            dx = DeltaDistances(dx_temp + self.x_cor * egsa_dist)
+            dy = DeltaDistances(dy_temp + self.y_cor * egsa_dist)
+            dz = DeltaDistances(dz_temp + self.z_cor * egsa_dist)
+            stations = Points.from_traverse(self.f2, self.l1, dx, dy, dz)
 
-        self.odeusi['surf_dist'] = ref_dist.values
-        self.odeusi['egsa_dist'] = egsa_dist.values
-        self.odeusi['h_angle_fixed'] = h_angle_fixed.values
-        self.odeusi['azimuth'] = azimuths.values
-        self.odeusi['dX'] = dx.values
-        self.odeusi['dY'] = dy.values
-        self.odeusi['dZ'] = dz.values
-        self.odeusi['X'] = stations.x
-        self.odeusi['Y'] = stations.y
-        self.odeusi['Z'] = stations.z
+            self.traverse['surf_dist'] = ref_dist.values
+            self.traverse['egsa_dist'] = egsa_dist.values
+            self.traverse['h_angle_fixed'] = h_angle_fixed.values
+            self.traverse['azimuth'] = azimuths.values
+            self.traverse['dX'] = dx.values
+            self.traverse['dY'] = dy.values
+            self.traverse['dZ'] = dz.values
+            self.traverse['X'] = stations.x
+            self.traverse['Y'] = stations.y
+            self.traverse['Z'] = stations.z
 
-        self.odeusi[['bs', 'station', 'fs']] = self.odeusi['angle'].str.split(
-            '-', expand=True)
+            if self._has_mids:
+                keep = ['mid', 'bs', 'station', 'fs',
+                        'h_dist', 'surf_dist', 'egsa_dist',
+                        'h_angle', 'h_angle_fixed', 'azimuth',
+                        'dX', 'dY', 'dZ', 'X', 'Y', 'Z']
+            else:
+                keep = ['bs', 'station', 'fs',
+                        'h_dist', 'surf_dist', 'egsa_dist',
+                        'h_angle', 'h_angle_fixed', 'azimuth',
+                        'dX', 'dY', 'dZ', 'X', 'Y', 'Z']
 
-        if self.has_mids:
-            keep = ['mid', 'bs', 'station', 'fs',
-                    'h_dist', 'surf_dist', 'egsa_dist',
-                    'h_angle', 'h_angle_fixed', 'azimuth',
-                    'dX', 'dY', 'dZ', 'X', 'Y', 'Z']
-        else:
-            keep = ['bs', 'station', 'fs',
-                    'h_dist', 'surf_dist', 'egsa_dist',
-                    'h_angle', 'h_angle_fixed', 'azimuth',
-                    'dX', 'dY', 'dZ', 'X', 'Y', 'Z']
+            self.traverse = self.traverse[keep]
 
-        self.odeusi = self.odeusi[keep]
+            self.metrics = pd.DataFrame.from_dict(
+                {'traverse': [self.name],
+                 'stations': [self.stops_count],
+                 'length': [self.length],
+                 'mean_elev': [self.mean_elevation],
+                 'angular': [self.angular_misclosure],
+                 'horizontal': [self.horizontal_misclosure],
+                 'wx': [self.wx],
+                 'wy': [self.wy],
+                 'wz': [self.wz]})
 
-        self.metrics = pd.DataFrame.from_dict(
-            {'traverse': [self.name],
-             'stations': [self.stops_count],
-             'length': [self.length],
-             'mean_elev': [self.mean_elevation],
-             'angular': [self.angular_misclosure],
-             'horizontal': [self.horizontal_misclosure],
-             'wx': [self.wx],
-             'wy': [self.wy],
-             'wz': [self.wz]})
-
-        self.stations = Container(self.odeusi[['station', 'X', 'Y', 'Z']])
+            self.stations = Container(self.traverse[['station', 'X', 'Y', 'Z']])
 
 
 class ClosedTraverse(Traverse):
@@ -356,152 +360,77 @@ class ClosedTraverse(Traverse):
 
     def __repr__(self):
         msg = f"""
-                Traverse stops: {'-'.join(self.stops)}  [{self.stops_count}]\n
-                Traverse length: {self.length:.3f} m
-                Mean Elevation: {self.mean_elevation} m
-                k: {self.k:.4f}\n
-                α{self.f1.name}-{self.f2.name} : {self.a_start:.4f} g
-                α{self.f2.name}-{self.f1.name} : {self.a_finish:.4f} g
-                α'{self.f2.name}-{self.f1.name} : {self.a_measured:.4f} g
-                Angular Misclosure: {self.angular_misclosure:+.4f} g
-                Angular Correction: {self.angular_correction:+.4f} g\n
-                Horizontal Misclosure: {self.horizontal_misclosure:.3f} m
-                wX: {self.wx:+.3f} m
-                wY: {self.wy:+.3f} m
-                wZ: {self.wz:+.3f} m"""
+            Traverse stops: {'-'.join(self.stops)}  [{self.stops_count}]\n
+            Traverse length: {self.length:.3f} m
+            Mean Elevation: {self.mean_elevation} m
+            k: {self.k:.4f}\n
+            α{self.f1.name}-{self.f2.name} : {self.a_start:.4f} g
+            α{self.f2.name}-{self.f1.name} : {self.a_finish:.4f} g
+            α'{self.f2.name}-{self.f1.name} : {self.a_measured:.4f} g
+            Angular Misclosure: {self.angular_misclosure:+.4f} g
+            Angular Correction: {self.angular_correction:+.4f} g\n
+            Horizontal Misclosure: {self.horizontal_misclosure:.3f} m
+            wX: {self.wx:+.3f} m
+            wY: {self.wy:+.3f} m
+            wZ: {self.wz:+.3f} m"""
 
         return msg
 
-    # @property
-    # def mean_elevation(self):
-    #     return round((self.f2.z + self.f1.z) / 2, 3)
-    #
-    # @property
-    # def k(self):
-    #     return round(calc_k(self.f2.x, self.f1.x), DIST_ROUND)
-    #
-    # @property
-    # def a_measured(self):
-    #     return Azimuth.from_measurements(self.a_start, self.odeusi['h_angle'])
-    #
-    # @property
-    # def angular_correction(self):
-    #     return round(self.angular_misclosure / self.odeusi.shape[0],
-    #                  ANGLE_ROUND)
-    #
-    # @property
-    # def angular_misclosure(self):
-    #     return round(self.a_finish.value - self.a_measured.value, ANGLE_ROUND)
-    #
-    # @property
-    # def horizontal_misclosure(self):
-    #     return round(np.sqrt(self.wx ** 2 + self.wy ** 2), DIST_ROUND)
-    #
-    # @property
-    # def wx(self):
-    #     return round(self.odeusi['dx_temp'].sum(), DIST_ROUND)
-    #
-    # @property
-    # def wy(self):
-    #     return round(self.odeusi['dy_temp'].sum(), DIST_ROUND)
-    #
-    # @property
-    # def wz(self):
-    #     return round(self.odeusi['dz_temp'].sum(), DIST_ROUND)
-    #
-    # @property
-    # def x_cor(self):
-    #     try:
-    #         return round(self.wx / self.length, DIST_ROUND)
-    #     except ZeroDivisionError:
-    #         return 0
-    #
-    # @property
-    # def y_cor(self):
-    #     try:
-    #         return round(self.wy / self.length, DIST_ROUND)
-    #     except ZeroDivisionError:
-    #         return 0
-    #
-    # @property
-    # def z_cor(self):
-    #     try:
-    #         return round(self.wz / self.length, DIST_ROUND)
-    #     except ZeroDivisionError:
-    #         return 0
-    #
-    # @property
-    # def info(self):
-    #     out = pd.DataFrame.from_dict(
-    #         {'traverse': [self.name],
-    #          'stations': [self.stops_count],
-    #          'length': [self.length],
-    #          'mean_elev': [self.mean_elevation],
-    #          'angular': [self.angular_misclosure],
-    #          'horizontal': [self.horizontal_misclosure],
-    #          'wx': [self.wx],
-    #          'wy': [self.wy],
-    #          'wz': [self.wz]}, orient='index')
-    #
-    #     return out.style.format(traverse_formatter)
-
     def compute(self):
-        h_angle = Angles(self.odeusi['h_angle'])
-        dz_temp = DeltaDistances(self.odeusi['dz_temp'])
-        h_dist = HorizontalDistances(self.odeusi['h_dist'])
-        dz_temp[-1] = np.nan
-        h_dist[-1] = np.nan
-        ref_dist = h_dist.to_reference(self.mean_elevation)
-        egsa_dist = ref_dist.to_egsa(self.k)
-        self.length = egsa_dist.sum()
-        h_angle_fixed = h_angle + self.angular_correction
-        azimuths = Azimuths(h_angle_fixed).for_traverse(self.a_start)
-        dx_temp = DeltaDistances(egsa_dist * azimuths.sin)
-        dy_temp = DeltaDistances(egsa_dist * azimuths.cos)
-        self._l1_temp_x = self.f2.x + dx_temp.sum()
-        self._l1_temp_y = self.f2.y + dy_temp.sum()
-        self._l1_temp_z = self.f2.z + dz_temp.sum()
-        dx = DeltaDistances(dx_temp + self.x_cor * egsa_dist)
-        dy = DeltaDistances(dy_temp + self.y_cor * egsa_dist)
-        dz = DeltaDistances(dz_temp + self.z_cor * egsa_dist)
-        stations = Points.from_traverse(self.f2, self.f2, dx, dy, dz)
+        if self.is_validated():
+            h_angle = Angles(self.traverse['h_angle'])
+            dz_temp = DeltaDistances(self.traverse['dz_temp'])
+            h_dist = HorizontalDistances(self.traverse['h_dist'])
+            dz_temp[-1] = np.nan
+            h_dist[-1] = np.nan
+            ref_dist = h_dist.to_reference(self.mean_elevation)
+            egsa_dist = ref_dist.to_egsa(self.k)
+            self.length = egsa_dist.sum()
+            h_angle_fixed = h_angle + self.angular_correction
+            azimuths = Azimuths(h_angle_fixed).for_traverse(self.a_start)
+            dx_temp = DeltaDistances(egsa_dist * azimuths.sin)
+            dy_temp = DeltaDistances(egsa_dist * azimuths.cos)
+            self._l1_temp_x = self.f2.x + dx_temp.sum()
+            self._l1_temp_y = self.f2.y + dy_temp.sum()
+            self._l1_temp_z = self.f2.z + dz_temp.sum()
+            dx = DeltaDistances(dx_temp + self.x_cor * egsa_dist)
+            dy = DeltaDistances(dy_temp + self.y_cor * egsa_dist)
+            dz = DeltaDistances(dz_temp + self.z_cor * egsa_dist)
+            stations = Points.from_traverse(self.f2, self.f2, dx, dy, dz)
 
-        self.odeusi['surf_dist'] = ref_dist.values
-        self.odeusi['egsa_dist'] = egsa_dist.values
-        self.odeusi['h_angle_fixed'] = h_angle_fixed.values
-        self.odeusi['azimuth'] = azimuths.values
-        self.odeusi['dX'] = dx.values
-        self.odeusi['dY'] = dy.values
-        self.odeusi['dZ'] = dz.values
-        self.odeusi['X'] = stations.x
-        self.odeusi['Y'] = stations.y
-        self.odeusi['Z'] = stations.z
+            self.traverse['surf_dist'] = ref_dist.values
+            self.traverse['egsa_dist'] = egsa_dist.values
+            self.traverse['h_angle_fixed'] = h_angle_fixed.values
+            self.traverse['azimuth'] = azimuths.values
+            self.traverse['dX'] = dx.values
+            self.traverse['dY'] = dy.values
+            self.traverse['dZ'] = dz.values
+            self.traverse['X'] = stations.x
+            self.traverse['Y'] = stations.y
+            self.traverse['Z'] = stations.z
 
-        self.odeusi[['bs', 'station', 'fs']] = self.odeusi['angle'].str.split(
-            '-', expand=True)
+            if self._has_mids:
+                keep = ['mid', 'bs', 'station', 'fs',
+                        'h_dist', 'surf_dist', 'egsa_dist',
+                        'h_angle', 'h_angle_fixed', 'azimuth',
+                        'dX', 'dY', 'dZ', 'X', 'Y', 'Z']
+            else:
+                keep = ['bs', 'station', 'fs',
+                        'h_dist', 'surf_dist', 'egsa_dist',
+                        'h_angle', 'h_angle_fixed', 'azimuth',
+                        'dX', 'dY', 'dZ', 'X', 'Y', 'Z']
 
-        if self.has_mids:
-            keep = ['mid', 'bs', 'station', 'fs',
-                    'h_dist', 'surf_dist', 'egsa_dist',
-                    'h_angle', 'h_angle_fixed', 'azimuth',
-                    'dX', 'dY', 'dZ', 'X', 'Y', 'Z']
-        else:
-            keep = ['bs', 'station', 'fs',
-                    'h_dist', 'surf_dist', 'egsa_dist',
-                    'h_angle', 'h_angle_fixed', 'azimuth',
-                    'dX', 'dY', 'dZ', 'X', 'Y', 'Z']
+            self.traverse = self.traverse[keep]
 
-        self.odeusi = self.odeusi[keep]
+            self.metrics = pd.DataFrame.from_dict(
+                {'traverse': [self.name],
+                 'stations': [self.stops_count],
+                 'length': [self.length],
+                 'mean_elev': [self.mean_elevation],
+                 'angular': [self.angular_misclosure],
+                 'horizontal': [self.horizontal_misclosure],
+                 'wx': [self.wx],
+                 'wy': [self.wy],
+                 'wz': [self.wz]}, orient='index')
 
-        self.metrics = pd.DataFrame.from_dict(
-            {'traverse': [self.name],
-             'stations': [self.stops_count],
-             'length': [self.length],
-             'mean_elev': [self.mean_elevation],
-             'angular': [self.angular_misclosure],
-             'horizontal': [self.horizontal_misclosure],
-             'wx': [self.wx],
-             'wy': [self.wy],
-             'wz': [self.wz]}, orient='index')
-
-        self.stations = Container(self.odeusi[['station', 'X', 'Y', 'Z']])
+            self.stations = Container(self.traverse[['station', 'X', 'Y', 'Z']])
