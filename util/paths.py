@@ -8,7 +8,7 @@ class ATTPaths:
         self.userhome = Path.home()
         self.att_projects = self.userhome.joinpath(ATT_JSON)
         self.att_folder = self.userhome.joinpath(ATT_PROJECT_FILES)
-        self._check_aztt_folder_exists()
+        self._check_att_folder_exists()
 
         self.uwd = None
         self.uwd_folder = None
@@ -24,6 +24,6 @@ class ATTPaths:
             if not self.uwd_folder.exists():
                 self.uwd_folder.mkdir(parents=True, exist_ok=True)
 
-    def _check_aztt_folder_exists(self):
+    def _check_att_folder_exists(self):
         if not self.att_folder.exists():
             self.att_folder.mkdir(parents=True, exist_ok=True)
