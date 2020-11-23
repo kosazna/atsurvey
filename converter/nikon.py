@@ -2,20 +2,18 @@
 import numpy as np
 from typing import Union
 from aztool_topo.util.io import *
+from aztool_topo.util.paths import *
 
 
 class NikonRawConverter:
-    def __init__(self, file: Union[str, Path] = None):
+    def __init__(self, file: Union[str, Path]):
         self.filepath = Path(file)
-        self.wd = self.filepath.parent
-        self.basename = self.filepath.stem
+        self.wd = ATTPaths(self.filepath.parent)
+        self.name = self.filepath.stem
         self.raw = load_data(self.filepath,
                              skiprows=1,
                              names=range(7),
                              header=None)
-
-        self.out_xlsx = self.wd.joinpath(f'{self.basename}_Converted.xlsx')
-        self.out_pickle = self.wd.joinpath(f'{self.basename}_Converted.attm')
 
         self.processed = pd.DataFrame()
         self.stations = pd.DataFrame()
@@ -24,7 +22,7 @@ class NikonRawConverter:
         self.convert_map = dict()
 
     @staticmethod
-    def meas_type(fs: str, h_angle: float):
+    def meas_type(fs: str, h_angle: float) -> str:
         if fs[0].isalpha() and h_angle == 0.0:
             return 'backsight'
         elif fs[0].isalpha():
@@ -119,10 +117,17 @@ class NikonRawConverter:
                             'raw': self.processed}
 
     def export_xlsx(self):
-        with pd.ExcelWriter(self.out_xlsx) as writer:
+        dst = self.wd.uwd_folder.joinpath(f'C_{self.name}.xlsx')
+        with pd.ExcelWriter(dst) as writer:
             for name, df in self.convert_map.items():
                 df.to_excel(writer, sheet_name=name, index=False)
 
     def export_pickle(self):
-        with open(self.out_pickle, 'wb') as pkl_file:
+        dst = self.wd.uwd_folder.joinpath(f'C_{self.name}{ATT_FILE_MAP_EXT}')
+        with open(dst, 'wb') as pkl_file:
             pickle.dump(self.convert_map, pkl_file)
+
+    def export_pickles(self):
+        for name, df in self.convert_map.items():
+            dst = self.wd.uwd_folder.joinpath(f'C_{name}{ATT_FILE_EXT}')
+            df.to_pickle(dst)

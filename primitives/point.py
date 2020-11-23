@@ -20,11 +20,8 @@ class Point(object):
         return f"{self.name:<6}({self.x:<10.3f},{self.y:<11.3f},{self.z:<7.3f})"
 
     @property
-    def cords(self):
+    def cords(self) -> tuple:
         return tuple([self.x, self.y, self.z])
-
-    def split(self):
-        return tuple([self.name, self.cords])
 
     def azimuth(self, point, reverse: bool = False) -> Azimuth:
         return Azimuth.from_points(self, point, reverse)

@@ -17,11 +17,12 @@ DIST_ROUND = 8
 CORDS_ROUND = 6
 EARTH_C = 6371000
 
-AZT_PROJECT_EXT = ".attp"
-AZT_FILE_EXT = ".attf"
-AZT_FILE_MAP_EXT = ".attm"
+ATT_JSON = "attps.json"
+ATT_PROJECT_FILES = ".ATTFiles"
+ATT_PROJECT_EXT = ".attp"
+ATT_FILE_EXT = ".attf"
+ATT_FILE_MAP_EXT = ".attm"
 XLS_EXTS = [".xls", ".xlsx"]
-
 
 
 def warning(s):

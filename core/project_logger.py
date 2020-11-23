@@ -9,7 +9,7 @@ class ATTPLogger:
         self._paths = ATTPaths()
         self._history = self._load()
         self._project = project
-        self._project_wd = self._project.pwd.uwd
+        self._project_wd = self._project.wd.uwd
         self._output_name = f"{self._project.name}.attp"
         self._backup_name = f"{timestamp()}-{self._project.name}.attp"
         self._output = self._project_wd.joinpath(

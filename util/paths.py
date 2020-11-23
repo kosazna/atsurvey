@@ -1,16 +1,28 @@
 # -*- coding: utf-8 -*-
-
 from pathlib import Path
+from aztool_topo.util.config import *
 
 
 class ATTPaths:
     def __init__(self, directory=None):
         self.userhome = Path.home()
-        self.uwd = self.userhome if directory is None else Path(directory)
-        self.att_projects = self.userhome.joinpath("attps.json")
-        self.att_folder = self.userhome.joinpath("aztool_topo.files")
+        self.att_projects = self.userhome.joinpath(ATT_JSON)
+        self.att_folder = self.userhome.joinpath(ATT_PROJECT_FILES)
         self._check_aztt_folder_exists()
-        self.uwd_traverses = self.uwd.joinpath('Traverses')
+
+        self.uwd = None
+        self.uwd_folder = None
+        self._init_paths(directory)
+
+    def _init_paths(self, directory):
+        if directory is None:
+            self.uwd = self.userhome
+            self.uwd_folder = self.att_folder
+        else:
+            self.uwd = Path(directory)
+            self.uwd_folder = self.uwd.joinpath(".attFiles")
+            if not self.uwd_folder.exists():
+                self.uwd_folder.mkdir(parents=True, exist_ok=True)
 
     def _check_aztt_folder_exists(self):
         if not self.att_folder.exists():

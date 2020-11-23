@@ -3,30 +3,21 @@ from aztool_topo.primitives import *
 
 
 class TraverseFormatter:
-    def __init__(self, data: Any,
-                 file: Union[str, Path] = None):
-        self.filepath = Path(file) if file is not None else None
-        self.wd = self.filepath.parent if file is not None else None
-        self.basename = self.filepath.stem if file is not None else None
-        self.out_xlsx = self.wd.joinpath(
-            f'{self.basename}_Transformed.xlsx') if file is not None else None
-        self.out_pickle = self.wd.joinpath(
-            f'{self.basename}_Transformed.attf') if file is not None else None
-
+    def __init__(self, data: Any):
         self.df = load_data(data)
         self.angles = None
         self.dists = None
         self._traverse = None
 
     @staticmethod
-    def join_stops_for_angle(midenismos, stasi, metrisi):
+    def join_stops_for_angle(midenismos, stasi, metrisi) -> str:
         return '-'.join([midenismos, stasi, metrisi])
 
     @staticmethod
-    def join_stops_for_dist(station, fs):
+    def join_stops_for_dist(station, fs) -> str:
         return '-'.join(sorted([station, fs]))
 
-    def get_data(self):
+    def get_data(self) -> pd.DataFrame:
         return self._traverse.copy()
 
     def tranform(self):
@@ -65,9 +56,3 @@ class TraverseFormatter:
                                       'h_angle', 'h_dist', 'dz_temp', ]]
 
         return self
-
-    def export(self):
-        with pd.ExcelWriter(self.out_xlsx) as writer:
-            self._traverse.round(6).to_excel(writer,
-                                             sheet_name='measurements',
-                                             index=False)

@@ -10,11 +10,11 @@ def load_data(data, **kwargs):
         _file = Path(data)
         _ext = _file.suffix
 
-        if _ext in [AZT_PROJECT_EXT, AZT_FILE_EXT]:
+        if _ext in [ATT_PROJECT_EXT, ATT_FILE_EXT]:
             return pd.read_pickle(_file)
-        elif _ext == AZT_FILE_MAP_EXT:
+        elif _ext == ATT_FILE_MAP_EXT:
             with open(_file, 'rb') as pkl_file:
-                return pickle.load(pkl_file)
+                return pickle.load(pkl_file)['all']
         elif _ext in XLS_EXTS:
             return pd.read_excel(_file, **kwargs)
         elif _ext == ".csv":

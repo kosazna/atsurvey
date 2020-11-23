@@ -6,11 +6,11 @@ from datetime import datetime
 from pathlib import Path
 
 
-def timestamp():
+def timestamp() -> str:
     return datetime.now().strftime('%d/%m/%Y %H:%M:%S')
 
 
-def fmt_angle(stops):
+def fmt_angle(stops) -> list:
     joined_stops = []
     for i, stop in enumerate(stops):
         if i == 0:
@@ -24,7 +24,7 @@ def fmt_angle(stops):
     return joined_stops
 
 
-def fmt_dist(stops):
+def fmt_dist(stops) -> list:
     joined_stops = []
     for i, stop in enumerate(stops):
         if i == 0:
@@ -49,7 +49,7 @@ def extract_workind_dir(data):
         Provide 'working_dir' when instantiating the class SurveyProject.""")
 
 
-def parse_stops(stationsstr, keep=0):
+def parse_stops(stationsstr, keep=0) -> list:
     _stations = stationsstr.split('-')
 
     if keep == 1:

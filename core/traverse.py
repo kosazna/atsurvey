@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from typing import List
+from typing import List, Tuple
 from aztool_topo.primitives import *
 from aztool_topo.util.paths import *
 from aztool_topo.converter.formater import TraverseFormatter
@@ -12,7 +12,7 @@ class Traverse:
                  finish: List[Point] = None,
                  working_dir: Union[str, Path] = None):
         self.name = self.name = '-'.join(stops)
-        self.paths = ATTPaths(working_dir)
+        self.wd = ATTPaths(working_dir)
         self.stops = stops
         self.stops_count = 0
         self.length = 0
@@ -53,14 +53,14 @@ class Traverse:
 
         return msg
 
-    def pick_data(self):
+    def pick_data(self) -> pd.DataFrame:
         _picked = self.data.loc[(self.data['bs'].isin(self.stops)) & (
             self.data['station'].isin(self.stops)) & (
                                     self.data['fs'].isin(self.stops))].copy()
 
         return _picked
 
-    def _init_mids(self):
+    def _init_mids(self) -> list:
         if 'mid' in self.traverse.columns:
             self.has_mids = True
             return self.traverse['mid'].to_list()
@@ -77,76 +77,76 @@ class Traverse:
         return cls(stops, data, start, finish, working_dir)
 
     @property
-    def mean_elevation(self):
+    def mean_elevation(self) -> float:
         if isinstance(self, LinkTraverse):
             return round((self.f2.z + self.l1.z) / 2, 3)
         return round((self.f2.z + self.f1.z) / 2, 3)
 
     @property
-    def k(self):
+    def k(self) -> float:
         if isinstance(self, LinkTraverse):
             return round(calc_k(self.f2.x, self.l1.x), DIST_ROUND)
         return round(calc_k(self.f2.x, self.f1.x), DIST_ROUND)
 
     @property
-    def a_measured(self):
+    def a_measured(self) -> Azimuth:
         return Azimuth.from_measurements(self.a_start,
                                          self.traverse['h_angle'])
 
     @property
-    def angular_misclosure(self):
+    def angular_misclosure(self) -> float:
         if self.a_finish:
             return round(self.a_finish.value - self.a_measured.value,
                          ANGLE_ROUND)
         return 0.0
 
     @property
-    def angular_correction(self):
+    def angular_correction(self) -> float:
         return round(self.angular_misclosure / self.traverse.shape[0],
                      ANGLE_ROUND)
 
     @property
-    def wx(self):
+    def wx(self) -> float:
         if isinstance(self.l1, NonePoint):
             return 0.0
         return round(self.l1.x - self._l1_temp_x, DIST_ROUND)
 
     @property
-    def wy(self):
+    def wy(self) -> float:
         if isinstance(self.l1, NonePoint):
             return 0.0
         return round(self.l1.y - self._l1_temp_y, DIST_ROUND)
 
     @property
-    def wz(self):
+    def wz(self) -> float:
         if isinstance(self.l1, NonePoint):
             return 0.0
         return round(self.l1.z - self._l1_temp_z, DIST_ROUND)
 
     @property
-    def horizontal_misclosure(self):
+    def horizontal_misclosure(self) -> float:
         return round(np.sqrt(self.wx ** 2 + self.wy ** 2), DIST_ROUND)
 
     @property
-    def x_cor(self):
+    def x_cor(self) -> float:
         try:
             return round(self.wx / self.length, DIST_ROUND)
         except ZeroDivisionError:
-            return 0
+            return 0.0
 
     @property
-    def y_cor(self):
+    def y_cor(self) -> float:
         try:
             return round(self.wy / self.length, DIST_ROUND)
         except ZeroDivisionError:
-            return 0
+            return 0.0
 
     @property
-    def z_cor(self):
+    def z_cor(self) -> float:
         try:
             return round(self.wz / self.length, DIST_ROUND)
         except ZeroDivisionError:
-            return 0
+            return 0.0
 
     @property
     def info(self):
@@ -163,7 +163,7 @@ class Traverse:
 
         return out.style.format(traverse_formatter).hide_index()
 
-    def validate(self):
+    def validate(self) -> Tuple[bool, list]:
         needed_angles = fmt_angle(self.stops)
         missing = [angle for angle in needed_angles if
                    angle not in self.formatted.angles]
@@ -181,10 +181,7 @@ class Traverse:
     def export(self):
         file_to_export = self.traverse.copy()
 
-        _dir = self.paths.uwd_traverses
-
-        if not _dir.exists():
-            _dir.mkdir()
+        _dir = self.wd.uwd_folder
 
         name = '-'.join(self.stops) + f'_{type(self).__name__}'
         file_to_export.round(4).to_excel(_dir.joinpath(f'T_{name}.xlsx'),

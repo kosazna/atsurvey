@@ -90,30 +90,30 @@ class Angle:
         return _bool
 
     @property
-    def value(self):
+    def value(self) -> Union[float, int]:
         return self._angleG
 
     @property
-    def rad(self):
+    def rad(self) -> Union[float, int]:
         return self._angleR
 
     @property
-    def grad(self):
+    def grad(self) -> Union[float, int]:
         return self._angleG
 
     @property
-    def cos(self):
+    def cos(self) -> Union[float, int]:
         return round(np.cos(self._angleR), ANGLE_ROUND)
 
     @property
-    def sin(self):
+    def sin(self) -> Union[float, int]:
         return round(np.sin(self._angleR), ANGLE_ROUND)
 
     @property
-    def reverse(self):
+    def reverse(self) -> Union[float, int]:
         return round(400 - self._angleG, ANGLE_ROUND)
 
-    def sum(self):
+    def sum(self) -> Union[float, int]:
         return self._angleG
 
 
@@ -182,28 +182,28 @@ class Angles:
         return val2array(angles)
 
     @property
-    def values(self):
+    def values(self) -> np.ndarray:
         return self._anglesG
 
     @property
-    def rad(self):
+    def rad(self) -> np.ndarray:
         return self._anglesR
 
     @property
-    def grad(self):
+    def grad(self) -> np.ndarray:
         return self._anglesG
 
     @property
-    def cos(self):
+    def cos(self) -> np.ndarray:
         return np.cos(self._anglesR).round(ANGLE_ROUND)
 
     @property
-    def sin(self):
+    def sin(self) -> np.ndarray:
         return np.sin(self._anglesR).round(ANGLE_ROUND)
 
-    def sum(self):
+    def sum(self) -> Union[float, int]:
         return round(np.nansum(self._anglesG), ANGLE_ROUND)
 
     @property
-    def reverse(self):
+    def reverse(self) -> np.ndarray:
         return (400 - self._anglesG).round(ANGLE_ROUND)

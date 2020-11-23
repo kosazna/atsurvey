@@ -87,10 +87,10 @@ class Distance:
         return _bool
 
     @property
-    def value(self):
+    def value(self) -> Union[float, int]:
         return self._distance
 
-    def sum(self):
+    def sum(self) -> Union[float, int]:
         return self.value
 
 
@@ -227,14 +227,14 @@ class Distances:
             print(f"  -IndexError- Last index: {len(self) - 1}")
 
     @property
-    def values(self):
+    def values(self) -> np.ndarray:
         return self._distances
 
     @staticmethod
     def _load(distances):
         return val2array(distances)
 
-    def sum(self):
+    def sum(self) -> Union[float, int]:
         return round(np.nansum(self._distances), DIST_ROUND)
 
 

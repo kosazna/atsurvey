@@ -9,13 +9,12 @@ class SurveyProject:
     def __init__(self,
                  name: str = None,
                  data: Any = None,
-                 traverses: (str, pd.DataFrame) = None,
-                 known_points: (str, pd.DataFrame) = None,
-                 working_dir: (str, Path) = None):
-
+                 traverses: Any = None,
+                 known_points: Any = None,
+                 working_dir: Union[str, Path] = None):
         self.name = name
         self.time = timestamp()
-        self.pwd = ATTPaths(working_dir)
+        self.wd = ATTPaths(working_dir)
 
         self.data = load_data(data)
         self.traverse_list = load_data(traverses)
@@ -27,7 +26,6 @@ class SurveyProject:
         self.c_traverses = []
         self.c_traverses_count = 0
         self.c_traverses_info = None
-
         self.c_sideshots = []
         self.c_sideshots_count = 0
 
@@ -40,7 +38,7 @@ class SurveyProject:
             _history = json.load(history)
 
         _dir = Path(_history[project_name]['directory'])
-        _filename = _dir.joinpath(f"{project_name}.{AZT_PROJECT_EXT}")
+        _filename = _dir.joinpath(f"{project_name}.{ATT_PROJECT_EXT}")
 
         with open(_filename, 'rb') as azttp:
             _project = pickle.load(azttp)
@@ -51,13 +49,13 @@ class SurveyProject:
         self.logger.save()
 
     @classmethod
-    def from_single_file(cls, file, project_name=None):
+    def from_excel_file(cls, file, project_name=None):
         _path = Path(file)
         _name = _path.stem if project_name is None else project_name
         _all_data = pd.ExcelFile(_path)
-        _data = _all_data.parse('Measurements')
-        _traverses = _all_data.parse('Traverses')
-        _known_points = _all_data.parse('Known_Points')
+        _data = _all_data.parse('measurements')
+        _traverses = _all_data.parse('traverses')
+        _known_points = _all_data.parse('known_points')
         _working_dir = _path.parent
 
         return cls(name=_name,
@@ -82,19 +80,19 @@ class SurveyProject:
                                           parse_stops(traverse.stations, 1)),
                                       finish=self.point2obj(
                                           parse_stops(traverse.stations, -1)),
-                                      working_dir=self.pwd.uwd)
+                                      working_dir=self.wd.uwd)
                 elif traverse.t_type == 'ClosedTraverse':
                     tr = ClosedTraverse(stops=parse_stops(self.stations),
                                         data=self.data,
                                         start=self.point2obj(
                                             parse_stops(traverse.stations, 1)),
-                                        working_dir=self.pwd.uwd)
+                                        working_dir=self.wd.uwd)
                 else:
                     tr = OpenTraverse(stops=parse_stops(traverse.stations),
                                       data=self.data,
                                       start=self.point2obj(
                                           parse_stops(traverse.stations, 1)),
-                                      working_dir=self.pwd.uwd)
+                                      working_dir=self.wd.uwd)
 
                 if tr.is_validated:
                     tr.compute()
@@ -164,7 +162,7 @@ class SurveyProject:
             print('No sideshots were computed')
 
     def export_traverses(self):
-        _out = self.pwd.uwd.joinpath('Project_Traverses.xlsx')
+        _out = self.wd.uwd.joinpath('Project_Traverses.xlsx')
 
         with pd.ExcelWriter(_out) as writer:
             self.c_traverses_info.round(4).to_excel(writer, sheet_name='Info')
@@ -174,13 +172,13 @@ class SurveyProject:
                                                     index=False,
                                                     sheet_name=str(i))
 
-        self.stations.to_shp(self.pwd.uwd, "Project_Stations")
+        self.stations.to_shp(self.wd.uwd, "Project_Stations")
 
     def export_sideshots(self, csv_point_id=False):
-        self.sideshots.to_excel(self.pwd.uwd, "Project_Sideshots")
-        self.sideshots.to_csv(self.pwd.uwd, "Project_Sideshots",
+        self.sideshots.to_excel(self.wd.uwd, "Project_Sideshots")
+        self.sideshots.to_csv(self.wd.uwd, "Project_Sideshots",
                               point_id=csv_point_id)
-        self.sideshots.to_shp(self.pwd.uwd, "Project_Sideshots")
+        self.sideshots.to_shp(self.wd.uwd, "Project_Sideshots")
 
     def edit(self):
         from pandasgui import show

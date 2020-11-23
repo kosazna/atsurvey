@@ -71,16 +71,16 @@ class Container:
         return iter(self._series)
 
     @property
-    def empty(self):
+    def empty(self) -> bool:
         return self.data.empty
 
     @property
-    def data(self):
+    def data(self) -> pd.DataFrame:
         keep = ['X', 'Y', 'Z']
         return self._data[keep].copy()
 
     @property
-    def boundaries(self):
+    def boundaries(self) -> tuple:
         xmin = int(np.floor(self.data['X'].min()))
         ymin = int(np.floor(self.data['Y'].min()))
         xmax = int(np.ceil(self.data['X'].max()))
