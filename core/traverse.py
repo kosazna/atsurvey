@@ -7,12 +7,12 @@ from aztool_topo.converter.formater import TraverseFormatter
 
 class Traverse:
     def __init__(self, stops: list,
-                 data: pd.DataFrame,
+                 data: Any,
                  start: List[Point],
                  finish: List[Point] = None,
                  working_dir: Union[str, Path] = None):
         self.name = self.name = '-'.join(stops)
-        self.paths = AZTTPaths(working_dir)
+        self.paths = ATTPaths(working_dir)
         self.stops = stops
         self.stops_count = 0
         self.length = 0
@@ -29,9 +29,10 @@ class Traverse:
         self._l1_temp_y = 0
         self._l1_temp_z = 0
         self.data = load_data(data)
-        self.formatter = TraverseFormatter(self.pick_data()).tranform()
-        self.traverse = self.formatter.get_data()
-        self._has_mids = False
+        self.formatted = TraverseFormatter(self.pick_data()).tranform()
+        self.traverse = self.formatted.get_data()
+        self.is_validated, self.missing = self.validate()
+        self.has_mids = False
         self.mids = self._init_mids()
 
     def __repr__(self):
@@ -61,7 +62,7 @@ class Traverse:
 
     def _init_mids(self):
         if 'mid' in self.traverse.columns:
-            self._has_mids = True
+            self.has_mids = True
             return self.traverse['mid'].to_list()
         else:
             return [np.nan] * self.traverse.shape[0]
@@ -162,10 +163,10 @@ class Traverse:
 
         return out.style.format(traverse_formatter).hide_index()
 
-    def is_validated(self):
+    def validate(self):
         needed_angles = fmt_angle(self.stops)
         missing = [angle for angle in needed_angles if
-                   angle not in self.formatter.angles]
+                   angle not in self.formatted.angles]
 
         if missing:
             print(
@@ -174,8 +175,8 @@ class Traverse:
             for i in missing:
                 print(f'  -> ({i})')
             print('=' * 80, end='\n')
-            return False
-        return True
+            return False, missing
+        return True, missing
 
     def export(self):
         file_to_export = self.traverse.copy()
@@ -217,7 +218,7 @@ class OpenTraverse(Traverse):
         self.stops_count = len(stops) - 1
 
     def compute(self):
-        if self.is_validated():
+        if self.is_validated:
             h_angle = Angles(self.traverse['h_angle'])
             dz_temp = DeltaDistances(self.traverse['dz_temp'])
             h_dist = HorizontalDistances(self.traverse['h_dist'])
@@ -245,7 +246,7 @@ class OpenTraverse(Traverse):
             self.traverse['Y'] = stations.y
             self.traverse['Z'] = stations.z
 
-            if self._has_mids:
+            if self.has_mids:
                 keep = ['mid', 'bs', 'station', 'fs',
                         'h_dist', 'surf_dist', 'egsa_dist',
                         'h_angle', 'azimuth',
@@ -286,7 +287,7 @@ class LinkTraverse(Traverse):
         self.stops_count = len(stops) - 2
 
     def compute(self):
-        if self.is_validated():
+        if self.is_validated:
             h_angle = Angles(self.traverse['h_angle'])
             dz_temp = DeltaDistances(self.traverse['dz_temp'])
             h_dist = HorizontalDistances(self.traverse['h_dist'])
@@ -318,7 +319,7 @@ class LinkTraverse(Traverse):
             self.traverse['Y'] = stations.y
             self.traverse['Z'] = stations.z
 
-            if self._has_mids:
+            if self.has_mids:
                 keep = ['mid', 'bs', 'station', 'fs',
                         'h_dist', 'surf_dist', 'egsa_dist',
                         'h_angle', 'h_angle_fixed', 'azimuth',
@@ -377,7 +378,7 @@ class ClosedTraverse(Traverse):
         return msg
 
     def compute(self):
-        if self.is_validated():
+        if self.is_validated:
             h_angle = Angles(self.traverse['h_angle'])
             dz_temp = DeltaDistances(self.traverse['dz_temp'])
             h_dist = HorizontalDistances(self.traverse['h_dist'])
@@ -409,7 +410,7 @@ class ClosedTraverse(Traverse):
             self.traverse['Y'] = stations.y
             self.traverse['Z'] = stations.z
 
-            if self._has_mids:
+            if self.has_mids:
                 keep = ['mid', 'bs', 'station', 'fs',
                         'h_dist', 'surf_dist', 'egsa_dist',
                         'h_angle', 'h_angle_fixed', 'azimuth',

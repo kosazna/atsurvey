@@ -4,9 +4,9 @@ from aztool_topo.util.paths import *
 from aztool_topo.util.misc import *
 
 
-class AZTTPLogger:
+class ATTPLogger:
     def __init__(self, project=None):
-        self._paths = AZTTPaths()
+        self._paths = ATTPaths()
         self._history = self._load()
         self._project = project
         self._project_wd = self._project.pwd.uwd
@@ -14,12 +14,12 @@ class AZTTPLogger:
         self._backup_name = f"{timestamp()}-{self._project.name}.attp"
         self._output = self._project_wd.joinpath(
             self._output_name)
-        self._backup = self._paths.aztt_folder.joinpath(
+        self._backup = self._paths.att_folder.joinpath(
             self._output_name)
 
     def _load(self):
-        if self._paths.aztt_projects.exists():
-            with open(self._paths.aztt_projects, "r") as history:
+        if self._paths.att_projects.exists():
+            with open(self._paths.att_projects, "r") as history:
                 _history = json.load(history)
             return _history
         else:
@@ -32,7 +32,7 @@ class AZTTPLogger:
             "directory": str(self._project_wd)
         }
 
-        write_json(self._paths.aztt_projects, self._history)
+        write_json(self._paths.att_projects, self._history)
 
         with open(str(self._output), 'wb') as azttp:
             pickle.dump(self._project, azttp)

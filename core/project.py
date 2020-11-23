@@ -8,19 +8,17 @@ from functools import partial
 class SurveyProject:
     def __init__(self,
                  name: str = None,
-                 traverse_data: (str, pd.DataFrame) = None,
-                 sideshot_data: (str, pd.DataFrame) = None,
+                 data: Any = None,
                  traverses: (str, pd.DataFrame) = None,
                  known_points: (str, pd.DataFrame) = None,
                  working_dir: (str, Path) = None):
 
         self.name = name
         self.time = timestamp()
-        self.pwd = AZTTPaths(working_dir)
+        self.pwd = ATTPaths(working_dir)
 
-        self.t_data = load_data(traverse_data)
-        self.s_data = load_data(sideshot_data)
-        self.t_list = load_data(traverses)
+        self.data = load_data(data)
+        self.traverse_list = load_data(traverses)
         self.known = load_data(known_points)
 
         self.stations = Container(self.known)
@@ -33,16 +31,16 @@ class SurveyProject:
         self.c_sideshots = []
         self.c_sideshots_count = 0
 
-        self.logger = AZTTPLogger(self)
+        self.logger = ATTPLogger(self)
         self.pdgui = None
 
     @staticmethod
     def open(project_name):
-        with open(AZTTPaths().aztt_projects, "r") as history:
+        with open(ATTPaths().att_projects, "r") as history:
             _history = json.load(history)
 
         _dir = Path(_history[project_name]['directory'])
-        _filename = _dir.joinpath(f"{project_name}.azttp")
+        _filename = _dir.joinpath(f"{project_name}.{AZT_PROJECT_EXT}")
 
         with open(_filename, 'rb') as azttp:
             _project = pickle.load(azttp)
@@ -57,15 +55,13 @@ class SurveyProject:
         _path = Path(file)
         _name = _path.stem if project_name is None else project_name
         _all_data = pd.ExcelFile(_path)
-        _traverse_data = _all_data.parse('Traverse_Measurements')
-        _sideshot_data = _all_data.parse('Taximetrika')
+        _data = _all_data.parse('Measurements')
         _traverses = _all_data.parse('Traverses')
         _known_points = _all_data.parse('Known_Points')
         _working_dir = _path.parent
 
         return cls(name=_name,
-                   traverse_data=_traverse_data,
-                   sideshot_data=_sideshot_data,
+                   data=_data,
                    traverses=_traverses,
                    known_points=_known_points,
                    working_dir=_working_dir)
@@ -77,11 +73,11 @@ class SurveyProject:
         self.c_traverses = []
         self.c_traverses_count = 0
         self.c_traverses_info = None
-        for traverse in self.t_list.itertuples():
+        for traverse in self.traverse_list.itertuples():
             if traverse.compute == 1:
                 if traverse.t_type == 'LinkTraverse':
                     tr = LinkTraverse(stops=parse_stops(traverse.stations),
-                                      data=self.t_data,
+                                      data=self.data,
                                       start=self.point2obj(
                                           parse_stops(traverse.stations, 1)),
                                       finish=self.point2obj(
@@ -89,19 +85,21 @@ class SurveyProject:
                                       working_dir=self.pwd.uwd)
                 elif traverse.t_type == 'ClosedTraverse':
                     tr = ClosedTraverse(stops=parse_stops(self.stations),
-                                        data=self.t_data,
+                                        data=self.data,
                                         start=self.point2obj(
                                             parse_stops(traverse.stations, 1)),
                                         working_dir=self.pwd.uwd)
                 else:
                     tr = OpenTraverse(stops=parse_stops(traverse.stations),
-                                      data=self.t_data,
+                                      data=self.data,
                                       start=self.point2obj(
                                           parse_stops(traverse.stations, 1)),
                                       working_dir=self.pwd.uwd)
 
-                if tr.is_validated():
+                if tr.is_validated:
                     tr.compute()
+                else:
+                    pass  # TODO: add warnings
 
                     self.c_traverses.append(tr)
 
@@ -130,7 +128,7 @@ class SurveyProject:
         self.c_sideshots = []
         self.c_sideshots_count = 0
 
-        all_groups = self.s_data.groupby(['station', 'bs'])
+        all_groups = self.data.groupby(['station', 'bs'])
 
         if exclude is None:
             point_groups = list(all_groups.groups)
@@ -186,21 +184,18 @@ class SurveyProject:
 
     def edit(self):
         from pandasgui import show
+        traverses = self.traverse_list
+        measurements = self.data
         known_points = self.stations.data
-        traverses = self.t_list
-        traverse_data = self.t_data
-        sideshot_data = self.s_data
         sideshots = self.sideshots.data
 
-        self.pdgui = show(known_points,
-                          traverses,
-                          traverse_data,
-                          sideshot_data,
+        self.pdgui = show(traverses,
+                          measurements,
+                          known_points,
                           sideshots)
 
     def save_changes(self):
         self.stations = Container(self.pdgui.get_dataframes()['known_points'])
-        self.t_list = self.pdgui.get_dataframes()['traverses']
-        self.t_data = self.pdgui.get_dataframes()['traverse_data']
-        self.s_data = self.pdgui.get_dataframes()['sideshot_data']
+        self.traverse_list = self.pdgui.get_dataframes()['traverses']
+        self.data = self.pdgui.get_dataframes()['measurements']
         self.sideshots = Container(self.pdgui.get_dataframes()['sideshots'])

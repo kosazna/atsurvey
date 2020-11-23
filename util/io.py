@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 import pandas as pd
 import pickle
-from shutil import copy
 from pathlib import Path
 from aztool_topo.util.config import *
 
@@ -17,7 +16,6 @@ def load_data(data, **kwargs):
             with open(_file, 'rb') as pkl_file:
                 return pickle.load(pkl_file)
         elif _ext in XLS_EXTS:
-            # _sheet = 0 if sheet_name is None else sheet_name
             return pd.read_excel(_file, **kwargs)
         elif _ext == ".csv":
             return pd.read_csv(_file, **kwargs)
@@ -27,13 +25,6 @@ def load_data(data, **kwargs):
         return data.copy()
     else:
         raise TypeError(f"Can't load data: {data}")
-
-
-def copy_shp(file: (str, Path), dst: (str, Path)):
-    _file = Path(file)
-    copy(_file, dst)
-    copy(_file.with_suffix('.dbf'), dst)
-    copy(_file.with_suffix('.shx'), dst)
 
 
 def export_shp(data: pd.DataFrame, dst: (str, Path), name: str, round_z=2):
