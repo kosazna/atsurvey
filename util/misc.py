@@ -4,13 +4,14 @@ import pandas as pd
 import json
 from datetime import datetime
 from pathlib import Path
+from typing import List, Union
 
 
 def timestamp() -> str:
     return datetime.now().strftime('%d/%m/%Y %H:%M:%S')
 
 
-def fmt_angle(stops) -> list:
+def fmt_angle(stops: list) -> List[str]:
     joined_stops = []
     for i, stop in enumerate(stops):
         if i == 0:
@@ -24,7 +25,7 @@ def fmt_angle(stops) -> list:
     return joined_stops
 
 
-def fmt_dist(stops) -> list:
+def fmt_dist(stops: list) -> List[str]:
     joined_stops = []
     for i, stop in enumerate(stops):
         if i == 0:
@@ -38,7 +39,7 @@ def fmt_dist(stops) -> list:
     return joined_stops
 
 
-def extract_workind_dir(data):
+def extract_workind_dir(data: Union[str, Path]):
     if isinstance(data, str):
         _path = Path(data)
         return _path if _path.is_dir() else _path.parent
@@ -49,7 +50,7 @@ def extract_workind_dir(data):
         Provide 'working_dir' when instantiating the class SurveyProject.""")
 
 
-def parse_stops(stationsstr, keep=0) -> list:
+def parse_stops(stationsstr: str, keep: int = 0) -> List[str]:
     _stations = stationsstr.split('-')
 
     if keep == 1:
@@ -65,7 +66,7 @@ def styler(data: pd.DataFrame, formatter: dict):
                                               subset=['angular'])
 
 
-def load_json(path):
+def load_json(path: Union[str, Path]) -> dict:
     """
     Loads json file to a dictionary.
 
@@ -83,7 +84,7 @@ def load_json(path):
         print(f'\n!! NO SUCH FILE : {path}\n')
 
 
-def write_json(path, data):
+def write_json(path: Union[str, Path], data: dict):
     """
     Writes python dictionary to a json file (indent=2).
 

@@ -1,5 +1,4 @@
 pandas
 pandasgui
-pyqt5
 numpy
 geopandas

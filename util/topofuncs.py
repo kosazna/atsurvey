@@ -5,8 +5,8 @@ from aztool_topo.util.config import *
 from typing import Union, Any
 
 
-def round8(numbers):
-    return round(numbers, 8)
+def round8(number: float):
+    return round(number, 8)
 
 
 def vectorize(func):
@@ -36,44 +36,44 @@ def vectorize(func):
     return wrapper
 
 
-def calc_k(x1, x2):
+def calc_k(x1: float, x2: float):
     x_sum = x1 + x2
     _ = (12311 * ((((x_sum / 2) * (10 ** -6)) - 0.5) ** 2) - 400) * (10 ** -6)
     return round(1 + _, DIST_ROUND)
 
 
 @vectorize
-def grad2rad(angle):
+def grad2rad(angle: Any):
     return round((angle * np.pi) / 200, ANGLE_ROUND)
 
 
 @vectorize
-def rad2grad(angle):
+def rad2grad(angle: Any):
     return round((angle * 200) / np.pi, ANGLE_ROUND)
 
 
 @vectorize
-def slope2hor(distance, angle):
+def slope2hor(distance: Any, angle: Any):
     return round(distance * np.sin(grad2rad(angle)), DIST_ROUND)
 
 
 @vectorize
-def hor2ref(distance, mean_elevation):
+def hor2ref(distance: Any, mean_elevation: Any):
     return round(distance * (EARTH_C / (EARTH_C + mean_elevation)), DIST_ROUND)
 
 
 @vectorize
-def ref2egsa(distance, k=0.9996):
+def ref2egsa(distance: Any, k: float = 0.9996):
     return round(distance * k, DIST_ROUND)
 
 
 @vectorize
-def p2p_dh(distance, angle, uo, us):
+def p2p_dh(distance: Any, angle: Any, uo: Any, us: Any):
     return round(distance * np.cos(grad2rad(angle)) + uo - us, DIST_ROUND)
 
 
 @vectorize
-def mean_dh_signed(original, mean):
+def mean_dh_signed(original: Any, mean: Any):
     if original > 0:
         return mean
     else:
@@ -81,22 +81,22 @@ def mean_dh_signed(original, mean):
 
 
 @vectorize
-def calc_X(init_x, distance, azimuth):
+def calc_X(init_x: Any, distance: Any, azimuth: Any):
     return round(init_x + distance * np.sin(grad2rad(azimuth)), CORDS_ROUND)
 
 
 @vectorize
-def calc_Y(init_y, distance, azimuth):
+def calc_Y(init_y: Any, distance: Any, azimuth: Any):
     return round(init_y + distance * np.cos(grad2rad(azimuth)), CORDS_ROUND)
 
 
 @vectorize
-def calc_Z(init_z, distance, angle, uo, us):
+def calc_Z(init_z: Any, distance: Any, angle: Any, uo: Any, us: Any):
     return round(init_z + p2p_dh(distance, angle, uo, us), CORDS_ROUND)
 
 
 @vectorize
-def resolve_angle(angle):
+def resolve_angle(angle: Any):
     if hasattr(angle, "value"):
         _angle = angle.value
     else:
@@ -111,7 +111,7 @@ def resolve_angle(angle):
 
 
 @vectorize
-def determine_quartile(dx, dy):
+def determine_quartile(dx: Any, dy: Any):
     delta = round(np.arctan(abs(dx) / abs(dy)), ANGLE_ROUND)
     delta_grad = rad2grad(delta)
 

@@ -2,10 +2,12 @@
 import pandas as pd
 import pickle
 from pathlib import Path
+from typing import Union, Any
 from aztool_topo.util.config import *
 
 
-def load_data(data, **kwargs):
+def load_data(data: Union[str, Path, pd.DataFrame],
+              **kwargs: Any):
     if isinstance(data, (str, Path)):
         _file = Path(data)
         _ext = _file.suffix
@@ -27,11 +29,14 @@ def load_data(data, **kwargs):
         raise TypeError(f"Can't load data: {data}")
 
 
-def export_shp(data: pd.DataFrame, dst: (str, Path), name: str, round_z=2):
+def export_shp(data: pd.DataFrame,
+               dst: Union[str, Path],
+               name: str,
+               round_display_z: int = 2):
     import geopandas as gpd
     _data = data.copy().reset_index().rename(columns={'station': 'ID'}).round(4)
     _data['ID'] = _data['ID'].astype(str)
-    _data['display_Z'] = _data['Z'].round(round_z).astype(str)
+    _data['display_Z'] = _data['Z'].round(round_display_z).astype(str)
     _geometry = gpd.points_from_xy(_data['X'], _data['Y'], _data['Z'])
     gdf = gpd.GeoDataFrame(_data, geometry=_geometry)
 

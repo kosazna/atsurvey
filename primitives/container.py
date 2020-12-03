@@ -1,14 +1,16 @@
 # -*- coding: utf-8 -*-
 
 from aztool_topo.primitives.point import *
+from typing import Tuple
 
 
 # noinspection PyTypeChecker
-def transform_split(data: (str, pd.DataFrame)):
+def transform_split(data: Union[str, pd.DataFrame, None]) \
+        -> Tuple[pd.DataFrame, pd.Series]:
     if data is None:
         df = pd.DataFrame(columns=['station', 'X', 'Y', 'Z'])
     else:
-        if isinstance(data, str):
+        if isinstance(data, (str, Path)):
             df = pd.read_excel(data)
         else:
             df = data.copy()
@@ -31,23 +33,23 @@ def transform_split(data: (str, pd.DataFrame)):
 
 
 class Container:
-    def __init__(self, data: (str, pd.DataFrame) = None):
+    def __init__(self, data: Union[str, pd.DataFrame, None] = None):
         self._data, self._series = transform_split(data)
 
-    def __len__(self):
+    def __len__(self) -> int:
         return self._data.shape[0]
 
-    def __getitem__(self, key):
+    def __getitem__(self, key: str) -> Union[Point, NonePoint]:
         try:
             return self._series[key]
         except KeyError:
             print(f"\n[ERROR] - Point doesn't exist: [{key}]\n")
-            return NonePoint
+            return NonePoint()
 
-    def __setitem__(self, key, value):
+    def __setitem__(self, key: str, value: Point):
         self._series[key] = value
 
-    def __contains__(self, item):
+    def __contains__(self, item: Union[str, list, tuple]) -> bool:
         if isinstance(item, str):
             return item in self._data.index
         elif isinstance(item, (list, tuple)):
@@ -80,7 +82,7 @@ class Container:
         return self._data[keep].copy()
 
     @property
-    def boundaries(self) -> tuple:
+    def boundaries(self) -> Tuple[int, int, int, int]:
         xmin = int(np.floor(self.data['X'].min()))
         ymin = int(np.floor(self.data['Y'].min()))
         xmax = int(np.ceil(self.data['X'].max()))
@@ -103,20 +105,24 @@ class Container:
 
         return self
 
-    def to_shp(self, dst: (str, Path), name: str, round_z=2):
+    def to_shp(self, dst: Union[str, Path], name: str, round_z: int = 2):
         if self.empty:
             print("Can't export empty data Container")
         else:
-            export_shp(data=self.data, dst=dst, name=name, round_z=round_z)
+            export_shp(data=self.data, dst=dst, name=name,
+                       round_display_z=round_z)
 
-    def to_excel(self, dst: (str, Path), name: str, decimals=4):
+    def to_excel(self, dst: Union[str, Path], name: str, decimals: int = 4):
         if self.empty:
             print("Can't export empty data Container")
         else:
             _dst = Path(dst).joinpath(f'{name}.xlsx')
             self.data.rename_axis('ID').round(decimals).to_excel(_dst)
 
-    def to_csv(self, dst: (str, Path), name: str, decimals=4, point_id=False):
+    def to_csv(self, dst: Union[str, Path],
+               name: str,
+               decimals: int = 4,
+               point_id: bool = False):
         if self.empty:
             print("Can't export empty data Container")
         else:
