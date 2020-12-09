@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import pandas as pd
 import numpy as np
-from aztool_topo.util.config import *
+from atsurvey.util.config import *
 from typing import Union, Any
 
 

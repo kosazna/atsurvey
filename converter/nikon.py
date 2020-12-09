@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 import numpy as np
 from typing import Union
-from aztool_topo.util.io import *
-from aztool_topo.util.paths import *
+from atsurvey.util.io import *
+from atsurvey.util.paths import *
 
 
 class NikonRawConverter:

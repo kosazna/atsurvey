@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import pickle
-from aztool_topo.util.paths import *
-from aztool_topo.util.misc import *
+from atsurvey.util.paths import *
+from atsurvey.util.misc import *
 
 
 class ATTProjectState:

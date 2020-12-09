@@ -3,7 +3,7 @@ import pandas as pd
 import pickle
 from pathlib import Path
 from typing import Union, Any
-from aztool_topo.util.config import *
+from atsurvey.util.config import *
 
 
 def load_data(data: Union[str, Path, pd.DataFrame],

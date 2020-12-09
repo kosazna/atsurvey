@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from aztool_topo.primitives import *
+from atsurvey.primitives import *
 
 
 class TraverseFormatter:

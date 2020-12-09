@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from aztool_topo.util.config import *
+from atsurvey.util.config import *
 import pandas as pd
 import json
 from datetime import datetime

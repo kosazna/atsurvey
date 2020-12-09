@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 from typing import List, Tuple
-from aztool_topo.primitives import *
-from aztool_topo.util.paths import *
-from aztool_topo.converter.formater import TraverseFormatter
+from atsurvey.primitives import *
+from atsurvey.util.paths import *
+from atsurvey.converter.formater import TraverseFormatter
 
 
 class Traverse:

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from aztool_topo.primitives.angle import *
+from atsurvey.primitives.angle import *
 
 
 class Distance:

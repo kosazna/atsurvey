@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
-from aztool_topo.primitives.distance import *
-from aztool_topo.primitives.azimuth import *
+from atsurvey.primitives.distance import *
+from atsurvey.primitives.azimuth import *
 from typing import Tuple
 
 

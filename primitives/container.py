@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from aztool_topo.primitives.point import *
+from atsurvey.primitives.point import *
 from typing import Tuple
 
 
