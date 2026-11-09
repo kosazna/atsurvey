@@ -7,6 +7,8 @@
 | [contracts.md](contracts.md) | API payloads and database schema shared by all parts |
 | [engine.md](engine.md) | computation methods, formulas, settings, issue codes |
 | [numerics.md](numerics.md) | float64 vs Decimal, measured precision, rounding policy |
+| [adjustment.md](adjustment.md) | least-squares network adjustment, statistics, blunder detection |
+| [cogo.md](cogo.md) | COGO tools (inverse, polar, intersections, resection, area, transformation, chainage) and levelling |
 | [formats.md](formats.md) | supported instrument files and how to export them |
 | [validation.md](validation.md) | validating against the reference Excel workbooks |
 | [api.md](api.md) | engine API endpoints, auth, plans, configuration |
