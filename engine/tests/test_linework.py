@@ -5,6 +5,7 @@ import pytest
 from atsurvey import ControlPoint, ProjectInput, compute_project
 from atsurvey.core.linework import build_linework
 from atsurvey.core.models import ComputeSettings, DetailShot, LineworkSettings, ResultPoint
+
 from synth import observe
 
 
