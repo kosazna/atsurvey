@@ -122,9 +122,44 @@ class Tolerances(_Model):
     check_shot_m: float = 0.03
 
 
+AdjustmentMethod = Literal["bowditch", "least_squares"]
+
+
+class AdjustmentSettings(_Model):
+    """Network adjustment. ``bowditch`` adjusts each traverse separately (compass rule);
+    ``least_squares`` adjusts all directions, distances and height differences between
+    occupied stations simultaneously (control points fixed), starting from the traverse
+    solution as approximate coordinates."""
+
+    method: AdjustmentMethod = "bowditch"
+    sigma_direction_cc: float = Field(default=10.0, gt=0, description="A priori σ of a direction")
+    sigma_distance_mm: float = Field(default=2.0, gt=0)
+    sigma_distance_ppm: float = Field(default=2.0, ge=0)
+    sigma_centering_mm: float = Field(default=1.0, ge=0, description="Instrument + target")
+    sigma_height_mm: float = Field(default=5.0, gt=0, description="σ of Δh at 1 km")
+    alpha_global: float = Field(default=0.05, gt=0, lt=1, description="Global χ² test")
+    alpha_w: float = Field(default=0.001, gt=0, lt=1, description="Baarda w-test per observation")
+    max_iterations: int = Field(default=10, ge=1, le=50)
+
+
+class LineworkSettings(_Model):
+    """Field-code line work. The first token of a point code is the feature code; points
+    whose feature code is listed in ``line_codes`` are joined in observation order.
+    Control tokens after the feature code: ``start_tokens`` begins a new line,
+    ``close_tokens`` closes the current line (polygon), ``end_tokens`` ends it."""
+
+    line_codes: list[str] = Field(default_factory=list)
+    start_tokens: list[str] = Field(default_factory=lambda: ["ST", "B", "ΑΡΧ"])
+    close_tokens: list[str] = Field(default_factory=lambda: ["CL", "C", "ΚΛ"])
+    end_tokens: list[str] = Field(default_factory=lambda: ["E", "END", "ΤΕΛ"])
+    case_sensitive: bool = False
+
+
 class ComputeSettings(_Model):
     reduction: ReductionSettings = Field(default_factory=ReductionSettings)
     tolerances: Tolerances = Field(default_factory=Tolerances)
+    adjustment: AdjustmentSettings = Field(default_factory=AdjustmentSettings)
+    linework: LineworkSettings = Field(default_factory=LineworkSettings)
     compute_detail: bool = True
 
 
@@ -147,6 +182,15 @@ class Issue(_Model):
     setup: str | None = None
 
 
+class ErrorEllipse(_Model):
+    """Standard (1σ) error ellipse; multiply by ``k95`` for 95 % confidence."""
+
+    a: float = Field(description="Semi-major axis, m")
+    b: float = Field(description="Semi-minor axis, m")
+    theta: float = Field(description="Azimuth of the major axis, radians")
+    k95: float = Field(default=2.4477, description="Scale factor for a 95 % ellipse (2D)")
+
+
 class ResultPoint(_Model):
     name: str
     x: float
@@ -156,6 +200,10 @@ class ResultPoint(_Model):
     code: str | None = None
     source: str | None = Field(default=None, description="Traverse name or station")
     n: int = Field(default=1, description="Number of determinations averaged")
+    sx: float | None = Field(default=None, description="Std dev of X after least squares, m")
+    sy: float | None = None
+    sz: float | None = None
+    ellipse: ErrorEllipse | None = None
 
 
 class TraverseStation(_Model):
@@ -242,6 +290,55 @@ class SetupOrientation(_Model):
     spread: float | None
 
 
+ObservationKind = Literal["direction", "distance", "height"]
+
+
+class AdjustedObservation(_Model):
+    kind: ObservationKind
+    station: str
+    target: str
+    observed: float = Field(description="rad for directions, m otherwise")
+    adjusted: float
+    residual: float
+    sigma: float = Field(description="A priori σ used for the weight")
+    redundancy: float = Field(description="Redundancy number r_i in [0, 1]")
+    w: float | None = Field(default=None, description="Baarda standardised residual")
+    flagged: bool = False
+
+
+class GlobalTest(_Model):
+    statistic: float
+    lower: float
+    upper: float
+    passed: bool
+
+
+class AdjustmentResult(_Model):
+    method: Literal["least_squares"] = "least_squares"
+    converged: bool
+    iterations: int
+    n_observations: int
+    n_unknowns: int
+    dof: int
+    sigma0: float = Field(description="A posteriori standard deviation of unit weight")
+    global_test: GlobalTest | None
+    w_critical: float
+    max_w: float | None
+    suspect: AdjustedObservation | None = Field(
+        default=None, description="Observation with the largest |w| above the critical value"
+    )
+    observations: list[AdjustedObservation]
+
+
+class Polyline(_Model):
+    code: str
+    name: str = Field(description="Feature code plus sequence, e.g. KR#2")
+    points: list[str]
+    closed: bool
+    length: float
+    area: float | None = Field(default=None, description="Grid area of a closed line, m²")
+
+
 class Summary(_Model):
     n_control: int
     n_traverse_points: int
@@ -262,3 +359,5 @@ class ProjectResult(_Model):
     orientations: list[SetupOrientation]
     issues: list[Issue]
     summary: Summary
+    adjustment: AdjustmentResult | None = None
+    linework: list[Polyline] = Field(default_factory=list)

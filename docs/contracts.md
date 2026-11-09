@@ -90,3 +90,29 @@ Policy: members of the workspace in the first path segment can read and write.
 |---|---|---|
 | free | csv, xlsx | 3 active |
 | pro | csv, xlsx, shp, dxf, pdf | unlimited |
+
+## Additions (night 1): least squares, COGO, levelling, linework
+
+Engine models: `engine/src/atsurvey/core/models.py` (`AdjustmentSettings`, `LineworkSettings`,
+`ErrorEllipse`, `AdjustedObservation`, `GlobalTest`, `AdjustmentResult`, `Polyline`) and
+`engine/src/atsurvey/core/cogo_models.py` (COGO and levelling requests/results).
+
+* `ComputeSettings.adjustment.method`: `"bowditch"` (default) or `"least_squares"`. With least
+  squares, `ProjectResult.adjustment` is filled and network points carry `sx`, `sy`, `sz`, `ellipse`.
+* `ComputeSettings.linework.line_codes`: feature codes joined into `ProjectResult.linework`.
+
+| Method | Path | Body → Response |
+|---|---|---|
+| POST | `/v1/cogo/inverse` | `InverseRequest` → `InverseResult` |
+| POST | `/v1/cogo/polar` | `PolarRequest` → `PolarResult` |
+| POST | `/v1/cogo/intersection/angles` | `IntersectionAnglesRequest` → `IntersectionResult` |
+| POST | `/v1/cogo/intersection/distances` | `IntersectionDistancesRequest` → `IntersectionResult` |
+| POST | `/v1/cogo/intersection/lines` | `IntersectionLinesRequest` → `IntersectionResult` |
+| POST | `/v1/cogo/resection` | `ResectionRequest` → `ResectionResult` |
+| POST | `/v1/cogo/area` | `AreaRequest` → `AreaResult` |
+| POST | `/v1/cogo/transform` | `TransformRequest` → `TransformResult` |
+| POST | `/v1/cogo/offset` | `OffsetRequest` → `OffsetResult` |
+| POST | `/v1/leveling` | `LevelingRequest` → `LevelingResult` |
+
+All are stateless, available to anonymous callers (same rules as `/v1/compute`), and return 422 with a
+`detail` message for degenerate geometry.

@@ -31,6 +31,7 @@ from .geodesy import (
 )
 from .issues import IssueSink
 from .models import (
+    ErrorEllipse,
     ReductionSettings,
     Tolerances,
     TraverseLeg,
@@ -51,6 +52,11 @@ class KnownPoint:
     kind: str
     code: str | None = None
     source: str | None = None
+    # filled by the least-squares adjustment
+    sx: float | None = None
+    sy: float | None = None
+    sz: float | None = None
+    ellipse: ErrorEllipse | None = None
 
 
 @dataclass(slots=True)

@@ -6,9 +6,11 @@ import hashlib
 import re
 
 from .. import __version__
+from .adjust import adjust_network
 from .detail import compute_detail
 from .geodesy import grid_distance
 from .issues import IssueSink
+from .linework import build_linework
 from .models import ProjectInput, ProjectResult, ResultPoint, Summary, TraverseResult
 from .reduce import ObservationIndex, reduce_setups
 from .traverse import KnownPoint, compute_traverse, plan_traverse, traverse_name
@@ -90,6 +92,12 @@ def compute_project(inp: ProjectInput) -> ProjectResult:
         )
     ordered_results = [results[id(t)] for t in inp.traverses if id(t) in results]
 
+    # ---- least-squares network adjustment (optional) ------------------------------------
+    adjustment = None
+    if inp.settings.adjustment.method == "least_squares":
+        fixed = {name for name, kp in known.items() if kp.kind == "control"}
+        adjustment = adjust_network(reduced, index, known, fixed, rs, inp.settings.adjustment, sink)
+
     # ---- detail -------------------------------------------------------------------------
     shots, orientations, detail_points = [], [], []
     if inp.settings.compute_detail:
@@ -124,7 +132,10 @@ def compute_project(inp: ProjectInput) -> ProjectResult:
         n_warnings=sum(i.severity == "warning" for i in sink.items),
         extent=extent,
     )
+    linework = build_linework(shots, points, inp.settings.linework)
     return ProjectResult(
+        adjustment=adjustment,
+        linework=linework,
         engine_version=__version__,
         input_hash=input_hash(inp),
         points=points,
@@ -146,4 +157,8 @@ def _rp(kp: KnownPoint) -> ResultPoint:
         code=kp.code,
         source=kp.source,
         n=len(kp.source.split(", ")) if kp.kind == "detail" and kp.source else 1,
+        sx=kp.sx,
+        sy=kp.sy,
+        sz=kp.sz,
+        ellipse=kp.ellipse,
     )

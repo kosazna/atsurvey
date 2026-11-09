@@ -27,6 +27,7 @@ from atsurvey.formats.base import FormatName
 
 from .auth import EXPORTS_BY_PLAN, Caller, get_caller, plan_for, require_compute
 from .config import Settings, get_settings
+from .routers import cogo
 
 settings = get_settings()
 
@@ -44,6 +45,8 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type"],
     expose_headers=["Content-Disposition", "X-Input-Hash"],
 )
+
+app.include_router(cogo.router)
 
 SettingsDep = Annotated[Settings, Depends(get_settings)]
 ComputeCaller = Annotated[Caller, Depends(require_compute)]
