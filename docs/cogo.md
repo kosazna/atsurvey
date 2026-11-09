@@ -141,3 +141,13 @@ can carry a sight distance. The foresight point of setup *i* must be the backsig
 * [`engine/tests/test_leveling.py`](../engine/tests/test_leveling.py): closed, open and loop lines,
   correction distribution, intermediate sights, tolerance and validation.
 * [`api/tests/test_cogo_api.py`](../api/tests/test_cogo_api.py): every route, happy path and 422.
+
+
+## Stakeout (χάραξη) — `POST /v1/cogo/stakeout`
+
+Setting-out data for design points from a station oriented on a backsight point (or on a
+given zero azimuth). For each point: grid azimuth, horizontal **angle clockwise from the
+backsight**, grid distance, and — with `reduction` — the **ground horizontal distance** the
+instrument will display (grid ÷ k ÷ R/(R+H)). With heights: Δz, zenith angle and slope
+distance for the given instrument and target heights. Setting out the returned angle and
+distance with the polar tool reproduces each design point exactly (tested).

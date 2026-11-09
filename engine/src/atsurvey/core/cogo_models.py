@@ -263,3 +263,39 @@ class LevelingResult(_M):
     length_km: float | None
     n_setups: int
     message: str | None = None
+
+
+# ----------------------------------------------------------------------------- stakeout
+
+
+class StakeoutRequest(_M):
+    """Setting-out data from a station oriented on a backsight (or a known azimuth)."""
+
+    station: XY
+    backsight: XY | None = None
+    backsight_azimuth: float | None = Field(
+        default=None, description="Alternative to backsight: azimuth of the zero direction"
+    )
+    instrument_height: float = 0.0
+    target_height: float = 0.0
+    points: list[XY] = Field(min_length=1, max_length=10_000)
+    reduction: ReductionSettings | None = Field(
+        default=None, description="If given, also return the ground horizontal distance to set out"
+    )
+
+
+class StakeoutRow(_M):
+    name: str | None
+    azimuth: float
+    angle: float = Field(description="Horizontal angle clockwise from the backsight, rad")
+    distance: float = Field(description="Grid distance, m")
+    distance_ground: float | None = Field(
+        default=None, description="Horizontal distance on the ground (what the instrument shows)"
+    )
+    dz: float | None = Field(default=None, description="Height difference station → point, m")
+    zenith: float | None = Field(default=None, description="Zenith angle to the target, rad")
+    slope_distance: float | None = None
+
+
+class StakeoutResult(_M):
+    rows: list[StakeoutRow]

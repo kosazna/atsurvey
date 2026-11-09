@@ -31,6 +31,9 @@ from .cogo_models import (
     ResectionRequest,
     ResectionResidual,
     ResectionResult,
+    StakeoutRequest,
+    StakeoutResult,
+    StakeoutRow,
     TransformRequest,
     TransformResidual,
     TransformResult,
@@ -528,3 +531,54 @@ def offset(req: OffsetRequest) -> OffsetResult:
             )
         )
     return OffsetResult(line_length=length, azimuth=grid_azimuth(a.x, a.y, b.x, b.y), rows=rows)
+
+
+# --------------------------------------------------------------------------- stakeout
+
+
+def stakeout(req: StakeoutRequest) -> StakeoutResult:
+    st = req.station
+    if req.backsight is not None:
+        if math.hypot(req.backsight.x - st.x, req.backsight.y - st.y) < 1e-6:
+            raise ValueError("Backsight coincides with the station")
+        zero = _az(st, req.backsight)
+    elif req.backsight_azimuth is not None:
+        zero = wrap_2pi(req.backsight_azimuth)
+    else:
+        raise ValueError("Give a backsight point or a backsight azimuth")
+    rows: list[StakeoutRow] = []
+    for p in req.points:
+        d = math.hypot(p.x - st.x, p.y - st.y)
+        if d < 1e-6:
+            raise ValueError(f"Point {p.name or ''} coincides with the station".strip())
+        az = _az(st, p)
+        ground = None
+        if req.reduction is not None:
+            rs = req.reduction
+            hm = (
+                (st.z + p.z) / 2.0
+                if st.z is not None and p.z is not None
+                else (st.z if st.z is not None else rs.default_elevation)
+            )
+            k = scale_for_line(rs, st.x, p.x, egsa87_point_scale((st.x + p.x) / 2.0))
+            ground = d / (k * elevation_factor(rs, hm))
+        dz = zen = sd = None
+        if st.z is not None and p.z is not None:
+            dz = p.z - st.z
+            hd = ground if ground is not None else d
+            vert = dz - req.instrument_height + req.target_height
+            zen = math.atan2(hd, vert)
+            sd = math.hypot(hd, vert)
+        rows.append(
+            StakeoutRow(
+                name=p.name,
+                azimuth=az,
+                angle=wrap_2pi(az - zero),
+                distance=d,
+                distance_ground=ground,
+                dz=dz,
+                zenith=zen,
+                slope_distance=sd,
+            )
+        )
+    return StakeoutResult(rows=rows)

@@ -179,3 +179,18 @@ def test_routes_in_openapi(client):
     paths = client.get("/openapi.json").json()["paths"]
     for p in [h[0] for h in HAPPY] + ["/v1/cogo/resection"]:
         assert p in paths
+
+
+def test_stakeout_route(client):
+    body = {
+        "station": {"x": 100.0, "y": 100.0, "z": 10.0},
+        "backsight": {"x": 100.0, "y": 200.0},
+        "points": [{"x": 200.0, "y": 100.0, "z": 12.0, "name": "D1"}],
+    }
+    r = client.post("/v1/cogo/stakeout", json=body)
+    assert r.status_code == 200, r.text
+    row = r.json()["rows"][0]
+    assert row["name"] == "D1"
+    assert abs(row["angle"] - math.pi / 2) < 1e-12 and abs(row["distance"] - 100.0) < 1e-12
+    bad = client.post("/v1/cogo/stakeout", json={**body, "backsight": None})
+    assert bad.status_code == 422

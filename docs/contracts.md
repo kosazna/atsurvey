@@ -112,6 +112,7 @@ Engine models: `engine/src/atsurvey/core/models.py` (`AdjustmentSettings`, `Line
 | POST | `/v1/cogo/area` | `AreaRequest` → `AreaResult` |
 | POST | `/v1/cogo/transform` | `TransformRequest` → `TransformResult` |
 | POST | `/v1/cogo/offset` | `OffsetRequest` → `OffsetResult` |
+| POST | `/v1/cogo/stakeout` | `StakeoutRequest` → `StakeoutResult` |
 | POST | `/v1/leveling` | `LevelingRequest` → `LevelingResult` |
 
 All are stateless, available to anonymous callers (same rules as `/v1/compute`), and return 422 with a

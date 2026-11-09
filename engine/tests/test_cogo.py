@@ -395,3 +395,68 @@ def test_offset_signs_and_foot():
     assert left.offset == pytest.approx(-5)
     assert behind.chainage == pytest.approx(-10)
     assert (right.foot.x, right.foot.y) == (pytest.approx(0), pytest.approx(30))
+
+
+# ------------------------------------------------------------------------------ stakeout
+
+
+def test_stakeout_inverts_polar():
+    from atsurvey.core.cogo import polar, stakeout
+    from atsurvey.core.cogo_models import XY, PolarRequest, StakeoutRequest
+
+    st = XY(x=476_500.0, y=4_205_300.0, z=150.0, name="S1")
+    bs = XY(x=476_350.0, y=4_205_420.0, name="T2")
+    design = [
+        XY(x=476_510.25, y=4_205_312.5, z=150.8, name="Δ1"),
+        XY(x=476_430.0, y=4_205_250.0, z=149.1, name="Δ2"),
+        XY(x=476_500.0, y=4_205_200.0, z=None, name="Δ3"),  # due south, no height
+    ]
+    res = stakeout(StakeoutRequest(station=st, backsight=bs, points=design))
+    for row, p in zip(res.rows, design, strict=True):
+        back = polar(PolarRequest(station=st, backsight=bs, angle=row.angle, distance=row.distance))
+        assert back.point.x == pytest.approx(p.x, abs=1e-9)
+        assert back.point.y == pytest.approx(p.y, abs=1e-9)
+    assert res.rows[2].dz is None and res.rows[2].zenith is None
+    assert res.rows[0].dz == pytest.approx(0.8)
+
+
+def test_stakeout_ground_distance_and_zenith():
+    from atsurvey.core.cogo import stakeout
+    from atsurvey.core.cogo_models import XY, StakeoutRequest
+    from atsurvey.core.geodesy import egsa87_line_scale, elevation_factor
+    from atsurvey.core.models import ReductionSettings
+
+    rs = ReductionSettings()
+    st = XY(x=476_500.0, y=4_205_300.0, z=400.0)
+    p = XY(x=476_800.0, y=4_205_700.0, z=420.0, name="Δ")
+    res = stakeout(
+        StakeoutRequest(
+            station=st,
+            backsight_azimuth=0.0,
+            points=[p],
+            reduction=rs,
+            instrument_height=1.5,
+            target_height=1.8,
+        )
+    )
+    row = res.rows[0]
+    k = egsa87_line_scale(st.x, p.x)
+    assert row.distance_ground * k * elevation_factor(rs, 410.0) == pytest.approx(row.distance)
+    # zenith/slope distance consistent with the ground distance and the heights
+    vert = 20.0 - 1.5 + 1.8
+    assert row.slope_distance == pytest.approx(math.hypot(row.distance_ground, vert))
+    assert math.cos(row.zenith) * row.slope_distance == pytest.approx(vert)
+    assert row.angle == pytest.approx(row.azimuth)  # zero direction = north
+
+
+def test_stakeout_validation():
+    from atsurvey.core.cogo import stakeout
+    from atsurvey.core.cogo_models import XY, StakeoutRequest
+
+    st = XY(x=0, y=0)
+    with pytest.raises(ValueError):
+        stakeout(StakeoutRequest(station=st, points=[XY(x=1, y=1)]))
+    with pytest.raises(ValueError):
+        stakeout(StakeoutRequest(station=st, backsight=XY(x=0, y=0), points=[XY(x=1, y=1)]))
+    with pytest.raises(ValueError):
+        stakeout(StakeoutRequest(station=st, backsight_azimuth=0, points=[XY(x=0, y=0)]))

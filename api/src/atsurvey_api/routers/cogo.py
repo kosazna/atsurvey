@@ -25,6 +25,8 @@ from atsurvey.core.cogo_models import (
     PolarResult,
     ResectionRequest,
     ResectionResult,
+    StakeoutRequest,
+    StakeoutResult,
     TransformRequest,
     TransformResult,
 )
@@ -95,3 +97,8 @@ def offset(req: OffsetRequest, caller: ComputeCaller) -> OffsetResult:
 @router.post("/leveling", response_model=LevelingResult)
 def leveling(req: LevelingRequest, caller: ComputeCaller) -> LevelingResult:
     return _run(level, req)
+
+
+@router.post("/cogo/stakeout", response_model=StakeoutResult)
+def stakeout(req: StakeoutRequest, caller: ComputeCaller) -> StakeoutResult:
+    return _run(cogo.stakeout, req)
