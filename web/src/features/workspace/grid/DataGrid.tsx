@@ -15,7 +15,7 @@ import {
   type Theme,
 } from "@glideapps/glide-data-grid";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useTheme } from "@/lib/theme";
+import { type ResolvedTokens, useTokens } from "@/lib/tokens";
 
 export interface Col<T> {
   id: string;
@@ -47,60 +47,40 @@ export interface DataGridProps<T> {
   testId?: string;
 }
 
-const LIGHT: Partial<Theme> = {
-  accentColor: "#2563eb",
-  accentLight: "rgba(37, 99, 235, 0.10)",
-  textDark: "#1f2430",
-  textMedium: "#5b6474",
-  textLight: "#8a93a3",
-  textBubble: "#1f2430",
-  bgIconHeader: "#5b6474",
-  fgIconHeader: "#ffffff",
-  textHeader: "#5b6474",
-  textHeaderSelected: "#ffffff",
-  bgCell: "#ffffff",
-  bgCellMedium: "#f7f8fa",
-  bgHeader: "#f7f8fa",
-  bgHeaderHasFocus: "#eef0f4",
-  bgHeaderHovered: "#eef0f4",
-  bgBubble: "#eef0f4",
-  bgBubbleSelected: "#ffffff",
-  bgSearchResult: "#fff6c2",
-  borderColor: "#e6e8ee",
-  horizontalBorderColor: "#eef0f4",
-  drilldownBorder: "rgba(0,0,0,0)",
-  linkColor: "#2563eb",
-  headerFontStyle: "600 12px",
-  baseFontStyle: "13px",
-  fontFamily: "Inter Variable, ui-sans-serif, system-ui, sans-serif",
-  editorFontSize: "13px",
-  cellHorizontalPadding: 8,
-  cellVerticalPadding: 3,
-};
-
-const DARK: Partial<Theme> = {
-  ...LIGHT,
-  accentColor: "#60a5fa",
-  accentLight: "rgba(96, 165, 250, 0.16)",
-  textDark: "#e7eaf0",
-  textMedium: "#a3abba",
-  textLight: "#7a8394",
-  textBubble: "#e7eaf0",
-  bgIconHeader: "#a3abba",
-  fgIconHeader: "#14171d",
-  textHeader: "#a3abba",
-  textHeaderSelected: "#14171d",
-  bgCell: "#1a1d24",
-  bgCellMedium: "#1f232b",
-  bgHeader: "#1f232b",
-  bgHeaderHasFocus: "#272b34",
-  bgHeaderHovered: "#272b34",
-  bgBubble: "#272b34",
-  bgBubbleSelected: "#1a1d24",
-  bgSearchResult: "#4a4320",
-  borderColor: "#2b303a",
-  horizontalBorderColor: "#252931",
-};
+function gridTheme(t: ResolvedTokens): Partial<Theme> {
+  return {
+    accentColor: t.accent,
+    accentLight: t.accentSubtle,
+    accentFg: t.accentContrast,
+    textDark: t.text,
+    textMedium: t.textMuted,
+    textLight: t.textSubtle,
+    textBubble: t.text,
+    bgIconHeader: t.textMuted,
+    fgIconHeader: t.surface,
+    textHeader: t.textMuted,
+    textHeaderSelected: t.accentContrast,
+    bgCell: t.surface,
+    bgCellMedium: t.surfaceSunken,
+    bgHeader: t.surface,
+    bgHeaderHasFocus: t.surfaceSunken,
+    bgHeaderHovered: t.surfaceSunken,
+    bgBubble: t.surfaceSunken,
+    bgBubbleSelected: t.surface,
+    bgSearchResult: t.warningSubtle,
+    borderColor: t.border,
+    horizontalBorderColor: t.border,
+    drilldownBorder: t.border,
+    linkColor: t.accent,
+    headerFontStyle: `${t.weightMedium} ${t.textXs}px`,
+    baseFontStyle: `${t.textSm}px`,
+    markerFontStyle: `${t.textXs}px`,
+    fontFamily: t.fontSans,
+    editorFontSize: `${t.textSm}px`,
+    cellHorizontalPadding: 8,
+    cellVerticalPadding: 4,
+  };
+}
 
 const EMPTY_SEL: GridSelection = { columns: CompactSelection.empty(), rows: CompactSelection.empty() };
 
@@ -117,7 +97,8 @@ export default function DataGrid<T>({
   appendLabel,
   testId,
 }: DataGridProps<T>) {
-  const theme = useTheme();
+  const tokens = useTokens();
+  const theme = useMemo(() => gridTheme(tokens), [tokens]);
   const ref = useRef<DataEditorRef>(null);
   const boxRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
@@ -153,9 +134,9 @@ export default function DataGrid<T>({
       const invalid = c.invalid?.(r);
       const muted = c.muted?.(r);
       const themeOverride = invalid
-        ? { bgCell: theme === "dark" ? "#3a1f22" : "#fdecec", textDark: theme === "dark" ? "#ff9b9b" : "#b42318" }
+        ? { bgCell: tokens.dangerSubtle, textDark: tokens.danger }
         : muted
-          ? { textDark: theme === "dark" ? "#6b7383" : "#9aa1ae" }
+          ? { textDark: tokens.textSubtle }
           : undefined;
       if (c.kind === "boolean") {
         return { kind: GridCellKind.Boolean, data: Boolean(c.get(r)), allowOverlay: false, readonly: ro, themeOverride };
@@ -171,7 +152,7 @@ export default function DataGrid<T>({
         themeOverride,
       };
     },
-    [columns, rows, editable, theme],
+    [columns, rows, editable, tokens],
   );
 
   const applyEdits = useCallback(
@@ -232,8 +213,8 @@ export default function DataGrid<T>({
 
   const getRowThemeOverride = useCallback(
     (row: number) =>
-      row === selectedRow ? { bgCell: theme === "dark" ? "#1e2a40" : "#eaf1ff", bgCellMedium: theme === "dark" ? "#1e2a40" : "#eaf1ff" } : undefined,
-    [selectedRow, theme],
+      row === selectedRow ? { bgCell: tokens.accentSubtle, bgCellMedium: tokens.accentSubtle } : undefined,
+    [selectedRow, tokens],
   );
 
   return (
@@ -243,7 +224,7 @@ export default function DataGrid<T>({
           ref={ref}
           width={size.w}
           height={size.h}
-          theme={theme === "dark" ? DARK : LIGHT}
+          theme={theme}
           columns={gridColumns}
           rows={rows.length}
           getCellContent={getCellContent}
@@ -253,8 +234,8 @@ export default function DataGrid<T>({
           rowMarkers={rowMarkers ? (editable ? "both" : "number") : "none"}
           smoothScrollX
           smoothScrollY
-          rowHeight={30}
-          headerHeight={32}
+          rowHeight={32}
+          headerHeight={36}
           gridSelection={selection}
           onGridSelectionChange={(s) => {
             setSelection(s);

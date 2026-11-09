@@ -40,7 +40,7 @@ function Row({ label, hint, children }: { label: string; hint?: string; children
     <div className="flex items-center justify-between gap-4 py-2">
       <div>
         <div className="text-sm">{label}</div>
-        {hint && <div className="text-xs text-muted-foreground">{hint}</div>}
+        {hint && <div className="text-xs text-muted">{hint}</div>}
       </div>
       {children}
     </div>
@@ -141,7 +141,7 @@ export function SettingsDialog() {
               </div>
             </TabsContent>
             <TabsContent value="tolerances" className="space-y-3">
-              <p className="rounded-lg bg-warning/10 px-3 py-2 text-xs text-[color-mix(in_oklch,var(--warning)_65%,var(--foreground))]">{t("set.tolHint")}</p>
+              <p className="rounded-lg bg-warning-subtle px-3 py-2 text-xs text-warning">{t("set.tolHint")}</p>
               <div className="grid gap-3 sm:grid-cols-2">
                 {(Object.keys(s.tolerances) as (keyof Tolerances)[]).map((k) => (
                   <NumField key={k} id={`tol-${k}`} label={t(`set.tol.${k}`)} value={s.tolerances[k]} onChange={(v) => setTol(k, v)} />

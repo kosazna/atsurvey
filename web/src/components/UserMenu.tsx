@@ -18,7 +18,7 @@ export function UserMenu() {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="icon" aria-label="Account" className="rounded-full">
-          <span className="flex size-7 items-center justify-center rounded-full bg-primary/15 text-xs font-semibold text-primary">
+          <span className="flex size-7 items-center justify-center rounded-full bg-accent-subtle text-xs font-semibold text-accent">
             {mode === "demo" ? <UserRound className="size-3.5" /> : initial}
           </span>
         </Button>

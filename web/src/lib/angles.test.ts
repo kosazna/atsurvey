@@ -37,7 +37,7 @@ describe("conversions", () => {
 
 describe("formatting", () => {
   it("gon", () => {
-    expect(formatAngle(toRad(123.4567, "gon"), "gon")).toBe("123.4567ᵍ");
+    expect(formatAngle(toRad(123.4567, "gon"), "gon")).toBe("123.4567g");
   });
   it("deg", () => {
     expect(formatAngle(toRad(12.5, "deg"), "deg")).toBe("12.50000°");

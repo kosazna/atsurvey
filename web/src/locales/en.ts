@@ -376,6 +376,8 @@ const en: Messages = {
     distance: "Distance",
     azimuth: "Azimuth",
     empty: "No points to display",
+    noWebglTitle: "Map unavailable",
+    noWebgl: "Your browser does not support WebGL. Computations and exports still work.",
   },
   cmd: {
     placeholder: "Type a command or search…",

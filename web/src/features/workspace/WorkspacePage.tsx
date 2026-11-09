@@ -225,13 +225,13 @@ function WorkspaceLayout() {
   return (
     <div className="flex h-full flex-col">
       {/* top bar */}
-      <header className="flex h-12 shrink-0 items-center gap-2 border-b bg-background px-2 sm:px-3">
+      <header className="flex h-(--topbar-height) shrink-0 items-center gap-2 border-b bg-surface px-2 sm:px-4">
         <Tooltip content={t("projects.title")}>
-          <Link to="/projects" className="flex items-center gap-1 rounded-md p-1 hover:bg-accent" aria-label={t("projects.title")}>
+          <Link to="/projects" className="flex items-center gap-1 rounded-md p-1 hover:bg-surface-sunken" aria-label={t("projects.title")}>
             <Logo withText={false} />
           </Link>
         </Tooltip>
-        <span className="text-muted-foreground/50">/</span>
+        <span className="text-subtle">/</span>
         <div className="flex min-w-0 items-center gap-2">
           <h1 className="truncate text-sm font-semibold" data-testid="project-name">
             {ws.data.meta.name}
@@ -241,7 +241,7 @@ function WorkspaceLayout() {
               {t("common.demo")}
             </Badge>
           )}
-          <span className="hidden text-[11px] text-muted-foreground md:inline">
+          <span className="hidden text-xs text-muted md:inline">
             {ws.saveState === "saved" ? t("common.saved") : ws.saveState === "saving" ? t("common.saving") : t("common.unsaved")}
           </span>
         </div>
@@ -252,15 +252,15 @@ function WorkspaceLayout() {
           <Button variant="ghost" size="sm" onClick={() => ws.setDialog("import")} data-testid="btn-import">
             <Upload /> <span className="hidden sm:inline">{t("common.import")}</span>
           </Button>
-          <div className="flex items-center rounded-md border bg-card shadow-xs">
-            <Tooltip content={<span className="flex items-center gap-1.5">{t("ws.compute")} <Kbd className="border-background/20 bg-background/10 text-background">⌘↵</Kbd></span>}>
+          <div className="flex items-center rounded-md border bg-surface">
+            <Tooltip content={<span className="flex items-center gap-1.5">{t("ws.compute")} <Kbd className="border-bg bg-bg/10 text-bg">⌘↵</Kbd></span>}>
               <Button variant="ghost" size="sm" onClick={ws.compute} disabled={ws.status === "computing"} className="rounded-r-none" data-testid="btn-compute">
                 <Calculator className={cn(ws.status === "computing" && "animate-pulse")} />
                 <span className="hidden sm:inline">{ws.status === "computing" ? t("ws.computing") : t("ws.compute")}</span>
               </Button>
             </Tooltip>
             <Tooltip content={t("ws.autoCompute")}>
-              <label className="flex h-7 items-center gap-1.5 border-l px-2 text-[11px] text-muted-foreground">
+              <label className="flex h-7 items-center gap-1.5 border-l px-2 text-xs text-muted">
                 <Switch checked={ws.autoCompute} onCheckedChange={ws.setAutoCompute} aria-label={t("ws.autoCompute")} className="h-4 w-7 [&>span]:size-3 [&>span]:data-[state=checked]:translate-x-[13px]" />
                 <span className="hidden xl:inline">Auto</span>
               </label>
@@ -290,7 +290,7 @@ function WorkspaceLayout() {
 
       <div className="flex min-h-0 flex-1 flex-col md:flex-row">
         {/* sidebar */}
-        <nav className="flex shrink-0 gap-0.5 overflow-x-auto border-b bg-sidebar p-1.5 md:w-52 md:flex-col md:overflow-visible md:border-b-0 md:border-r md:p-2" aria-label="Sections">
+        <nav className="flex shrink-0 gap-0.5 overflow-x-auto border-b bg-bg p-1.5 md:w-(--sidebar-width) md:flex-col md:overflow-visible md:border-b-0 md:border-r md:p-2" aria-label="Sections">
           {NAV.map((n) => {
             const active = ws.section === n.id;
             const badge =
@@ -299,11 +299,11 @@ function WorkspaceLayout() {
                   {issueCount}
                 </Badge>
               ) : n.id === "control" ? (
-                <span className="ml-auto text-[11px] tabular text-muted-foreground">{ws.data.control_points.length || ""}</span>
+                <span className="ml-auto text-xs tabular text-muted">{ws.data.control_points.length || ""}</span>
               ) : n.id === "observations" ? (
-                <span className="ml-auto text-[11px] tabular text-muted-foreground">{ws.data.setups.length || ""}</span>
+                <span className="ml-auto text-xs tabular text-muted">{ws.data.setups.length || ""}</span>
               ) : n.id === "traverses" ? (
-                <span className="ml-auto text-[11px] tabular text-muted-foreground">{ws.data.traverses.length || ""}</span>
+                <span className="ml-auto text-xs tabular text-muted">{ws.data.traverses.length || ""}</span>
               ) : null;
             return (
               <button
@@ -312,8 +312,8 @@ function WorkspaceLayout() {
                 data-testid={`nav-${n.id}`}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "flex h-8 shrink-0 cursor-pointer items-center gap-2 rounded-md px-2.5 text-[13px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground [&_svg]:size-4",
-                  active && "bg-card font-medium text-foreground shadow-xs ring-1 ring-border",
+                  "flex h-8 shrink-0 cursor-pointer items-center gap-2 rounded-md px-2.5 text-sm text-muted transition-colors hover:bg-surface-sunken hover:text-fg [&_svg]:size-4",
+                  active && "bg-surface font-medium text-fg ring-1 ring-border",
                 )}
               >
                 {n.icon}
@@ -322,7 +322,7 @@ function WorkspaceLayout() {
               </button>
             );
           })}
-          <div className="mt-auto hidden px-2 pb-1 pt-4 text-[11px] leading-relaxed text-muted-foreground md:block">
+          <div className="mt-auto hidden px-2 pb-1 pt-4 text-xs leading-relaxed text-muted md:block">
             <div className="flex items-center gap-1.5">
               <Kbd>⌘K</Kbd> {t("cmd.actions")}
             </div>
@@ -340,7 +340,7 @@ function WorkspaceLayout() {
           {ws.mapVisible && (
             <>
               <div className="relative hidden w-px shrink-0 cursor-col-resize bg-border lg:block" {...handlers}>
-                <div className="absolute inset-y-0 -left-1.5 -right-1.5 hover:bg-primary/20" />
+                <div className="absolute inset-y-0 -left-1.5 -right-1.5 hover:bg-accent-subtle" />
               </div>
               <aside className="h-80 shrink-0 border-t lg:h-auto lg:border-t-0 lg:[width:var(--map-w)]" style={{ "--map-w": `${width}px` } as React.CSSProperties}>
                 <Suspense fallback={<Skeleton className="h-full rounded-none" />}>

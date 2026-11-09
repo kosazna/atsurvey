@@ -8,11 +8,10 @@
     <title>ATSurvey</title>
     <script>
       (function () {
-        try {
-          var t = localStorage.getItem("ats-theme");
-          var dark = t ? t === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
-          if (dark) document.documentElement.classList.add("dark");
-        } catch (e) {}
+        var t = null;
+        try { t = localStorage.getItem("ats-theme"); } catch (e) {}
+        if (t !== "light" && t !== "dark") t = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        document.documentElement.setAttribute("data-theme", t);
       })();
     </script>
   </head>

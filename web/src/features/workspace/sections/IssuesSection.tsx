@@ -10,9 +10,9 @@ import { useWorkspace } from "../useWorkspace";
 import { SectionFrame, SectionHeader } from "./SectionLayout";
 
 const ICON: Record<Severity, React.ReactNode> = {
-  error: <XCircle className="text-destructive" />,
+  error: <XCircle className="text-danger" />,
   warning: <AlertTriangle className="text-warning" />,
-  info: <Info className="text-muted-foreground" />,
+  info: <Info className="text-muted" />,
 };
 
 export function IssuesSection() {
@@ -53,26 +53,26 @@ export function IssuesSection() {
               if (!list.length) return null;
               return (
                 <section key={g}>
-                  <h3 className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  <h3 className="mb-2 flex items-center gap-2 text-xs font-semibold  text-muted">
                     {t(`issues.${g}`)} <Badge variant={g === "error" ? "destructive" : g === "warning" ? "warning" : "secondary"}>{list.length}</Badge>
                   </h3>
-                  <ul className="divide-y overflow-hidden rounded-xl border bg-card shadow-xs">
+                  <ul className="divide-y overflow-hidden rounded-xl border bg-surface">
                     {list.map((i, k) => {
                       const tn = traverseName(i.traverse);
                       const sn = setupName(i.setup);
                       const navigable = Boolean(i.traverse || i.setup || i.params?.point);
                       return (
-                        <li key={k} className={cn("flex items-start gap-3 px-3.5 py-2.5", navigable && "cursor-pointer hover:bg-accent/50")} onClick={() => navigable && go(i)}>
+                        <li key={k} className={cn("flex items-start gap-3 px-3.5 py-2.5", navigable && "cursor-pointer hover:bg-surface-sunken")} onClick={() => navigable && go(i)}>
                           <span className="mt-0.5 [&_svg]:size-4">{ICON[g]}</span>
                           <div className="min-w-0 flex-1">
                             <div className="text-sm">{issueText(i)}</div>
                             <div className="mt-1 flex flex-wrap gap-1.5">
-                              <code className="rounded bg-muted px-1 py-0.5 text-[10px] text-muted-foreground">{i.code}</code>
+                              <code className="rounded bg-surface-sunken px-1 py-0.5 text-xs text-muted">{i.code}</code>
                               {tn && <Badge variant="outline">{tn}</Badge>}
                               {sn && <Badge variant="outline">{t("obs.station")}: {sn}</Badge>}
                             </div>
                           </div>
-                          {navigable && <ArrowRight className="mt-1 size-3.5 text-muted-foreground" />}
+                          {navigable && <ArrowRight className="mt-1 size-3.5 text-muted" />}
                         </li>
                       );
                     })}

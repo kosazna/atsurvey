@@ -99,13 +99,13 @@ function dmsParts(deg: number, secDecimals: number): { sign: string; d: number; 
 
 /**
  * Format an angle (radians) for display.
- * gon → "123.4567ᵍ", deg → "123.45678°", dms → 123°45'30.0"
+ * gon → "123.4567g" (plain g: IBM Plex has no ᵍ glyph), deg → "123.45678°", dms → 123°45'30.0"
  */
 export function formatAngle(rad: number | null | undefined, unit: DisplayAngleUnit, decimals?: number): string {
   if (rad === null || rad === undefined || !Number.isFinite(rad)) return "—";
   switch (unit) {
     case "gon":
-      return `${(rad / GON).toFixed(decimals ?? 4)}ᵍ`;
+      return `${(rad / GON).toFixed(decimals ?? 4)}g`;
     case "deg":
       return `${(rad / DEG).toFixed(decimals ?? 5)}°`;
     case "dms": {
@@ -127,7 +127,7 @@ export function angleToInput(rad: number | null | undefined, unit: DisplayAngleU
  * either packed "123.4530" or "123°45'30"" / "123 45 30".
  */
 export function parseAngle(text: string, unit: DisplayAngleUnit): number | null {
-  const t = text.trim().replace(/ᵍ|g$|gon$|°$/i, "").replace(",", ".");
+  const t = text.trim().replace(/gon$|g$|°$/i, "").replace(",", ".");
   if (t === "") return null;
   if (unit === "dms") {
     const parts = t.split(/[°'"\s:]+/).filter(Boolean);

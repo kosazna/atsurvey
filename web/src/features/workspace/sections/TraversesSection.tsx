@@ -24,11 +24,11 @@ export function RouteChips({ route, known, className }: { route: string[]; known
     <div className={cn("flex flex-wrap items-center gap-1", className)}>
       {route.map((p, i) => (
         <span key={`${p}-${i}`} className="flex items-center gap-1">
-          {i > 0 && <ArrowRight className="size-3 text-muted-foreground/60" />}
+          {i > 0 && <ArrowRight className="size-3 text-subtle" />}
           <span
             className={cn(
               "rounded-md border px-1.5 py-0.5 text-xs font-medium tabular",
-              known?.has(p) ? "border-pt-control/30 bg-pt-control/10 text-pt-control" : "bg-card",
+              known?.has(p) ? "border-point-control/30 bg-point-control/10 text-point-control" : "bg-surface",
             )}
           >
             {p}
@@ -52,13 +52,13 @@ function RouteEditor({ value, onChange, options }: { value: string[]; onChange: 
   };
   return (
     <div className="space-y-2">
-      <div className="flex min-h-9 flex-wrap items-center gap-1 rounded-md border border-input bg-card p-1.5 shadow-xs focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/25">
+      <div className="flex min-h-9 flex-wrap items-center gap-1 rounded-md border border-border-strong bg-surface p-1.5 focus-within:border-focus focus-within:ring-3 focus-within:ring-focus/25">
         {value.map((p, i) => (
           <span key={`${p}-${i}`} className="flex items-center gap-1">
-            {i > 0 && <ArrowRight className="size-3 text-muted-foreground/60" />}
-            <span className="flex items-center gap-0.5 rounded-md bg-muted py-0.5 pl-1.5 pr-0.5 text-xs font-medium">
+            {i > 0 && <ArrowRight className="size-3 text-subtle" />}
+            <span className="flex items-center gap-0.5 rounded-md bg-surface-sunken py-0.5 pl-1.5 pr-0.5 text-xs font-medium">
               {p}
-              <button type="button" className="rounded p-0.5 text-muted-foreground hover:bg-background hover:text-foreground" onClick={() => onChange(value.filter((_, j) => j !== i))} aria-label={t("common.remove")}>
+              <button type="button" className="rounded p-0.5 text-muted hover:bg-bg hover:text-fg" onClick={() => onChange(value.filter((_, j) => j !== i))} aria-label={t("common.remove")}>
                 <X className="size-3" />
               </button>
             </span>
@@ -94,7 +94,7 @@ function RouteEditor({ value, onChange, options }: { value: string[]; onChange: 
           ))}
         </datalist>
       </div>
-      <p className="text-xs text-muted-foreground">{t("trav.routeHint")}</p>
+      <p className="text-xs text-muted">{t("trav.routeHint")}</p>
     </div>
   );
 }
@@ -143,7 +143,7 @@ function TraverseDialog({ initial, onSave, onClose, options }: { initial: Stored
           </div>
         </DialogBody>
         <DialogFooter>
-          {v.route.length > 0 && v.route.length < 3 && <span className="mr-auto text-xs text-destructive">{t("trav.tooShort")}</span>}
+          {v.route.length > 0 && v.route.length < 3 && <span className="mr-auto text-xs text-danger">{t("trav.tooShort")}</span>}
           <Button variant="ghost" onClick={onClose}>
             {t("common.cancel")}
           </Button>
@@ -221,11 +221,11 @@ export function TraversesSection() {
       />
       <div className="min-h-0 flex-1 overflow-y-auto p-4">
         {suggestions && (
-          <div className="mb-4 rounded-xl border border-primary/30 bg-primary/5 p-3">
+          <div className="mb-4 rounded-xl border border-accent bg-accent-subtle p-3">
             <div className="mb-2 flex items-center gap-2">
-              <Lightbulb className="size-4 text-primary" />
+              <Lightbulb className="size-4 text-accent" />
               <div className="text-sm font-medium">{t("trav.suggestionsTitle")}</div>
-              <span className="text-xs text-muted-foreground">{t("trav.suggestionsHint")}</span>
+              <span className="text-xs text-muted">{t("trav.suggestionsHint")}</span>
               <Button size="sm" variant="ghost" className="ml-auto" onClick={() => accept(suggestions)}>
                 {t("trav.acceptAll")}
               </Button>
@@ -235,7 +235,7 @@ export function TraversesSection() {
             </div>
             <div className="space-y-1.5">
               {suggestions.map((s, i) => (
-                <div key={i} className="flex items-center gap-2 rounded-lg border bg-card px-3 py-2">
+                <div key={i} className="flex items-center gap-2 rounded-lg border bg-surface px-3 py-2">
                   <RouteChips route={s.route} known={known} className="flex-1" />
                   {s.kind && s.kind !== "auto" && <Badge variant="secondary">{t(`traverseKind.${s.kind}`)}</Badge>}
                   <Button size="sm" variant="outline" onClick={() => accept([s])}>
@@ -268,7 +268,7 @@ export function TraversesSection() {
             {travs.map((tr) => {
               const res = results.get(tr.id) ?? results.get(tr.name ?? "");
               return (
-                <div key={tr.id} className={cn("flex flex-wrap items-center gap-3 rounded-xl border bg-card px-3.5 py-3 shadow-xs", !tr.enabled && "opacity-60")}>
+                <div key={tr.id} className={cn("flex flex-wrap items-center gap-3 rounded-xl border bg-surface px-3.5 py-3", !tr.enabled && "opacity-60")}>
                   <Switch checked={tr.enabled ?? true} onCheckedChange={(enabled) => save({ ...tr, enabled })} aria-label={t("trav.enabled")} />
                   <div className="min-w-0 flex-1">
                     <div className="mb-1.5 flex items-center gap-2">

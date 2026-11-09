@@ -36,13 +36,13 @@ type Tone = "ok" | "bad" | "none";
 
 function Metric({ label, value, sub, tone }: { label: string; value: string; sub?: string; tone: Tone }) {
   return (
-    <div className="rounded-lg border bg-background/50 px-3 py-2">
-      <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-        <span className={cn("size-1.5 rounded-full", tone === "ok" ? "bg-success" : tone === "bad" ? "bg-destructive" : "bg-border")} />
+    <div className="rounded-lg border bg-bg/50 px-3 py-2">
+      <div className="flex items-center gap-1.5 text-xs text-muted">
+        <span className={cn("size-1.5 rounded-full", tone === "ok" ? "bg-success" : tone === "bad" ? "bg-danger" : "bg-border")} />
         {label}
       </div>
-      <div className={cn("mt-0.5 text-base font-semibold tabular", tone === "bad" && "text-destructive")}>{value}</div>
-      {sub && <div className="text-[11px] tabular text-muted-foreground">{sub}</div>}
+      <div className={cn("mt-0.5 text-base font-semibold tabular", tone === "bad" && "text-danger")}>{value}</div>
+      {sub && <div className="text-xs tabular text-muted">{sub}</div>}
     </div>
   );
 }
@@ -52,8 +52,8 @@ function tone(value: number | null, tol: number | null): Tone {
   return Math.abs(value) <= tol ? "ok" : "bad";
 }
 
-const th = "px-2 py-1.5 text-right text-[11px] font-medium text-muted-foreground whitespace-nowrap";
-const td = "px-2 py-1 text-right tabular whitespace-nowrap";
+const th = "bg-surface-sunken px-2.5 py-2 text-right text-xs font-medium text-muted whitespace-nowrap";
+const td = "px-2.5 py-1.5 text-right tabular whitespace-nowrap";
 
 function Sheet({ tr }: { tr: TraverseResult }) {
   const { t } = useTranslation();
@@ -61,9 +61,10 @@ function Sheet({ tr }: { tr: TraverseResult }) {
   const unit = ws.data.meta.angle_unit;
   return (
     <div className="space-y-4 border-t px-4 py-3">
-      <div className="overflow-x-auto">
-        <div className="mb-1 text-xs font-medium">{t("reports.stations")}</div>
-        <table className="w-full text-xs">
+      <div>
+        <div className="mb-2 text-xs font-medium text-muted">{t("reports.stations")}</div>
+        <div className="scroll-x-visible rounded-md border">
+        <table className="w-full min-w-max text-xs">
           <thead className="border-b">
             <tr>
               <th className={cn(th, "text-left")}>{t("reports.cols.station")}</th>
@@ -82,17 +83,17 @@ function Sheet({ tr }: { tr: TraverseResult }) {
             {tr.stations.map((s, i) => (
               <tr
                 key={i}
-                className={cn("cursor-pointer border-b border-border/50 hover:bg-accent/60", ws.selected === s.station && "bg-primary/8")}
+                className={cn("cursor-pointer border-b border-border/50 hover:bg-surface-sunken", ws.selected === s.station && "bg-accent-subtle")}
                 onClick={() => ws.setSelected(s.station)}
               >
                 <td className={cn(td, "text-left font-medium")}>
                   {s.station}
-                  {s.known && <span className="ml-1 text-pt-control">▲</span>}
+                  {s.known && <span className="ml-1 text-point-control">▲</span>}
                 </td>
-                <td className={cn(td, "text-left text-muted-foreground")}>{s.backsight}</td>
-                <td className={cn(td, "text-left text-muted-foreground")}>{s.foresight}</td>
+                <td className={cn(td, "text-left text-muted")}>{s.backsight}</td>
+                <td className={cn(td, "text-left text-muted")}>{s.foresight}</td>
                 <td className={td}>{formatAngle(s.angle_measured, unit)}</td>
-                <td className={cn(td, "text-muted-foreground")}>{unit === "gon" ? formatCc(s.angle_correction) : formatMisclosure(s.angle_correction, unit)}</td>
+                <td className={cn(td, "text-muted")}>{unit === "gon" ? formatCc(s.angle_correction) : formatMisclosure(s.angle_correction, unit)}</td>
                 <td className={td}>{formatAngle(s.angle_corrected, unit)}</td>
                 <td className={td}>{formatAngle(s.azimuth, unit)}</td>
                 <td className={td}>{fmtNum(s.x, 3)}</td>
@@ -102,10 +103,12 @@ function Sheet({ tr }: { tr: TraverseResult }) {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
-      <div className="overflow-x-auto">
-        <div className="mb-1 text-xs font-medium">{t("reports.legs")}</div>
-        <table className="w-full text-xs">
+      <div>
+        <div className="mb-2 text-xs font-medium text-muted">{t("reports.legs")}</div>
+        <div className="scroll-x-visible rounded-md border">
+        <table className="w-full min-w-max text-xs">
           <thead className="border-b">
             <tr>
               <th className={cn(th, "text-left")}>{t("reports.cols.from")}</th>
@@ -130,22 +133,23 @@ function Sheet({ tr }: { tr: TraverseResult }) {
                 <td className={cn(td, "text-left font-medium")}>{l.to}</td>
                 <td className={td}>
                   {fmtNum(l.hd_measured, 3)}
-                  <span className="ml-1 text-[10px] text-muted-foreground">×{l.n_measurements}</span>
+                  <span className="ml-1 text-xs text-muted">×{l.n_measurements}</span>
                 </td>
-                <td className={cn(td, "text-muted-foreground")}>{l.distance_fb_diff === null ? "—" : fmtSigned(l.distance_fb_diff, 3)}</td>
-                <td className={cn(td, "text-muted-foreground")}>{fmtNum(l.elevation_factor, 7)}</td>
-                <td className={cn(td, "text-muted-foreground")}>{fmtNum(l.reduction_scale, 7)}</td>
+                <td className={cn(td, "text-muted")}>{l.distance_fb_diff === null ? "—" : fmtSigned(l.distance_fb_diff, 3)}</td>
+                <td className={cn(td, "text-muted")}>{fmtNum(l.elevation_factor, 7)}</td>
+                <td className={cn(td, "text-muted")}>{fmtNum(l.reduction_scale, 7)}</td>
                 <td className={td}>{fmtNum(l.distance_grid, 3)}</td>
                 <td className={td}>{fmtSigned(l.dx, 3)}</td>
                 <td className={td}>{fmtSigned(l.dy, 3)}</td>
-                <td className={cn(td, "text-muted-foreground")}>{fmtSigned(l.corr_x * 1000, 1)}</td>
-                <td className={cn(td, "text-muted-foreground")}>{fmtSigned(l.corr_y * 1000, 1)}</td>
+                <td className={cn(td, "text-muted")}>{fmtSigned(l.corr_x * 1000, 1)}</td>
+                <td className={cn(td, "text-muted")}>{fmtSigned(l.corr_y * 1000, 1)}</td>
                 <td className={td}>{l.dh === null ? "—" : fmtSigned(l.dh, 3)}</td>
-                <td className={cn(td, "text-muted-foreground")}>{fmtSigned(l.corr_h * 1000, 1)}</td>
+                <td className={cn(td, "text-muted")}>{fmtSigned(l.corr_h * 1000, 1)}</td>
               </tr>
             ))}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   );
@@ -168,7 +172,7 @@ function TraverseReport({ tr, defaultOpen }: { tr: TraverseResult; defaultOpen: 
   const hasClosure = tr.linear_misclosure !== null;
 
   return (
-    <div ref={ref} className="overflow-hidden rounded-xl border bg-card shadow-xs" data-testid="traverse-report">
+    <div ref={ref} className="overflow-hidden rounded-xl border bg-surface" data-testid="traverse-report">
       <div className="flex flex-wrap items-start gap-3 px-4 pt-3.5">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
@@ -212,10 +216,10 @@ function TraverseReport({ tr, defaultOpen }: { tr: TraverseResult; defaultOpen: 
           tone={tone(tr.wz, tr.height_tolerance)}
         />
       </div>
-      {!hasClosure && <p className="px-4 pb-2 text-xs text-muted-foreground">{t("reports.noClosure")}</p>}
+      {!hasClosure && <p className="px-4 pb-2 text-xs text-muted">{t("reports.noClosure")}</p>}
       <button
         onClick={() => setOpen(!open)}
-        className="flex w-full cursor-pointer items-center gap-1.5 border-t px-4 py-2 text-xs font-medium text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+        className="flex w-full cursor-pointer items-center gap-1.5 border-t px-4 py-2 text-xs font-medium text-muted hover:bg-surface-sunken hover:text-fg"
         aria-expanded={open}
       >
         <ChevronDown className={cn("size-3.5 transition-transform", open && "rotate-180")} />

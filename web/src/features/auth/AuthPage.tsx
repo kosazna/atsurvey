@@ -80,20 +80,20 @@ export function AuthPage() {
 
   return (
     <div className="grid min-h-full lg:grid-cols-[1.1fr_1fr]">
-      <div className="relative hidden overflow-hidden border-r bg-sidebar lg:flex lg:flex-col lg:justify-between lg:p-10">
+      <div className="relative hidden overflow-hidden border-r bg-bg lg:flex lg:flex-col lg:justify-between lg:p-10">
         <Logo />
         <div className="relative z-10 max-w-md">
           <h1 className="text-3xl font-semibold leading-tight tracking-tight">{t("app.tagline")}</h1>
           <ul className="mt-6 space-y-3">
             {features.map((f) => (
-              <li key={f.text} className="flex items-center gap-3 text-sm text-muted-foreground">
-                <span className="flex size-8 items-center justify-center rounded-lg border bg-card text-foreground shadow-xs [&_svg]:size-4">{f.icon}</span>
+              <li key={f.text} className="flex items-center gap-3 text-sm text-muted">
+                <span className="flex size-8 items-center justify-center rounded-lg border bg-surface text-fg [&_svg]:size-4">{f.icon}</span>
                 {f.text}
               </li>
             ))}
           </ul>
         </div>
-        <p className="relative z-10 text-xs text-muted-foreground">ΕΓΣΑ87 · EPSG:2100</p>
+        <p className="relative z-10 text-xs text-muted">ΕΓΣΑ87 · EPSG:2100</p>
         <svg className="pointer-events-none absolute -bottom-10 -right-16 h-[440px] w-[440px] text-border opacity-80" viewBox="0 0 400 400" aria-hidden>
           <defs>
             <pattern id="g" width="20" height="20" patternUnits="userSpaceOnUse">
@@ -101,7 +101,7 @@ export function AuthPage() {
             </pattern>
           </defs>
           <rect width="400" height="400" fill="url(#g)" opacity="0.8" />
-          <polyline points="40,300 110,240 180,265 250,190 320,210 370,120" fill="none" stroke="var(--pt-traverse)" strokeWidth="2" />
+          <polyline points="40,300 110,240 180,265 250,190 320,210 370,120" fill="none" stroke="var(--color-point-traverse)" strokeWidth="2" />
           {[
             [40, 300],
             [110, 240],
@@ -110,7 +110,7 @@ export function AuthPage() {
             [320, 210],
             [370, 120],
           ].map(([x, y], i) => (
-            <circle key={i} cx={x} cy={y} r={i === 0 || i >= 4 ? 5 : 4} fill={i === 0 || i >= 4 ? "var(--pt-control)" : "var(--pt-traverse)"} />
+            <circle key={i} cx={x} cy={y} r={i === 0 || i >= 4 ? 5 : 4} fill={i === 0 || i >= 4 ? "var(--color-point-control)" : "var(--color-point-traverse)"} />
           ))}
           {[
             [130, 200],
@@ -120,7 +120,7 @@ export function AuthPage() {
             [270, 240],
             [290, 160],
           ].map(([x, y], i) => (
-            <circle key={`d${i}`} cx={x} cy={y} r={2.5} fill="var(--pt-detail)" />
+            <circle key={`d${i}`} cx={x} cy={y} r={2.5} fill="var(--color-point-detail)" />
           ))}
         </svg>
       </div>
@@ -137,20 +137,20 @@ export function AuthPage() {
         <div className="flex flex-1 items-center justify-center px-4 pb-16">
           <div className="w-full max-w-sm">
             <h2 className="text-xl font-semibold tracking-tight">{t("auth.title")}</h2>
-            <p className="mt-1 text-sm text-muted-foreground">{t("auth.subtitle")}</p>
+            <p className="mt-1 text-sm text-muted">{t("auth.subtitle")}</p>
 
             {supabase ? (
               <div className="mt-6 space-y-4">
                 <Button variant="outline" className="w-full" onClick={google}>
                   <GoogleIcon /> {t("auth.google")}
                 </Button>
-                <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                <div className="flex items-center gap-3 text-xs text-muted">
                   <div className="h-px flex-1 bg-border" />
                   {t("auth.or")}
                   <div className="h-px flex-1 bg-border" />
                 </div>
                 {sent ? (
-                  <div className="rounded-lg border bg-muted/50 p-3 text-sm">{t("auth.magicSent", { email })}</div>
+                  <div className="rounded-lg border bg-surface-sunken p-3 text-sm">{t("auth.magicSent", { email })}</div>
                 ) : (
                   <form onSubmit={submit} className="space-y-3">
                     <div className="space-y-1.5">
@@ -175,11 +175,11 @@ export function AuthPage() {
                       {!usePassword ? t("auth.magicLink") : signUp ? t("auth.signUp") : t("auth.signIn")}
                     </Button>
                     <div className="flex items-center justify-between text-xs">
-                      <button type="button" className="text-muted-foreground hover:text-foreground" onClick={() => setUsePassword(!usePassword)}>
+                      <button type="button" className="text-muted hover:text-fg" onClick={() => setUsePassword(!usePassword)}>
                         {usePassword ? t("auth.magicLink") : t("auth.withPassword")}
                       </button>
                       {usePassword && (
-                        <button type="button" className="text-primary hover:underline" onClick={() => setSignUp(!signUp)}>
+                        <button type="button" className="text-accent hover:underline" onClick={() => setSignUp(!signUp)}>
                           {signUp ? t("auth.haveAccount") : t("auth.noAccount")}
                         </button>
                       )}
@@ -188,17 +188,17 @@ export function AuthPage() {
                 )}
               </div>
             ) : (
-              <div className="mt-6 rounded-lg border border-dashed bg-muted/40 p-3 text-xs text-muted-foreground">{t("auth.demoOnly")}</div>
+              <div className="mt-6 rounded-lg border border-dashed bg-surface-sunken p-3 text-xs text-muted">{t("auth.demoOnly")}</div>
             )}
 
-            <div className="mt-8 rounded-xl border bg-card p-4 shadow-xs">
+            <div className="mt-8 rounded-xl border bg-surface p-4">
               <div className="flex items-start gap-3">
-                <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-accent-subtle text-accent">
                   <Sparkles className="size-4" />
                 </span>
                 <div className="flex-1">
                   <div className="text-sm font-medium">{t("auth.tryDemo")}</div>
-                  <p className="mt-0.5 text-xs text-muted-foreground">{t("auth.demoHint")}</p>
+                  <p className="mt-0.5 text-xs text-muted">{t("auth.demoHint")}</p>
                 </div>
               </div>
               <Button variant="secondary" className="mt-3 w-full" onClick={demo} data-testid="try-demo">

@@ -11,7 +11,7 @@ export function PopoverContent({ className, sideOffset = 6, align = "start", ...
       <P.Content
         sideOffset={sideOffset}
         align={align}
-        className={cn("z-50 rounded-lg border bg-popover p-3 text-popover-foreground shadow-lg outline-none data-[state=open]:animate-in", className)}
+        className={cn("z-(--z-modal) rounded-lg border bg-surface-raised p-3 text-fg shadow-lg outline-none data-[state=open]:animate-in", className)}
         {...props}
       />
     </P.Portal>

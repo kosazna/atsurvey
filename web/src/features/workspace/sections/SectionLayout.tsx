@@ -15,7 +15,7 @@ export function SectionHeader({
     <div className={cn("flex flex-wrap items-center gap-x-4 gap-y-2 border-b px-4 py-3", className)}>
       <div className="min-w-0">
         <h2 className="text-sm font-semibold tracking-tight">{title}</h2>
-        {description && <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>}
+        {description && <p className="mt-0.5 text-xs text-muted">{description}</p>}
       </div>
       {actions && <div className="ml-auto flex flex-wrap items-center gap-1.5">{actions}</div>}
     </div>

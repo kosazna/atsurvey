@@ -150,7 +150,7 @@ export function ObservationsSection() {
       />
       <div className="flex min-h-0 flex-1 flex-col sm:flex-row">
         <div className="flex max-h-40 shrink-0 gap-1 overflow-auto border-b p-2 sm:max-h-none sm:w-48 sm:flex-col sm:border-b-0 sm:border-r" role="listbox" aria-label={t("obs.setups")}>
-          <div className="hidden px-1.5 pb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground sm:block">{t("obs.setups")}</div>
+          <div className="hidden px-1.5 pb-1 text-xs font-medium  text-muted sm:block">{t("obs.setups")}</div>
           {setups.map((s, i) => {
             const active = s.id === setup?.id;
             return (
@@ -160,13 +160,13 @@ export function ObservationsSection() {
                 aria-selected={active}
                 onClick={() => setSelectedId(s.id)}
                 className={cn(
-                  "flex shrink-0 cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent",
-                  active && "bg-accent font-medium",
+                  "flex shrink-0 cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-surface-sunken",
+                  active && "bg-surface-sunken font-medium",
                 )}
               >
-                <span className="w-5 text-[11px] tabular text-muted-foreground">{i + 1}</span>
+                <span className="w-5 text-xs tabular text-muted">{i + 1}</span>
                 <span className="truncate">{s.station}</span>
-                <span className="ml-auto text-[11px] tabular text-muted-foreground">{s.observations.length}</span>
+                <span className="ml-auto text-xs tabular text-muted">{s.observations.length}</span>
               </button>
             );
           })}
@@ -191,7 +191,7 @@ export function ObservationsSection() {
                   }}
                 />
               </div>
-              <span className="pb-1.5 text-xs text-muted-foreground">{t("obs.nobs", { count: setup.observations.length })}</span>
+              <span className="pb-1.5 text-xs text-muted">{t("obs.nobs", { count: setup.observations.length })}</span>
               <div className="ml-auto flex gap-1.5">
                 {selRows.length > 0 && (
                   <Button
@@ -209,7 +209,7 @@ export function ObservationsSection() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-destructive hover:text-destructive"
+                  className="text-danger hover:text-danger"
                   onClick={() => {
                     const next = setups.filter((s) => s.id !== setup.id);
                     ws.update({ setups: next });

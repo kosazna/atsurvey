@@ -36,16 +36,16 @@ export function CommandPalette() {
   return (
     <D.Root open={open} onOpenChange={setOpen}>
       <D.Portal>
-        <D.Overlay className="fixed inset-0 z-50 bg-black/30 data-[state=open]:animate-in" />
-        <D.Content className="fixed left-1/2 top-[15vh] z-50 w-[calc(100vw-2rem)] max-w-xl -translate-x-1/2 overflow-hidden rounded-xl border bg-popover shadow-2xl data-[state=open]:animate-in">
+        <D.Overlay className="fixed inset-0 z-(--z-modal) bg-overlay data-[state=open]:animate-in" />
+        <D.Content className="fixed left-1/2 top-[15vh] z-(--z-modal) w-[calc(100vw-2rem)] max-w-xl -translate-x-1/2 overflow-hidden rounded-xl border bg-surface-raised shadow-lg data-[state=open]:animate-in">
           <D.Title className="sr-only">Command palette</D.Title>
-          <Cmdk label="Command palette" className="[&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:pb-1 [&_[cmdk-group-heading]]:pt-2 [&_[cmdk-group-heading]]:text-[11px] [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground">
+          <Cmdk label="Command palette" className="[&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:pb-1 [&_[cmdk-group-heading]]:pt-2 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted">
             <Cmdk.Input
               placeholder={t("cmd.placeholder")}
-              className="h-11 w-full border-b bg-transparent px-4 text-sm outline-none placeholder:text-muted-foreground"
+              className="h-11 w-full border-b bg-transparent px-4 text-sm outline-none placeholder:text-subtle"
             />
             <Cmdk.List className="max-h-80 overflow-y-auto p-1.5">
-              <Cmdk.Empty className="px-3 py-6 text-center text-sm text-muted-foreground">{t("cmd.empty")}</Cmdk.Empty>
+              <Cmdk.Empty className="px-3 py-6 text-center text-sm text-muted">{t("cmd.empty")}</Cmdk.Empty>
               {groups.map((g) => (
                 <Cmdk.Group key={g} heading={g}>
                   {all
@@ -58,7 +58,7 @@ export function CommandPalette() {
                           setOpen(false);
                           c.run();
                         }}
-                        className="flex cursor-pointer items-center gap-2.5 rounded-md px-3 py-2 text-sm data-[selected=true]:bg-accent [&_svg]:size-4 [&_svg]:text-muted-foreground"
+                        className="flex cursor-pointer items-center gap-2.5 rounded-md px-3 py-2 text-sm data-[selected=true]:bg-surface-sunken [&_svg]:size-4 [&_svg]:text-muted"
                       >
                         {c.icon}
                         <span className="flex-1">{c.label}</span>

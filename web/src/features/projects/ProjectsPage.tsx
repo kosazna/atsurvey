@@ -76,7 +76,7 @@ function ProjectFormDialog({
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="pdesc">
-                {t("projects.description")} <span className="font-normal text-muted-foreground">({t("common.optional")})</span>
+                {t("projects.description")} <span className="font-normal text-muted">({t("common.optional")})</span>
               </Label>
               <Textarea id="pdesc" value={description} onChange={(e) => setDescription(e.target.value)} rows={2} />
             </div>
@@ -113,16 +113,16 @@ function ProjectFormDialog({
 function ProjectCard({ p, onRename, onDelete }: { p: ProjectMeta; onRename: () => void; onDelete: () => void }) {
   const { t, i18n } = useTranslation();
   return (
-    <div className="group relative flex flex-col rounded-xl border bg-card p-4 shadow-xs transition-all hover:border-foreground/15 hover:shadow-md">
+    <div className="group relative flex flex-col rounded-xl border bg-surface p-4 transition-colors hover:border-border-strong ">
       <Link to="/p/$projectId" params={{ projectId: p.id }} className="absolute inset-0 rounded-xl" aria-label={p.name} />
       <div className="flex items-start justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2.5">
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-accent-subtle text-accent">
             <Triangle className="size-4" />
           </span>
           <div className="min-w-0">
             <div className="truncate text-sm font-medium">{p.name}</div>
-            <div className="text-xs text-muted-foreground">{t("projects.updated", { when: relativeTime(p.updated_at, i18n.language) })}</div>
+            <div className="text-xs text-muted">{t("projects.updated", { when: relativeTime(p.updated_at, i18n.language) })}</div>
           </div>
         </div>
         <DropdownMenu>
@@ -142,9 +142,9 @@ function ProjectCard({ p, onRename, onDelete }: { p: ProjectMeta; onRename: () =
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-      {p.description && <p className="mt-3 line-clamp-2 text-xs text-muted-foreground">{p.description}</p>}
+      {p.description && <p className="mt-3 line-clamp-2 text-xs text-muted">{p.description}</p>}
       <div className="mt-auto flex flex-wrap items-center gap-1.5 pt-4">
-        {p.counts && <span className="text-xs text-muted-foreground tabular">{t("projects.counts", { ...p.counts })}</span>}
+        {p.counts && <span className="text-xs text-muted tabular">{t("projects.counts", { ...p.counts })}</span>}
         <Badge variant="secondary" className="ml-auto">
           {p.angle_unit === "gon" ? "grad" : p.angle_unit === "deg" ? "deg" : "DMS"}
         </Badge>
@@ -204,13 +204,13 @@ export function ProjectsPage() {
 
   return (
     <div className="min-h-full">
-      <header className="sticky top-0 z-20 border-b bg-background/85 backdrop-blur">
+      <header className="sticky top-0 z-20 border-b bg-bg/85 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-6xl items-center gap-3 px-4">
           <Logo />
           {mode === "demo" && <Badge variant="warning">{t("common.demo")}</Badge>}
           <div className="ml-auto flex items-center gap-2">
             <button
-              className="hidden h-8 items-center gap-2 rounded-md border bg-card px-2.5 text-xs text-muted-foreground shadow-xs hover:text-foreground sm:flex"
+              className="hidden h-8 items-center gap-2 rounded-md border bg-surface px-2.5 text-xs text-muted hover:text-fg sm:flex"
               onClick={() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true }))}
             >
               <Search className="size-3.5" /> {t("common.search")} <Kbd>⌘K</Kbd>
@@ -223,11 +223,11 @@ export function ProjectsPage() {
         <div className="flex flex-wrap items-end gap-3">
           <div>
             <h1 className="text-xl font-semibold tracking-tight">{t("projects.title")}</h1>
-            {mode === "demo" && <p className="mt-1 text-xs text-muted-foreground">{t("projects.demoBanner")}</p>}
+            {mode === "demo" && <p className="mt-1 text-xs text-muted">{t("projects.demoBanner")}</p>}
           </div>
           <div className="ml-auto flex items-center gap-2">
             <div className="relative">
-              <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted" />
               <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("common.search")} className="w-48 pl-8 sm:w-64" aria-label={t("common.search")} />
             </div>
             <Button variant="outline" onClick={() => createSample.mutate()} disabled={createSample.isPending}>
@@ -265,7 +265,7 @@ export function ProjectsPage() {
               />
             </div>
           ) : filtered.length === 0 ? (
-            <p className="py-10 text-center text-sm text-muted-foreground">{t("projects.noMatch")}</p>
+            <p className="py-10 text-center text-sm text-muted">{t("projects.noMatch")}</p>
           ) : (
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {filtered.map((p) => (

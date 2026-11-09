@@ -10,8 +10,8 @@ import { TraverseStatusBadge } from "./ReportsSection";
 
 function Stat({ label, value, icon, onClick }: { label: string; value: React.ReactNode; icon: React.ReactNode; onClick?: () => void }) {
   return (
-    <button onClick={onClick} className="group flex cursor-pointer flex-col gap-2 rounded-xl border bg-card p-3.5 text-left shadow-xs transition-colors hover:border-foreground/15">
-      <span className="flex min-h-8 items-start gap-1.5 text-xs leading-4 text-muted-foreground [&_svg]:mt-0.5 [&_svg]:size-3.5 [&_svg]:shrink-0">
+    <button onClick={onClick} className="group flex cursor-pointer flex-col gap-2 rounded-xl border bg-surface p-3.5 text-left transition-colors hover:border-border-strong">
+      <span className="flex min-h-8 items-start gap-1.5 text-xs leading-4 text-muted [&_svg]:mt-0.5 [&_svg]:size-3.5 [&_svg]:shrink-0">
         {icon}
         {label}
       </span>
@@ -42,7 +42,7 @@ export function OverviewSection() {
       <div className="mx-auto max-w-4xl space-y-6 p-4 sm:p-6">
         <div>
           <h2 className="text-lg font-semibold tracking-tight">{d.meta.name}</h2>
-          {d.meta.description && <p className="mt-1 text-sm text-muted-foreground">{d.meta.description}</p>}
+          {d.meta.description && <p className="mt-1 text-sm text-muted">{d.meta.description}</p>}
         </div>
 
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -60,18 +60,18 @@ export function OverviewSection() {
             <ol className="space-y-1">
               {steps.map((s, i) => (
                 <li key={i}>
-                  <button onClick={s.action} className="group flex w-full cursor-pointer items-center gap-3 rounded-lg px-2 py-2 text-left text-sm hover:bg-accent">
+                  <button onClick={s.action} className="group flex w-full cursor-pointer items-center gap-3 rounded-lg px-2 py-2 text-left text-sm hover:bg-surface-sunken">
                     <span
                       className={
                         s.done
-                          ? "flex size-6 shrink-0 items-center justify-center rounded-full bg-success/15 text-success"
-                          : "flex size-6 shrink-0 items-center justify-center rounded-full border text-xs text-muted-foreground"
+                          ? "flex size-6 shrink-0 items-center justify-center rounded-full bg-success-subtle text-success"
+                          : "flex size-6 shrink-0 items-center justify-center rounded-full border text-xs text-muted"
                       }
                     >
                       {s.done ? <Check className="size-3.5" /> : i + 1}
                     </span>
-                    <span className={s.done ? "text-muted-foreground" : ""}>{s.label}</span>
-                    <ArrowRight className="ml-auto size-3.5 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+                    <span className={s.done ? "text-muted" : ""}>{s.label}</span>
+                    <ArrowRight className="ml-auto size-3.5 text-muted opacity-0 transition-opacity group-hover:opacity-100" />
                   </button>
                 </li>
               ))}
@@ -93,11 +93,11 @@ export function OverviewSection() {
                   <button
                     key={tr.id ?? tr.name}
                     onClick={() => ws.goTo("reports", { traverse: tr.id ?? tr.name })}
-                    className="flex w-full cursor-pointer items-center gap-3 rounded-lg border px-3 py-2 text-left hover:bg-accent"
+                    className="flex w-full cursor-pointer items-center gap-3 rounded-lg border px-3 py-2 text-left hover:bg-surface-sunken"
                   >
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-sm font-medium">{tr.name}</div>
-                      <div className="truncate text-xs text-muted-foreground tabular">
+                      <div className="truncate text-xs text-muted tabular">
                         {tr.angular_misclosure !== null && `${formatMisclosure(tr.angular_misclosure, unit)} · `}
                         {tr.linear_misclosure !== null && `w ${(tr.linear_misclosure * 100).toFixed(1)} cm · `}
                         {tr.relative_precision ? `1:${fmtInt(tr.relative_precision)}` : t(`traverseKind.${tr.kind}`)}
@@ -108,12 +108,12 @@ export function OverviewSection() {
                 ))}
               </div>
             ) : (
-              <p className="text-xs text-muted-foreground">{t("reports.empty")}</p>
+              <p className="text-xs text-muted">{t("reports.empty")}</p>
             )}
           </Card>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
           {r && <Badge variant="secondary">{t("overview.engine", { version: r.engine_version })}</Badge>}
           {ws.lastRun && <span>{t("overview.lastRun", { when: relativeTime(ws.lastRun.created_at, i18n.language) })}</span>}
           {r?.summary.extent && (

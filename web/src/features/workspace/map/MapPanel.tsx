@@ -1,5 +1,6 @@
 // Map of control / traverse / detail points. MapLibre renders points and lines;
-// labels are drawn on a 2D canvas overlay (Inter font, Greek-safe, no glyph server).
+// labels are drawn on a 2D canvas overlay (token font, Greek-safe, no glyph server).
+// Colours come from design tokens resolved at runtime (MapLibre cannot read CSS vars).
 // An adaptive EGSA87 grid replaces a basemap by default.
 import "maplibre-gl/dist/maplibre-gl.css";
 import * as maplibregl from "maplibre-gl";
@@ -14,6 +15,7 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { formatAngle, gridAzimuth } from "@/lib/angles";
 import { egsaToLngLat, lngLatToEgsa } from "@/lib/proj";
 import { useTheme } from "@/lib/theme";
+import { type ResolvedTokens, useTokens } from "@/lib/tokens";
 import type { PointKind } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useWorkspace } from "../useWorkspace";
@@ -31,13 +33,46 @@ interface MapPoint {
   code?: string | null;
 }
 
-const COLORS = {
-  light: { bg: "#f6f7f9", grid: "#e3e6ec", gridText: "#9aa1ae", control: "#dc3b2f", traverse: "#2563eb", detail: "#16a34a", line: "#2563eb", label: "#1f2430", halo: "#ffffff", sel: "#f59e0b" },
-  dark: { bg: "#16191f", grid: "#252a33", gridText: "#5f6878", control: "#ff6b5e", traverse: "#60a5fa", detail: "#4ade80", line: "#60a5fa", label: "#e7eaf0", halo: "#16191f", sel: "#fbbf24" },
-};
+interface MapColors {
+  bg: string;
+  grid: string;
+  gridText: string;
+  control: string;
+  traverse: string;
+  detail: string;
+  line: string;
+  label: string;
+  labelMuted: string;
+  halo: string;
+  sel: string;
+}
 
-function baseStyle(theme: "light" | "dark"): StyleSpecification {
-  const c = COLORS[theme];
+function mapColors(t: ResolvedTokens): MapColors {
+  return {
+    bg: t.mapBg,
+    grid: t.mapGrid,
+    gridText: t.textSubtle,
+    control: t.pointControl,
+    traverse: t.pointTraverse,
+    detail: t.pointDetail,
+    line: t.traverseLine,
+    label: t.text,
+    labelMuted: t.textMuted,
+    halo: t.mapBg,
+    sel: t.warning,
+  };
+}
+
+function webglAvailable(): boolean {
+  try {
+    const c = document.createElement("canvas");
+    return Boolean(c.getContext("webgl2") || c.getContext("webgl"));
+  } catch {
+    return false;
+  }
+}
+
+function baseStyle(c: MapColors): StyleSpecification {
   return {
     version: 8,
     sources: {
@@ -97,6 +132,9 @@ function triangleImage(color: string, halo: string): ImageData {
 export default function MapPanel() {
   const { t } = useTranslation();
   const theme = useTheme();
+  const tokens = useTokens();
+  const colors = useMemo(() => mapColors(tokens), [tokens]);
+  const [glError, setGlError] = useState<string | null>(() => (webglAvailable() ? null : "webgl"));
   const ws = useWorkspace();
   const unit = ws.data.meta.angle_unit;
   const container = useRef<HTMLDivElement>(null);
@@ -145,10 +183,12 @@ export default function MapPanel() {
 
   // ------------------------------------------------------------ init
   useEffect(() => {
-    if (!container.current) return;
-    const map = new maplibregl.Map({
+    if (!container.current || glError) return;
+    let map: MLMap;
+    try {
+      map = new maplibregl.Map({
       container: container.current,
-      style: baseStyle(theme),
+      style: baseStyle(colors),
       center: [23.73, 37.98],
       zoom: 12,
       attributionControl: { compact: true },
@@ -156,6 +196,10 @@ export default function MapPanel() {
       pitchWithRotate: false,
       maxZoom: 22,
     });
+    } catch (e) {
+      setGlError((e as Error).message || "webgl");
+      return;
+    }
     map.touchZoomRotate.disableRotation();
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
     map.addControl(new maplibregl.ScaleControl({ unit: "metric" }), "bottom-right");
@@ -176,7 +220,7 @@ export default function MapPanel() {
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !loaded) return;
-    const c = COLORS[theme];
+    const c = colors;
     map.setPaintProperty("bg", "background-color", c.bg);
     if (map.hasImage("tri")) map.removeImage("tri");
     map.addImage("tri", triangleImage(c.control, c.halo), { pixelRatio: 2 });
@@ -222,7 +266,7 @@ export default function MapPanel() {
       layout: { "icon-image": "tri", "icon-allow-overlap": true, "icon-ignore-placement": true },
     });
     map.triggerRepaint();
-  }, [loaded, theme]);
+  }, [loaded, colors]);
 
   // basemap
   useEffect(() => {
@@ -338,7 +382,7 @@ export default function MapPanel() {
     const map = mapRef.current;
     const cv = canvasRef.current;
     if (!map || !cv) return;
-    const c = COLORS[theme];
+    const c = colors;
     const w = map.getContainer().clientWidth;
     const h = map.getContainer().clientHeight;
     const dpr = window.devicePixelRatio || 1;
@@ -364,7 +408,7 @@ export default function MapPanel() {
       const maxY = Math.max(...ys);
       const step = niceStep(Math.max(maxX - minX, 1));
       const feats: { type: "Feature"; properties: Record<string, never>; geometry: { type: "LineString"; coordinates: [number, number][] } }[] = [];
-      ctx.font = "500 10px Inter Variable, sans-serif";
+      ctx.font = `${tokens.weightRegular} ${tokens.textXs - 1}px ${tokens.fontSans}`;
       ctx.fillStyle = c.gridText;
       for (let x = Math.ceil(minX / step) * step; x <= maxX; x += step) {
         feats.push({ type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: [egsaToLngLat(x, minY), egsaToLngLat(x, maxY)] } });
@@ -401,7 +445,7 @@ export default function MapPanel() {
       if (px.x < -20 || px.y < -20 || px.x > w + 20 || px.y > h + 20) continue;
       const text = heights && p.z !== null ? `${p.name}  ${p.z.toFixed(2)}` : p.name;
       const bold = p.kind !== "detail";
-      ctx.font = `${bold ? 600 : 500} ${bold ? 12 : 11}px Inter Variable, sans-serif`;
+      ctx.font = `${bold ? tokens.weightSemibold : tokens.weightRegular} ${bold ? tokens.textXs : tokens.textXs - 1}px ${tokens.fontSans}`;
       const tw = ctx.measureText(text).width;
       const lx = px.x + 8;
       const ly = px.y - 9;
@@ -412,8 +456,7 @@ export default function MapPanel() {
       ctx.strokeStyle = c.halo;
       ctx.lineWidth = 3;
       ctx.strokeText(text, lx, ly);
-      ctx.fillStyle = p.name === ws.selected ? c.sel : p.kind === "detail" ? c.gridText : c.label;
-      if (p.kind === "detail" && theme === "light") ctx.fillStyle = p.name === ws.selected ? c.sel : "#5b6474";
+      ctx.fillStyle = p.name === ws.selected ? c.sel : p.kind === "detail" ? c.labelMuted : c.label;
       ctx.fillText(text, lx, ly);
       drawn++;
     }
@@ -430,19 +473,19 @@ export default function MapPanel() {
   }, [loaded]);
   useEffect(() => {
     mapRef.current?.triggerRepaint();
-  }, [labels, heights, basemap, points, ws.selected, theme]);
+  }, [labels, heights, basemap, points, ws.selected, colors]);
 
   const m = measurePts.length === 2 ? measurePts : null;
   const mDist = m ? Math.hypot(m[1].x - m[0].x, m[1].y - m[0].y) : null;
   const mAz = m ? gridAzimuth(m[0].x, m[0].y, m[1].x, m[1].y) : null;
 
   return (
-    <div className="relative h-full w-full overflow-hidden bg-[var(--map-bg)]" data-testid="map">
+    <div className="relative h-full w-full overflow-hidden bg-map-bg" data-testid="map">
       <div ref={container} style={{ position: "absolute", inset: 0 }} />
       <canvas ref={canvasRef} className="pointer-events-none absolute inset-0" />
 
       <div className="absolute left-2 top-2 z-10 flex gap-1">
-        <div className="flex items-center gap-0.5 rounded-lg border bg-card/95 p-0.5 shadow-sm backdrop-blur">
+        <div className="flex items-center gap-0.5 rounded-lg border bg-surface p-0.5">
           <Tooltip content={t("map.fit")}>
             <Button variant="ghost" size="icon-sm" onClick={fit} aria-label={t("map.fit")}>
               <Maximize2 />
@@ -453,7 +496,7 @@ export default function MapPanel() {
               variant="ghost"
               size="icon-sm"
               aria-pressed={measure}
-              className={cn(measure && "bg-primary/15 text-primary")}
+              className={cn(measure && "bg-accent-subtle text-accent")}
               onClick={() => {
                 setMeasure(!measure);
                 setMeasurePts([]);
@@ -464,7 +507,7 @@ export default function MapPanel() {
             </Button>
           </Tooltip>
           <Tooltip content={t("map.labels")}>
-            <Button variant="ghost" size="icon-sm" aria-pressed={labels} className={cn(labels && "text-primary")} onClick={() => setLabels(!labels)} aria-label={t("map.labels")}>
+            <Button variant="ghost" size="icon-sm" aria-pressed={labels} className={cn(labels && "text-accent")} onClick={() => setLabels(!labels)} aria-label={t("map.labels")}>
               <Tag />
             </Button>
           </Tooltip>
@@ -478,13 +521,13 @@ export default function MapPanel() {
               <DropdownMenuLabel>{t("map.basemap")}</DropdownMenuLabel>
               {(["none", "osm", "sat"] as Basemap[]).map((b) => (
                 <DropdownMenuItem key={b} onSelect={() => setBasemap(b)}>
-                  <span className={cn("size-2 rounded-full", basemap === b ? "bg-primary" : "bg-border")} />
+                  <span className={cn("size-2 rounded-full", basemap === b ? "bg-accent" : "bg-border")} />
                   {t(`map.base.${b}`)}
                 </DropdownMenuItem>
               ))}
               <DropdownMenuSeparator />
               <DropdownMenuItem onSelect={() => setHeights(!heights)}>
-                <span className={cn("size-2 rounded-full", heights ? "bg-primary" : "bg-border")} />
+                <span className={cn("size-2 rounded-full", heights ? "bg-accent" : "bg-border")} />
                 {t("map.heights")}
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -493,31 +536,31 @@ export default function MapPanel() {
       </div>
 
       {measure && (
-        <div className="absolute left-2 top-12 z-10 min-w-52 rounded-lg border bg-card/95 p-2.5 text-xs shadow-md backdrop-blur">
+        <div className="absolute left-2 top-12 z-10 min-w-52 rounded-lg border bg-surface p-2.5 text-xs">
           <div className="mb-1 flex items-center justify-between font-medium">
             <span className="flex items-center gap-1.5">
               <Ruler className="size-3.5" /> {t("map.measure")}
             </span>
-            <button className="text-muted-foreground hover:text-foreground" onClick={() => setMeasure(false)} aria-label={t("common.close")}>
+            <button className="text-muted hover:text-fg" onClick={() => setMeasure(false)} aria-label={t("common.close")}>
               <X className="size-3.5" />
             </button>
           </div>
           {m ? (
             <div className="space-y-0.5 tabular">
-              <div className="text-muted-foreground">
+              <div className="text-muted">
                 {m[0].name} → {m[1].name}
               </div>
               <div className="flex justify-between gap-4">
-                <span className="text-muted-foreground">{t("map.distance")}</span>
+                <span className="text-muted">{t("map.distance")}</span>
                 <span className="font-medium">{mDist!.toFixed(3)} m</span>
               </div>
               <div className="flex justify-between gap-4">
-                <span className="text-muted-foreground">{t("map.azimuth")}</span>
+                <span className="text-muted">{t("map.azimuth")}</span>
                 <span className="font-medium">{formatAngle(mAz, unit)}</span>
               </div>
             </div>
           ) : (
-            <div className="text-muted-foreground">
+            <div className="text-muted">
               {t("map.measureHint")} {measurePts.length === 1 && `(${measurePts[0].name} → …)`}
             </div>
           )}
@@ -526,27 +569,27 @@ export default function MapPanel() {
 
       {hover && !measure && (
         <div
-          className="pointer-events-none absolute z-20 rounded-md border bg-popover px-2 py-1.5 text-xs shadow-lg"
+          className="pointer-events-none absolute z-20 rounded-md border bg-surface-raised px-2 py-1.5 text-xs shadow-lg"
           style={{ left: Math.min(hover.x + 12, (container.current?.clientWidth ?? 400) - 180), top: hover.y + 12 }}
         >
           <div className="font-semibold">
-            {hover.p.name} <span className="font-normal text-muted-foreground">· {t(`kind.${hover.p.kind}`)}</span>
+            {hover.p.name} <span className="font-normal text-muted">· {t(`kind.${hover.p.kind}`)}</span>
           </div>
-          <div className="mt-0.5 grid grid-cols-[auto_1fr] gap-x-2 tabular text-muted-foreground">
+          <div className="mt-0.5 grid grid-cols-[auto_1fr] gap-x-2 tabular text-muted">
             <span>X</span>
-            <span className="text-right text-foreground">{hover.p.x.toFixed(3)}</span>
+            <span className="text-right text-fg">{hover.p.x.toFixed(3)}</span>
             <span>Y</span>
-            <span className="text-right text-foreground">{hover.p.y.toFixed(3)}</span>
+            <span className="text-right text-fg">{hover.p.y.toFixed(3)}</span>
             {hover.p.z !== null && (
               <>
                 <span>Z</span>
-                <span className="text-right text-foreground">{hover.p.z.toFixed(3)}</span>
+                <span className="text-right text-fg">{hover.p.z.toFixed(3)}</span>
               </>
             )}
             {hover.p.code && (
               <>
                 <span>Code</span>
-                <span className="text-right text-foreground">{hover.p.code}</span>
+                <span className="text-right text-fg">{hover.p.code}</span>
               </>
             )}
           </div>
@@ -554,33 +597,42 @@ export default function MapPanel() {
       )}
 
       <div className="pointer-events-none absolute bottom-2 left-2 z-10">
-        <div className="flex items-center gap-1.5 rounded-md border bg-card/90 px-2 py-1 text-[11px] tabular text-muted-foreground shadow-xs backdrop-blur">
+        <div className="flex items-center gap-1.5 rounded-md border bg-surface px-2 py-1 text-xs tabular text-muted backdrop-blur">
           <Crosshair className="size-3" />
           {cursor ? `X ${cursor[0].toFixed(2)}  Y ${cursor[1].toFixed(2)}` : "ΕΓΣΑ87"}
         </div>
       </div>
       <div className="pointer-events-none absolute right-2 top-[84px] z-10">
-        <div className="hidden flex-col items-start gap-1 rounded-md border bg-card/90 px-2 py-1.5 text-[11px] text-muted-foreground shadow-xs backdrop-blur sm:flex">
+        <div className="hidden flex-col items-start gap-1 rounded-md border bg-surface px-2 py-1.5 text-xs text-muted backdrop-blur sm:flex">
           <span className="flex items-center gap-1">
             <svg viewBox="0 0 10 10" className="size-2.5">
-              <path d="M5 1 9 9H1z" fill="var(--pt-control)" />
+              <path d="M5 1 9 9H1z" fill="var(--color-point-control)" />
             </svg>
             {t("kind.control")}
           </span>
           <span className="flex items-center gap-1">
-            <span className="size-2 rounded-full bg-pt-traverse" />
+            <span className="size-2 rounded-full bg-point-traverse" />
             {t("kind.traverse")}
           </span>
           <span className="flex items-center gap-1">
-            <span className="size-1.5 rounded-full bg-pt-detail" />
+            <span className="size-1.5 rounded-full bg-point-detail" />
             {t("kind.detail")}
           </span>
         </div>
       </div>
 
-      {points.length === 0 && (
+      {glError && (
+        <div className="absolute inset-0 z-20 flex items-center justify-center bg-map-bg p-6">
+          <div className="max-w-xs rounded-lg border bg-surface p-4 text-center text-sm text-muted">
+            <div className="mb-1 font-medium text-fg">{t("map.noWebglTitle")}</div>
+            {t("map.noWebgl")}
+          </div>
+        </div>
+      )}
+
+      {!glError && points.length === 0 && (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-          <span className="rounded-md border bg-card/90 px-3 py-1.5 text-xs text-muted-foreground shadow-xs">{t("map.empty")}</span>
+          <span className="rounded-md border bg-surface px-3 py-1.5 text-xs text-muted">{t("map.empty")}</span>
         </div>
       )}
     </div>

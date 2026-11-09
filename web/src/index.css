@@ -1,112 +1,106 @@
+/* Design tokens come from design/tokens.json → src/styles/tokens.css (generated).
+   Components use only the Tailwind utilities mapped below — no hard-coded colours,
+   radii, shadows or font sizes. tokens.css is unlayered, so it wins over Tailwind's
+   @layer theme defaults that share the same variable names. */
 @import "tailwindcss";
-@import "@fontsource-variable/inter";
+@import "./styles/tokens.css";
+@import "@fontsource/ibm-plex-sans/latin-400.css";
+@import "@fontsource/ibm-plex-sans/latin-500.css";
+@import "@fontsource/ibm-plex-sans/latin-600.css";
+@import "@fontsource/ibm-plex-sans/greek-400.css";
+@import "@fontsource/ibm-plex-sans/greek-500.css";
+@import "@fontsource/ibm-plex-sans/greek-600.css";
+@import "@fontsource/ibm-plex-mono/latin-400.css";
 
-@custom-variant dark (&:where(.dark, .dark *));
-
-:root {
-  --background: oklch(0.99 0.002 247);
-  --foreground: oklch(0.21 0.02 260);
-  --card: oklch(1 0 0);
-  --card-foreground: var(--foreground);
-  --popover: oklch(1 0 0);
-  --popover-foreground: var(--foreground);
-  --muted: oklch(0.965 0.004 250);
-  --muted-foreground: oklch(0.52 0.02 257);
-  --accent: oklch(0.955 0.008 250);
-  --accent-foreground: oklch(0.21 0.02 260);
-  --primary: oklch(0.5 0.16 252);
-  --primary-foreground: oklch(0.99 0 0);
-  --secondary: oklch(0.955 0.006 250);
-  --secondary-foreground: oklch(0.25 0.02 260);
-  --destructive: oklch(0.58 0.2 27);
-  --destructive-foreground: oklch(0.99 0 0);
-  --success: oklch(0.6 0.14 155);
-  --warning: oklch(0.72 0.15 70);
-  --border: oklch(0.915 0.006 250);
-  --input: oklch(0.89 0.008 250);
-  --ring: oklch(0.6 0.15 252);
-  --sidebar: oklch(0.975 0.003 250);
-
-  --pt-control: oklch(0.6 0.2 27);
-  --pt-traverse: oklch(0.55 0.17 255);
-  --pt-detail: oklch(0.6 0.12 160);
-  --map-bg: oklch(0.975 0.003 250);
-  --map-grid: oklch(0.9 0.006 250);
-  --radius: 0.5rem;
-  color-scheme: light;
-}
-
-.dark {
-  --background: oklch(0.17 0.012 260);
-  --foreground: oklch(0.94 0.006 250);
-  --card: oklch(0.205 0.013 260);
-  --card-foreground: var(--foreground);
-  --popover: oklch(0.22 0.014 260);
-  --popover-foreground: var(--foreground);
-  --muted: oklch(0.24 0.014 260);
-  --muted-foreground: oklch(0.68 0.018 255);
-  --accent: oklch(0.27 0.016 260);
-  --accent-foreground: oklch(0.95 0.006 250);
-  --primary: oklch(0.68 0.15 250);
-  --primary-foreground: oklch(0.16 0.02 260);
-  --secondary: oklch(0.26 0.015 260);
-  --secondary-foreground: oklch(0.93 0.006 250);
-  --destructive: oklch(0.65 0.2 25);
-  --destructive-foreground: oklch(0.99 0 0);
-  --success: oklch(0.7 0.14 155);
-  --warning: oklch(0.78 0.14 75);
-  --border: oklch(0.28 0.014 260);
-  --input: oklch(0.32 0.016 260);
-  --ring: oklch(0.62 0.14 250);
-  --sidebar: oklch(0.185 0.012 260);
-
-  --pt-control: oklch(0.7 0.18 27);
-  --pt-traverse: oklch(0.7 0.14 250);
-  --pt-detail: oklch(0.74 0.12 160);
-  --map-bg: oklch(0.19 0.012 260);
-  --map-grid: oklch(0.26 0.014 260);
-  color-scheme: dark;
-}
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
 @theme inline {
-  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: ui-monospace, "JetBrains Mono", "SF Mono", Menlo, monospace;
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
-  --color-popover: var(--popover);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-destructive: var(--destructive);
-  --color-destructive-foreground: var(--destructive-foreground);
-  --color-success: var(--success);
-  --color-warning: var(--warning);
-  --color-border: var(--border);
-  --color-input: var(--input);
-  --color-ring: var(--ring);
-  --color-sidebar: var(--sidebar);
-  --color-pt-control: var(--pt-control);
-  --color-pt-traverse: var(--pt-traverse);
-  --color-pt-detail: var(--pt-detail);
-  --radius-sm: calc(var(--radius) - 2px);
-  --radius-md: var(--radius);
-  --radius-lg: calc(var(--radius) + 2px);
-  --radius-xl: calc(var(--radius) + 6px);
-  --animate-in: fade-in 120ms ease-out;
+  /* drop Tailwind's default palette/scales so only tokens can be used */
+  --color-*: initial;
+  --font-*: initial;
+  --radius-*: initial;
+  --shadow-*: initial;
+  --text-*: initial;
+
+  /* colours (identity mapping to tokens) */
+  --color-bg: var(--color-bg);
+  --color-surface: var(--color-surface);
+  --color-surface-raised: var(--color-surface-raised);
+  --color-surface-sunken: var(--color-surface-sunken);
+  --color-border: var(--color-border);
+  --color-border-strong: var(--color-border-strong);
+  --color-text: var(--color-text);
+  --color-text-muted: var(--color-text-muted);
+  --color-text-subtle: var(--color-text-subtle);
+  --color-accent: var(--color-accent);
+  --color-accent-hover: var(--color-accent-hover);
+  --color-accent-contrast: var(--color-accent-contrast);
+  --color-accent-subtle: var(--color-accent-subtle);
+  --color-success: var(--color-success);
+  --color-success-subtle: var(--color-success-subtle);
+  --color-warning: var(--color-warning);
+  --color-warning-subtle: var(--color-warning-subtle);
+  --color-danger: var(--color-danger);
+  --color-danger-subtle: var(--color-danger-subtle);
+  --color-info: var(--color-info);
+  --color-info-subtle: var(--color-info-subtle);
+  --color-focus: var(--color-focus);
+  --color-overlay: var(--color-overlay);
+  --color-point-control: var(--color-point-control);
+  --color-point-traverse: var(--color-point-traverse);
+  --color-point-detail: var(--color-point-detail);
+  --color-traverse-line: var(--color-traverse-line);
+  --color-map-bg: var(--color-map-bg);
+  --color-map-grid: var(--color-map-grid);
+  /* short aliases: text-fg / text-muted / text-subtle */
+  --color-fg: var(--color-text);
+  --color-muted: var(--color-text-muted);
+  --color-subtle: var(--color-text-subtle);
+  --color-transparent: transparent;
+  --color-current: currentColor;
+
+  /* typography */
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+  --text-xs: var(--text-xs);
+  --text-xs--line-height: var(--leading-normal);
+  --text-sm: var(--text-sm);
+  --text-sm--line-height: var(--leading-normal);
+  --text-base: var(--text-base);
+  --text-base--line-height: var(--leading-normal);
+  --text-lg: var(--text-lg);
+  --text-lg--line-height: var(--leading-normal);
+  --text-xl: var(--text-xl);
+  --text-xl--line-height: var(--leading-tight);
+  --text-2xl: var(--text-2xl);
+  --text-2xl--line-height: var(--leading-tight);
+  --text-3xl: var(--text-3xl);
+  --text-3xl--line-height: var(--leading-tight);
+  --leading-tight: var(--leading-tight);
+  --leading-normal: var(--leading-normal);
+  --font-weight-normal: var(--weight-regular);
+  --font-weight-medium: var(--weight-medium);
+  --font-weight-semibold: var(--weight-semibold);
+
+  /* shape & elevation */
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-xl);
+  --shadow-sm: var(--shadow-sm);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+
+  /* motion */
+  --default-transition-duration: var(--duration-fast);
+  --default-transition-timing-function: var(--ease-standard);
+  --animate-in: fade-in var(--duration-fast) var(--ease-standard);
 }
 
 @keyframes fade-in {
   from {
     opacity: 0;
-    transform: translateY(2px) scale(0.99);
+    transform: translateY(2px);
   }
   to {
     opacity: 1;
@@ -124,37 +118,58 @@
     height: 100%;
   }
   body {
-    @apply bg-background text-foreground antialiased;
-    font-feature-settings: "cv11", "ss01";
-    font-size: 14px;
+    @apply bg-bg font-sans text-base text-fg antialiased;
   }
+  table,
   .tabular {
     font-variant-numeric: tabular-nums;
   }
   :focus-visible {
-    outline: 2px solid var(--ring);
+    outline: 2px solid var(--color-focus);
     outline-offset: 2px;
   }
   ::selection {
-    background: color-mix(in oklch, var(--primary) 25%, transparent);
+    background: var(--color-accent-subtle);
   }
 }
 
-/* thin scrollbars */
 * {
   scrollbar-width: thin;
-  scrollbar-color: color-mix(in oklch, var(--muted-foreground) 35%, transparent) transparent;
+  scrollbar-color: var(--color-border-strong) transparent;
+}
+
+/* scroll containers whose overflow must be obvious (computation sheets) */
+.scroll-x-visible {
+  overflow-x: auto;
+  scrollbar-width: auto;
+  scrollbar-color: var(--color-border-strong) var(--color-surface-sunken);
 }
 
 /* maplibre overrides */
 .maplibregl-ctrl-attrib {
-  font-size: 10px;
-  background: color-mix(in oklch, var(--card) 80%, transparent) !important;
-  color: var(--muted-foreground);
+  font-size: var(--text-xs);
+  background: var(--color-surface) !important;
+  color: var(--color-text-muted);
 }
 .maplibregl-ctrl-attrib a {
-  color: var(--muted-foreground) !important;
+  color: var(--color-text-muted) !important;
 }
-.dark .maplibregl-ctrl-attrib-button {
+.maplibregl-ctrl-group {
+  background: var(--color-surface) !important;
+  border: 1px solid var(--color-border);
+  box-shadow: none !important;
+  border-radius: var(--radius-md) !important;
+}
+.maplibregl-ctrl-group button + button {
+  border-top-color: var(--color-border) !important;
+}
+[data-theme="dark"] .maplibregl-ctrl-group button .maplibregl-ctrl-icon,
+[data-theme="dark"] .maplibregl-ctrl-attrib-button {
   filter: invert(1);
+}
+.maplibregl-ctrl-scale {
+  background: var(--color-surface) !important;
+  border-color: var(--color-text-muted) !important;
+  color: var(--color-text-muted) !important;
+  font-size: var(--text-xs) !important;
 }

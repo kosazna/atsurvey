@@ -110,22 +110,22 @@ export function ExportDialog() {
                     }}
                     className={cn(
                       "relative flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2.5 text-left transition-colors [&>svg]:size-4",
-                      on ? "border-primary bg-primary/5 ring-1 ring-primary/40" : "hover:bg-accent/50",
+                      on ? "border-accent bg-accent-subtle ring-1 ring-accent" : "hover:bg-surface-sunken",
                       locked && "cursor-not-allowed opacity-55",
                     )}
                   >
-                    <span className={cn("flex size-8 items-center justify-center rounded-md border bg-card [&_svg]:size-4", on && "text-primary")}>{ICONS[f]}</span>
+                    <span className={cn("flex size-8 items-center justify-center rounded-md border bg-surface [&_svg]:size-4", on && "text-accent")}>{ICONS[f]}</span>
                     <span className="min-w-0 flex-1">
                       <span className="block text-sm font-medium uppercase">{f}</span>
-                      <span className="block truncate text-xs text-muted-foreground">{t(`exp.fmt.${f}`)}</span>
+                      <span className="block truncate text-xs text-muted">{t(`exp.fmt.${f}`)}</span>
                     </span>
-                    {locked ? <Lock className="text-muted-foreground" /> : on ? <Check className="text-primary" /> : null}
+                    {locked ? <Lock className="text-muted" /> : on ? <Check className="text-accent" /> : null}
                   </button>
                 );
               })}
             </div>
             {ALL_EXPORT_FORMATS.some((f) => !allowed.has(f)) && (
-              <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
+              <p className="mt-2 flex items-center gap-1.5 text-xs text-muted">
                 <Lock className="size-3" /> {me.data?.plan === "anonymous" ? t("exp.signupHint") : t("exp.upgrade")}
               </p>
             )}

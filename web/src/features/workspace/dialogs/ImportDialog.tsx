@@ -142,13 +142,13 @@ export function ImportDialog() {
             }}
             className={cn(
               "flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-6 py-8 text-center transition-colors",
-              drag ? "border-primary bg-primary/5" : "hover:border-foreground/20 hover:bg-accent/40",
+              drag ? "border-accent bg-accent-subtle" : "hover:border-border-strong hover:bg-surface-sunken",
             )}
             data-testid="dropzone"
           >
-            <UploadCloud className="size-7 text-muted-foreground" />
+            <UploadCloud className="size-7 text-muted" />
             <div className="text-sm font-medium">{t("imp.drop")}</div>
-            <div className="text-xs text-muted-foreground">{t("imp.formats")}</div>
+            <div className="text-xs text-muted">{t("imp.formats")}</div>
             <input
               ref={inputRef}
               type="file"
@@ -162,7 +162,7 @@ export function ImportDialog() {
               data-testid="file-input"
             />
           </div>
-          <p className="flex items-start gap-2 rounded-lg bg-muted/60 px-3 py-2 text-xs text-muted-foreground">
+          <p className="flex items-start gap-2 rounded-lg bg-surface-sunken px-3 py-2 text-xs text-muted">
             <AlertTriangle className="mt-0.5 size-3.5 shrink-0" /> {t("imp.exportFirst")}
           </p>
           <div className="flex flex-wrap items-center gap-4">
@@ -192,7 +192,7 @@ export function ImportDialog() {
             <ul className="divide-y rounded-xl border">
               {items.map((i) => (
                 <li key={i.key} className="flex items-start gap-3 px-3 py-2.5">
-                  <FileText className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                  <FileText className="mt-0.5 size-4 shrink-0 text-muted" />
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="truncate text-sm font-medium">{i.file.name}</span>
@@ -200,17 +200,17 @@ export function ImportDialog() {
                       {i.result?.angle_unit && <Badge variant="secondary">{t(`units.${i.result.angle_unit}`)}</Badge>}
                     </div>
                     {i.status === "parsing" && (
-                      <div className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <div className="mt-0.5 flex items-center gap-1.5 text-xs text-muted">
                         <Loader2 className="size-3 animate-spin" /> {t("imp.parsing")}
                       </div>
                     )}
                     {i.status === "error" && (
-                      <div className="mt-0.5 flex items-center gap-1.5 text-xs text-destructive">
+                      <div className="mt-0.5 flex items-center gap-1.5 text-xs text-danger">
                         <XCircle className="size-3" /> {t("imp.failed")}: {i.error}
                       </div>
                     )}
                     {i.result && (
-                      <div className="mt-0.5 text-xs text-muted-foreground tabular">
+                      <div className="mt-0.5 text-xs text-muted tabular">
                         {t("imp.stats", i.result.stats)}
                         {i.result.control_points.length > 0 && ` · ${t("imp.controlFound", { count: i.result.control_points.length })}`}
                       </div>
@@ -220,7 +220,7 @@ export function ImportDialog() {
                         <summary className="cursor-pointer text-warning">
                           {t("imp.warnings")} ({i.result.warnings.length})
                         </summary>
-                        <ul className="mt-1 max-h-28 list-disc space-y-0.5 overflow-y-auto pl-5 text-muted-foreground">
+                        <ul className="mt-1 max-h-28 list-disc space-y-0.5 overflow-y-auto pl-5 text-muted">
                           {i.result.warnings.map((w, k) => (
                             <li key={k}>{w}</li>
                           ))}
@@ -237,7 +237,7 @@ export function ImportDialog() {
           )}
         </DialogBody>
         <DialogFooter>
-          {ok.length > 0 && <span className="mr-auto text-xs text-muted-foreground tabular">{t("imp.stats", totals)}</span>}
+          {ok.length > 0 && <span className="mr-auto text-xs text-muted tabular">{t("imp.stats", totals)}</span>}
           <Button variant="ghost" onClick={close}>
             {t("common.cancel")}
           </Button>

@@ -10,7 +10,7 @@ export function DropdownMenuContent({ className, sideOffset = 4, ...props }: Rea
     <DM.Portal>
       <DM.Content
         sideOffset={sideOffset}
-        className={cn("z-50 min-w-40 rounded-lg border bg-popover p-1 text-popover-foreground shadow-lg data-[state=open]:animate-in", className)}
+        className={cn("z-(--z-modal) min-w-40 rounded-lg border bg-surface-raised p-1 text-fg shadow-lg data-[state=open]:animate-in", className)}
         {...props}
       />
     </DM.Portal>
@@ -20,8 +20,8 @@ export function DropdownMenuItem({ className, destructive, ...props }: React.Com
   return (
     <DM.Item
       className={cn(
-        "flex cursor-pointer select-none items-center gap-2 rounded-md px-2 py-1.5 text-sm outline-none data-[highlighted]:bg-accent [&_svg]:size-4 [&_svg]:text-muted-foreground",
-        destructive && "text-destructive [&_svg]:text-destructive",
+        "flex cursor-pointer select-none items-center gap-2 rounded-md px-2 py-1.5 text-sm outline-none data-[highlighted]:bg-surface-sunken [&_svg]:size-4 [&_svg]:text-muted",
+        destructive && "text-danger [&_svg]:text-danger",
         className,
       )}
       {...props}
@@ -32,5 +32,5 @@ export function DropdownMenuSeparator({ className, ...props }: React.ComponentPr
   return <DM.Separator className={cn("-mx-1 my-1 h-px bg-border", className)} {...props} />;
 }
 export function DropdownMenuLabel({ className, ...props }: React.ComponentProps<typeof DM.Label>) {
-  return <DM.Label className={cn("px-2 py-1 text-xs font-medium text-muted-foreground", className)} {...props} />;
+  return <DM.Label className={cn("px-2 py-1 text-xs font-medium text-muted", className)} {...props} />;
 }

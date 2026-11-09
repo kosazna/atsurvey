@@ -15,9 +15,9 @@ import { SectionFrame, SectionHeader } from "./SectionLayout";
 
 
 const KIND_DOT: Record<PointKind, string> = {
-  control: "bg-pt-control",
-  traverse: "bg-pt-traverse",
-  detail: "bg-pt-detail",
+  control: "bg-point-control",
+  traverse: "bg-point-traverse",
+  detail: "bg-point-detail",
 };
 
 export function ResultsSection() {
@@ -90,10 +90,10 @@ export function ResultsSection() {
           actions={
             <TabsList>
               <TabsTrigger value="points">
-                {t("results.points")} <span className="tabular text-muted-foreground">{r.points.length}</span>
+                {t("results.points")} <span className="tabular text-muted">{r.points.length}</span>
               </TabsTrigger>
               <TabsTrigger value="detail">
-                {t("results.detail")} <span className="tabular text-muted-foreground">{r.detail.length}</span>
+                {t("results.detail")} <span className="tabular text-muted">{r.detail.length}</span>
               </TabsTrigger>
             </TabsList>
           }
@@ -114,11 +114,11 @@ export function ResultsSection() {
                   }}
                   className={cn(
                     "flex h-7 cursor-pointer items-center gap-1.5 rounded-full border px-2.5 text-xs transition-colors",
-                    on ? "bg-card text-foreground shadow-xs" : "text-muted-foreground opacity-60",
+                    on ? "bg-surface text-fg" : "text-muted opacity-60",
                   )}
                 >
                   <span className={cn("size-2 rounded-full", KIND_DOT[k])} />
-                  {t(`kind.${k}`)} <span className="tabular text-muted-foreground">{counts[k]}</span>
+                  {t(`kind.${k}`)} <span className="tabular text-muted">{counts[k]}</span>
                 </button>
               );
             })}
