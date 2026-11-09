@@ -1,15 +1,32 @@
+{
+	# slow-client (slowloris) protection and sane limits
+	servers {
+		timeouts {
+			read_header 10s
+			read_body 60s
+			write 120s
+			idle 2m
+		}
+		max_header_size 32KB
+	}
+}
+
 {$API_DOMAIN} {
 	encode zstd gzip
 	request_body {
 		max_size 25MB
 	}
 	header {
-		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
 		X-Content-Type-Options nosniff
 		Referrer-Policy no-referrer
 		-Server
+		-Via
 	}
+	# Caddy does not trust client-supplied X-Forwarded-For by default (no trusted_proxies),
+	# so the API sees the real client IP as the first hop.
 	reverse_proxy api:8000 {
 		health_uri /health
+		health_interval 30s
 	}
 }
