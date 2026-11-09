@@ -1,0 +1,41 @@
+[project]
+name = "atsurvey-workspace"
+version = "0.0.0"
+requires-python = ">=3.12"
+dependencies = ["atsurvey[all]", "atsurvey-api"]
+
+[tool.uv.sources]
+atsurvey = { workspace = true }
+atsurvey-api = { workspace = true }
+
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+members = ["engine", "api"]
+
+[dependency-groups]
+dev = [
+  "pytest>=8.3",
+  "hypothesis>=6.120",
+  "ruff>=0.8",
+  "pyright>=1.1.390",
+  "httpx>=0.28",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+ignore = ["RUF001", "RUF002", "RUF003", "E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["engine/tests", "api/tests"]
+addopts = "-q"
+
+[tool.pyright]
+include = ["engine/src", "api/src"]
+pythonVersion = "3.12"
+typeCheckingMode = "standard"

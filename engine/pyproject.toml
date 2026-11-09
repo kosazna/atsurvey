@@ -1,0 +1,26 @@
+[project]
+name = "atsurvey"
+version = "0.1.0"
+description = "Surveying computation engine: reductions, traverses, detail points, instrument formats and exports (EGSA87-first)."
+requires-python = ">=3.12"
+dependencies = [
+  "pydantic>=2.10",
+]
+
+[project.optional-dependencies]
+formats = ["defusedxml>=0.7"]
+exports = [
+  "ezdxf>=1.3",
+  "pyshp>=2.3",
+  "xlsxwriter>=3.2",
+  "typst>=0.12",
+  "pyproj>=3.7",
+]
+all = ["atsurvey[formats,exports]"]
+
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/atsurvey"]

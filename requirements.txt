@@ -1,4 +1,0 @@
-pandas
-pandasgui
-numpy
-geopandas
