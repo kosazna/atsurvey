@@ -325,6 +325,51 @@ select tests.throws(
   'anon cannot call RPCs', '42501');
 commit;
 
+-- ---------------------------------------------------------------- membership guards
+begin;
+set local role authenticated;
+select tests.login('11111111-1111-1111-1111-111111111111');
+select tests.throws(
+  $q$delete from public.workspace_members where user_id = '11111111-1111-1111-1111-111111111111'$q$,
+  'owner cannot leave their personal workspace', '42501');
+commit;
+
+begin;
+-- a team workspace owned by A with B as admin
+set local role authenticated;
+select tests.login('11111111-1111-1111-1111-111111111111');
+insert into public.workspaces (id, name, personal, created_by)
+values ('cccccccc-0000-0000-0000-000000000001', 'Team', false, '11111111-1111-1111-1111-111111111111');
+insert into public.workspace_members (workspace_id, user_id, role)
+values ('cccccccc-0000-0000-0000-000000000001', '22222222-2222-2222-2222-222222222222', 'admin');
+select tests.ok(true, 'owner can add an admin to a team workspace');
+commit;
+
+begin;
+set local role authenticated;
+select tests.login('22222222-2222-2222-2222-222222222222');
+select tests.throws(
+  $q$update public.workspace_members set role = 'owner'
+     where workspace_id = 'cccccccc-0000-0000-0000-000000000001'
+       and user_id = '22222222-2222-2222-2222-222222222222'$q$,
+  'admin cannot promote themselves to owner', '42501');
+select tests.throws(
+  $q$update public.workspace_members set role = 'member'
+     where workspace_id = 'cccccccc-0000-0000-0000-000000000001'
+       and user_id = '11111111-1111-1111-1111-111111111111'$q$,
+  'admin cannot demote the owner', '42501');
+commit;
+
+begin;
+set local role authenticated;
+select tests.login('11111111-1111-1111-1111-111111111111');
+select tests.throws(
+  $q$update public.workspace_members set role = 'admin'
+     where workspace_id = 'cccccccc-0000-0000-0000-000000000001'
+       and user_id = '11111111-1111-1111-1111-111111111111'$q$,
+  'the last owner cannot step down', '42501');
+commit;
+
 -- ---------------------------------------------------------------- RLS enabled everywhere
 select tests.ok(
   not exists (
