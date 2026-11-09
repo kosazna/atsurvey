@@ -118,6 +118,7 @@ export class SupabaseStore implements ProjectStore {
         description: input.description ?? null,
         angle_unit: input.angle_unit,
         settings: seed?.settings ?? {},
+        ...(seed?.extras && Object.keys(seed.extras).length ? { extras: seed.extras } : {}),
         created_by: await this.userId(),
       })
       .select()

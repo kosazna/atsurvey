@@ -32,7 +32,7 @@ export function globalState(a: AdjustmentResult): GlobalState {
   return g.statistic < g.lower ? "low" : "high";
 }
 
-const SCALES = [1, 10, 50, 100, 250, 500, 1000];
+const SCALES = [1, 10, 100, 500, 1000, 2500, 5000];
 
 function Metric({ label, value, hint, tone }: { label: string; value: React.ReactNode; hint?: React.ReactNode; tone?: "ok" | "bad" | "warn" | "neutral" }) {
   return (

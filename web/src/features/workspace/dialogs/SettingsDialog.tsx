@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { defaultSettings, type ComputeSettings, type DisplayAngleUnit, type ElevationMode, type ScaleMode, type Tolerances } from "@/lib/types";
+import { defaultSettings, type AdjustmentMethod, type AdjustmentSettings, type ComputeSettings, type DisplayAngleUnit, type ElevationMode, type ScaleMode, type Tolerances } from "@/lib/types";
 import { parseNum } from "@/lib/utils";
 import { useWorkspace } from "../useWorkspace";
 
@@ -66,6 +66,18 @@ export function SettingsDialog() {
   const setRed = (patch: Partial<ComputeSettings["reduction"]>) => setS({ ...s, reduction: { ...red, ...patch } });
   const setTol = (k: keyof Tolerances, v: number) => setS({ ...s, tolerances: { ...s.tolerances, [k]: v } });
   const scaleModes: ScaleMode[] = ["leg_simpson", "leg_mean", "traverse_mean", "none", "fixed"];
+  const adj = s.adjustment;
+  const setAdj = (patch: Partial<AdjustmentSettings>) => setS({ ...s, adjustment: { ...adj, ...patch } });
+  const sigmaFields: { k: keyof AdjustmentSettings; unit: string }[] = [
+    { k: "sigma_direction_cc", unit: "cc" },
+    { k: "sigma_distance_mm", unit: "mm" },
+    { k: "sigma_distance_ppm", unit: "ppm" },
+    { k: "sigma_centering_mm", unit: "mm" },
+    { k: "sigma_height_mm", unit: "mm/√km" },
+    { k: "alpha_global", unit: "α" },
+    { k: "alpha_w", unit: "α" },
+    { k: "max_iterations", unit: "" },
+  ];
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && ws.setDialog(null)}>
@@ -79,6 +91,7 @@ export function SettingsDialog() {
               <TabsTrigger value="general">{t("set.general")}</TabsTrigger>
               <TabsTrigger value="reductions">{t("set.reductions")}</TabsTrigger>
               <TabsTrigger value="tolerances">{t("set.tolerances")}</TabsTrigger>
+              <TabsTrigger value="adjustment" data-testid="tab-adjustment">{t("set.adjustment")}</TabsTrigger>
             </TabsList>
           </div>
           <DialogBody>
@@ -139,6 +152,38 @@ export function SettingsDialog() {
                   </div>
                 )}
               </div>
+            </TabsContent>
+            <TabsContent value="adjustment" className="space-y-4">
+              <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label={t("set.adjMethod")}>
+                {(["bowditch", "least_squares"] as AdjustmentMethod[]).map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    role="radio"
+                    aria-checked={adj.method === m}
+                    data-testid={`method-${m}`}
+                    onClick={() => setAdj({ method: m })}
+                    className={
+                      adj.method === m
+                        ? "cursor-pointer rounded-lg border border-accent bg-accent-subtle p-3 text-left ring-1 ring-accent"
+                        : "cursor-pointer rounded-lg border p-3 text-left hover:bg-surface-sunken"
+                    }
+                  >
+                    <div className="text-sm font-medium">{t(`set.method.${m}`)}</div>
+                    <div className="mt-0.5 text-xs text-muted">{t(`set.method.${m}Hint`)}</div>
+                  </button>
+                ))}
+              </div>
+              {adj.method === "least_squares" && (
+                <>
+                  <p className="text-xs text-muted">{t("set.sigmaHint")}</p>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {sigmaFields.map(({ k, unit: u }) => (
+                      <NumField key={k} id={`adj-${k}`} label={`${t(`set.adj.${k}`)}${u ? ` (${u})` : ""}`} value={adj[k] as number} onChange={(v) => setAdj({ [k]: v } as Partial<AdjustmentSettings>)} />
+                    ))}
+                  </div>
+                </>
+              )}
             </TabsContent>
             <TabsContent value="tolerances" className="space-y-3">
               <p className="rounded-lg bg-warning-subtle px-3 py-2 text-xs text-warning">{t("set.tolHint")}</p>

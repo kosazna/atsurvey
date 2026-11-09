@@ -18,6 +18,17 @@ import { ALL_EXPORT_FORMATS, type ExportFormat, type PointKind } from "@/lib/typ
 import { cn, downloadBlob } from "@/lib/utils";
 import { useWorkspace } from "../useWorkspace";
 
+const FORMAT_NAME: Record<ExportFormat, string> = {
+  csv: "CSV",
+  xlsx: "Excel",
+  shp: "Shapefile",
+  dxf: "DXF",
+  pdf: "PDF",
+  landxml: "LandXML",
+  kml: "KML",
+  geojson: "GeoJSON",
+};
+
 const ICONS: Record<ExportFormat, React.ReactNode> = {
   csv: <Table />,
   xlsx: <FileSpreadsheet />,
@@ -124,7 +135,7 @@ export function ExportDialog() {
                   >
                     <span className={cn("flex size-8 items-center justify-center rounded-md border bg-surface [&_svg]:size-4", on && "text-accent")}>{ICONS[f]}</span>
                     <span className="min-w-0 flex-1">
-                      <span className="block text-sm font-medium uppercase">{f}</span>
+                      <span className="block text-sm font-medium">{FORMAT_NAME[f]}</span>
                       <span className="block truncate text-xs text-muted">{t(`exp.fmt.${f}`)}</span>
                     </span>
                     {locked ? <Lock className="text-muted" /> : on ? <Check className="text-accent" /> : null}

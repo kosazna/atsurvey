@@ -60,8 +60,8 @@ function HeroComposition() {
           <Check /> {t("landing.mock.within")}
         </Badge>
       </div>
-      <div className="grid grid-cols-[1fr_1.15fr]">
-        <div className="space-y-3 border-r p-3">
+      <div className="grid sm:grid-cols-[1fr_1.15fr]">
+        <div className="space-y-3 border-b p-3 sm:border-b-0 sm:border-r">
           <div className="grid grid-cols-2 gap-2">
             {[
               { k: t("landing.mock.angular"), v: "−5 cc" },
@@ -99,8 +99,8 @@ function HeroComposition() {
             </tbody>
           </table>
         </div>
-        <div className="relative bg-map-bg">
-          <svg viewBox="0 0 460 260" className="h-full w-full">
+        <div className="relative h-56 bg-map-bg sm:h-auto">
+          <svg viewBox="0 0 460 260" className="h-full w-full" preserveAspectRatio="xMidYMid meet">
             <defs>
               <pattern id="lg" width="40" height="40" patternUnits="userSpaceOnUse">
                 <path d="M40 0H0V40" fill="none" stroke="var(--color-map-grid)" strokeWidth="1" />

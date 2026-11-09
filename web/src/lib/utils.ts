@@ -17,6 +17,8 @@ export function fmtNum(v: number | null | undefined, decimals = 3): string {
 
 export function fmtSigned(v: number | null | undefined, decimals = 3): string {
   if (v === null || v === undefined || !Number.isFinite(v)) return "—";
+  // values that round to zero print as +0.0, never "-0.0"
+  if (Math.abs(v) < 0.5 * 10 ** -decimals) v = 0;
   return `${v >= 0 ? "+" : ""}${v.toFixed(decimals)}`;
 }
 

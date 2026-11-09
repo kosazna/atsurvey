@@ -43,20 +43,26 @@ Scripts: `pnpm dev`, `pnpm build` (`tsc -b && vite build`), `pnpm typecheck`, `p
 | `VITE_API_URL` | Engine API base URL (default `http://localhost:8000`) |
 | `VITE_SUPABASE_URL` | Hosted Supabase project URL (EU). Empty → demo-only |
 | `VITE_SUPABASE_ANON_KEY` | Supabase anon key |
+| `VITE_PADDLE_CLIENT_TOKEN` | Paddle client-side token (`test_…` → sandbox). Empty → billing page shows "not configured" |
+| `VITE_PADDLE_PRICE_MONTHLY` / `VITE_PADDLE_PRICE_YEARLY` | Paddle price ids for the Pro plan (either or both) |
 
 ## Structure
 
 ```
 src/
-  app/            App providers + router (/, /projects, /p/$projectId?section=…)
+  app/            App providers + router (/ landing, /login, /account, /billing, /projects, /p/$projectId?section=…)
   components/     shell pieces (Logo, UserMenu, CommandPalette) and ui/ primitives
   data/           ProjectStore interface, LocalStore (demo), SupabaseStore, sample dataset, session
   features/
+    landing/      public landing page (hero composition, features, pricing, FAQ)
     auth/         sign-in page (magic link, password, Google) + demo entry
+    account/      account (profile, language, theme) and billing (plan, Paddle checkout) pages
     projects/     project list, create/rename/delete
     workspace/    WorkspacePage, useWorkspace (state, autosave, live compute), sections/, dialogs/, map/, grid/
-  lib/            types (mirror of engine models), api client, angles, proj, tokens, theme, i18n, utils
-  locales/        el.ts (source of truth for keys), en.ts
+  lib/            types + cogoTypes (mirrors of engine models), api client (+ cogo), apiErrors,
+                  angles, geometry, leveling, linework, linePalette, runDiff, proj, tokens, theme, i18n, utils
+  locales/        el.ts / en.ts, plus extra.el.ts / extra.en.ts (night-1 features, deep-merged by lib/i18n.ts;
+                  extra.en.ts is typed against extra.el.ts so a missing key fails `tsc`)
   styles/         tokens.css — GENERATED, do not edit
 ```
 
@@ -125,11 +131,32 @@ model (EGSA87 Simpson line scale, elevation factor, curvature & refraction) plus
 `sample.test.ts` independently recomputes the traverse and checks closure (< 25 cc, < 2 cm) and station
 accuracy (< 15 mm).
 
+## Feature sections (night 1)
+
+All lazily loaded (`WorkspacePage` → `React.lazy`), grouped in the sidebar as Δεδομένα / Αποτελέσματα / Εργαλεία.
+
+| Section | What it does | API |
+|---|---|---|
+| Συνόρθωση (`adjustment`) | Turns on least squares (`settings.adjustment.method`), shows σ₀ and the χ² global test (low σ₀ is a neutral note, high is an error), observations with residual / w / redundancy (sortable by \|w\|), the suspect observation with one-click exclusion (sets `Observation.excluded`, undoable), point σX/σY/σZ and 95 % ellipse axes, and the map ellipse exaggeration (×1 … ×5000) | `/v1/compute` |
+| Γραμμές (`linework`) | Feature codes detected from detail points (chips with counts) → `settings.linework.line_codes`; start/close/end control words; per-code totals and the list of lines with length and closed area. Colours come from tokens via `lib/linePalette.ts` (stable alphabetical assignment) | `/v1/compute` |
+| Εργαλεία (`tools`) | Inverse, polar, intersections (angles / distances / lines), resection, area, Helmert/affine transformation, chainage/offset, stakeout. Point inputs accept a project point name (autocomplete), typed `X Y [Z]`, or a click on the map (crosshair button → `ws.setPick`). Inputs/results are drawn on the map (`ws.setOverlay`) and framed automatically; results can be added as control points with code `COGO` (undoable). Stakeout table downloads as CSV | `/v1/cogo/*` |
+| Χωροστάθμηση (`leveling`) | Benchmarks + readings grids (BS/FS/IS, paste from Excel), tolerances and distribution, results with corrections, tolerance pill, CSV of heights, "update Z of control points". Stored in `projects.extras.leveling` | `/v1/leveling` |
+| Ιστορικό (`runs`) | Saved runs (`computation_runs` / LocalStore keeps the last 10), open a run read-only (banner + "back to current"), compare any two runs or a run with the live result: ΔX/ΔY/ΔZ/Δxy per point, threshold highlighting, max / RMS | — |
+
+Other additions: landing page at `/` (sign-in moved to `/login`), account and billing pages, undo/redo
+(⌘Z / ⇧⌘Z, toolbar buttons; snapshots of control points, setups, traverses, settings and extras, coalesced
+within 600 ms), keyboard-shortcut dialog (`?`), map point search, label toggles (names / Z / codes), polygon
+area measuring, PNG export (map + labels composited), fullscreen, new export formats (LandXML, KML, GeoJSON)
+and DXF ellipse exaggeration, friendly toasts for HTTP 429 (with Retry-After), 413 and 503.
+
+Endpoints missing on an older API degrade gracefully: tools show "not available on this server yet" (404/405/501).
+
 ## End-to-end smoke test
 
 `web/e2e/smoke.cjs` drives the demo flow in Chromium (Playwright) and fails on any broken step:
-demo project computes through the API, the map canvas renders, a CSV observation file imports,
-the CSV export downloads, and no page errors are logged.
+landing renders, demo project computes through the API, the map canvas renders, a CSV observation file
+imports, the CSV export downloads, COGO inverse and levelling compute (skipped if the API lacks them),
+field-code lines are built, the least-squares section appears, and no page errors are logged.
 
 ```bash
 uv run --package atsurvey-api uvicorn atsurvey_api.main:app --port 8000   # repo root

@@ -44,8 +44,15 @@ export function ResultsSection() {
       { id: "code", title: t("results.cols.code"), width: 80, get: (p) => p.code ?? "" },
       { id: "source", title: t("results.cols.source"), width: 150, get: (p) => p.source ?? "" },
       { id: "n", title: t("results.cols.n"), width: 44, kind: "number", get: (p) => String(p.n) },
+      ...(r?.adjustment
+        ? ([
+            { id: "sx", title: "σX mm", width: 70, kind: "number", get: (p) => (p.sx === null || p.sx === undefined ? "" : (p.sx * 1000).toFixed(1)) },
+            { id: "sy", title: "σY mm", width: 70, kind: "number", get: (p) => (p.sy === null || p.sy === undefined ? "" : (p.sy * 1000).toFixed(1)) },
+            { id: "sz", title: "σZ mm", width: 70, kind: "number", get: (p) => (p.sz === null || p.sz === undefined ? "" : (p.sz * 1000).toFixed(1)) },
+          ] as Col<ResultPoint>[])
+        : []),
     ],
-    [t],
+    [t, r?.adjustment],
   );
 
   const detailCols = useMemo<Col<DetailShot>[]>(

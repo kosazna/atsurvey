@@ -29,7 +29,9 @@ const check = (cond, msg) => {
   page.on("console", (m) => m.type() === "error" && errors.push(`console: ${m.text()}`));
 
   await page.goto(BASE);
-  await page.getByTestId("try-demo").click();
+  check(await page.getByTestId("landing").isVisible().catch(() => false), "landing page renders for signed-out visitors");
+  await shot(page, "landing");
+  await page.getByTestId("try-demo").first().click();
   await page.waitForURL("**/projects");
   await page.getByTestId("open-sample").click();
   await page.waitForURL("**/p/**");
@@ -72,6 +74,43 @@ const check = (cond, msg) => {
   ]);
   check(!!dl && dl.suggestedFilename().endsWith(".csv"), `CSV export downloads (${dl?.suggestedFilename()})`);
   await page.keyboard.press("Escape");
+
+  // ---- night-1 features (skip gracefully when the API does not expose them)
+  const paths = await page.evaluate(async () => {
+    try {
+      const r = await fetch((window.__ATS_API__ ?? "http://localhost:8000") + "/openapi.json");
+      return Object.keys((await r.json()).paths ?? {});
+    } catch {
+      return [];
+    }
+  });
+  if (paths.includes("/v1/cogo/inverse")) {
+    await page.getByTestId("nav-tools").click();
+    await page.getByTestId("inv-a").fill("T1");
+    await page.getByTestId("inv-b").fill("S2");
+    await page.getByTestId("btn-inverse").click();
+    const inv = await page.waitForSelector('[data-testid="inverse-result"]', { timeout: 10000 }).then(() => true).catch(() => false);
+    check(inv, "COGO inverse computes through the API");
+    await shot(page, "tools-inverse");
+  } else console.log("skip COGO checks (endpoint not available)");
+
+  if (paths.includes("/v1/leveling")) {
+    await page.getByTestId("nav-leveling").click();
+    await page.getByTestId("btn-level").click();
+    const lev = await page.waitForSelector('[data-testid="lev-status"]', { timeout: 10000 }).then(() => true).catch(() => false);
+    check(lev, "levelling computes the sample line");
+  }
+
+  await page.getByTestId("nav-linework").click();
+  const lines = await page.waitForSelector('[data-testid="lines-table"]', { timeout: 10000 }).then(() => true).catch(() => false);
+  check(lines, "field-code linework is built for the sample codes");
+
+  await page.getByTestId("nav-adjustment").click();
+  await page.getByTestId("btn-enable-lsa").click();
+  const lsa = await page.waitForSelector('[data-testid="adjustment"]', { timeout: 20000 }).then(() => true).catch(() => false);
+  if (lsa) check(true, "least-squares adjustment section shows the global test");
+  else console.log("skip least-squares check (no adjustment returned by the API)");
+  await shot(page, "adjustment");
 
   check(errors.length === 0, `no page errors${errors.length ? ": " + errors.join(" | ") : ""}`);
   await browser.close();

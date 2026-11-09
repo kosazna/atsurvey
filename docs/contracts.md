@@ -117,3 +117,8 @@ Engine models: `engine/src/atsurvey/core/models.py` (`AdjustmentSettings`, `Line
 
 All are stateless, available to anonymous callers (same rules as `/v1/compute`), and return 422 with a
 `detail` message for degenerate geometry.
+
+`projects.extras jsonb not null default '{}'` (migration `20261110000002_project_extras.sql`, max 1 MB,
+must be an object) holds web-app data that is not engine input: `{"leveling": {"benchmarks":
+[{id, name, h}], "rows": [{id, setup, point, kind: "bs"|"fs"|"is", reading, distance}],
+"tolerance_base_mm", "tolerance_mm_per_sqrt_km", "distribute"}, "ui": {...}}`.
