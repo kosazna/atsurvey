@@ -18,6 +18,7 @@ result = compute_project(ProjectInput.model_validate(data))
 | `v` | zenith angle (0 = up). Readings with `v > π` are face II and reduced automatically |
 | Azimuth | grid bearing, clockwise from grid north, in `[0, 2π)` (computed with `atan2`) |
 | Misclosures | angular in **cc** (10⁻⁴ gon), linear and height in metres |
+| Precision | IEEE-754 float64, compensated sums, no intermediate rounding: see [numerics.md](numerics.md) |
 
 ## Pipeline
 

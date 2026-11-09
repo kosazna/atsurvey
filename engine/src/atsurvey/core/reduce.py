@@ -98,10 +98,10 @@ def reduce_setups(
             rset.targets[target] = ReducedTarget(
                 target=target,
                 direction=circular_mean(dirs),
-                zenith=sum(zens) / len(zens) if zens else None,
-                sd=sum(sds) / len(sds) if sds else None,
-                hd=sum(hds) / len(hds) if hds else None,
-                dh=sum(dhs) / len(dhs) if dhs else None,
+                zenith=math.fsum(zens) / len(zens) if zens else None,
+                sd=math.fsum(sds) / len(sds) if sds else None,
+                hd=math.fsum(hds) / len(hds) if hds else None,
+                dh=math.fsum(dhs) / len(dhs) if dhs else None,
                 n=len(obs_list),
                 direction_spread=spread,
                 code=code,
@@ -165,17 +165,17 @@ class ObservationIndex:
             return None
         fb = None
         if fwd_hd and bwd_hd:
-            fb = sum(fwd_hd) / len(fwd_hd) - sum(bwd_hd) / len(bwd_hd)
+            fb = math.fsum(fwd_hd) / len(fwd_hd) - math.fsum(bwd_hd) / len(bwd_hd)
         dh_fb = None
         if fwd_dh and bwd_dh:
-            dh_fb = sum(fwd_dh) / len(fwd_dh) - sum(bwd_dh) / len(bwd_dh)
+            dh_fb = math.fsum(fwd_dh) / len(fwd_dh) - math.fsum(bwd_dh) / len(bwd_dh)
         # forward and backward groups weigh equally regardless of round count
         groups_hd = [g for g in (fwd_hd, bwd_hd) if g]
-        hd = sum(sum(g) / len(g) for g in groups_hd) / len(groups_hd)
+        hd = math.fsum(math.fsum(g) / len(g) for g in groups_hd) / len(groups_hd)
         dh = None
         groups_dh = [g for g in (fwd_dh, bwd_dh) if g]
         if groups_dh:
-            dh = sum(sum(g) / len(g) for g in groups_dh) / len(groups_dh)
+            dh = math.fsum(math.fsum(g) / len(g) for g in groups_dh) / len(groups_dh)
         return LegMeasurement(hd=hd, n=len(all_hd), fb_diff=fb, dh=dh, dh_fb_diff=dh_fb)
 
     def observed_pairs(self) -> set[tuple[str, str]]:

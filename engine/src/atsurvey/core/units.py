@@ -95,7 +95,7 @@ def circular_mean(angles: list[float]) -> float:
     if not angles:
         raise ValueError("circular_mean of empty list")
     ref = angles[0]
-    offset = sum(wrap_pi(a - ref) for a in angles) / len(angles)
+    offset = math.fsum(wrap_pi(a - ref) for a in angles) / len(angles)
     return wrap_2pi(ref + offset)
 
 

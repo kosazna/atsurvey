@@ -273,7 +273,7 @@ def compute_traverse(
     def traverse_mean_height() -> float:
         zs = [p.z for p in (start, end_known) if p is not None and p.z is not None]
         if zs:
-            return sum(zs) / len(zs)
+            return math.fsum(zs) / len(zs)
         return rs.default_elevation
 
     t_mean_h = traverse_mean_height()
@@ -292,13 +292,13 @@ def compute_traverse(
         dist = [m.hd * ef * k for m, ef, k in zip(legs_meas, efs, k_list, strict=True)]
         dxs = [d * math.sin(a) for d, a in zip(dist, leg_az, strict=True)]
         dys = [d * math.cos(a) for d, a in zip(dist, leg_az, strict=True)]
-        length = sum(dist)
+        length = math.fsum(dist)
         wx = wy = None
         cx = [0.0] * n_legs
         cy = [0.0] * n_legs
         if end_known is not None:
-            wx = end_known.x - (start.x + sum(dxs))
-            wy = end_known.y - (start.y + sum(dys))
+            wx = end_known.x - (start.x + math.fsum(dxs))
+            wy = end_known.y - (start.y + math.fsum(dys))
             if length > 0:
                 cx = [wx * d / length for d in dist]
                 cy = [wy * d / length for d in dist]
