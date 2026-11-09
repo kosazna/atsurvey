@@ -95,6 +95,41 @@ def to_shapefile_zip(base: str, result: ProjectResult, opts: ExportOptions) -> b
             }
         )
 
+    if result.linework:
+        lookup_lw = {p.name: p for p in result.points}
+
+        def fill_linework(w: shapefile.Writer) -> None:
+            w.field("CODE", "C", size=40)
+            w.field("NAME", "C", size=60)
+            w.field("CLOSED", "L")
+            w.field("LENGTH", "N", size=12, decimal=3)
+            w.field("AREA", "N", size=14, decimal=3)
+            for line in result.linework:
+                coords = [
+                    [lookup_lw[n].x, lookup_lw[n].y, lookup_lw[n].z or 0.0]
+                    for n in line.points
+                    if n in lookup_lw
+                ]
+                if len(coords) < 2:
+                    continue
+                if line.closed:
+                    coords.append(coords[0])
+                w.linez([coords])
+                w.record(
+                    line.code,
+                    line.name,
+                    line.closed,
+                    round(line.length, 3),
+                    round(line.area, 3) if line.area is not None else None,
+                )
+
+        files.update(
+            {
+                f"{base}_lines.{ext}": data
+                for ext, data in _write(shapefile.POLYLINEZ, fill_linework).items()
+            }
+        )
+
     prj = egsa87_prj().encode()
     out = io.BytesIO()
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:

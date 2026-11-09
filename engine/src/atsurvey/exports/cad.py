@@ -25,6 +25,11 @@ def _code_layer(code: str) -> str:
     return f"ATS_DETAIL_{safe}" if safe else "ATS_DETAIL"
 
 
+def _line_layer(code: str) -> str:
+    safe = re.sub(r"[<>/\\\":;?*|=`,]+", "_", code.strip().upper())[:200]
+    return f"ATS_LINE_{safe}" if safe else "ATS_LINE"
+
+
 def to_dxf(result: ProjectResult, opts: ExportOptions) -> bytes:
     doc = ezdxf.new("R2013", setup=True)  # pyright: ignore[reportPrivateImportUsage]
     doc.header["$INSUNITS"] = 6  # metres
@@ -80,6 +85,18 @@ def to_dxf(result: ProjectResult, opts: ExportOptions) -> bytes:
             msp.add_text(
                 t.name, height=th * 0.8, dxfattribs={"layer": "ATS_TRAVERSE_LINES", "style": "ATS"}
             ).set_placement((mid[0], mid[1]), align=TextEntityAlignment.BOTTOM_CENTER)
+
+    # field-code line work: one layer per feature code, 3D polylines (closed when coded so)
+    for line in result.linework:
+        verts = [(lookup[n].x, lookup[n].y, lookup[n].z or 0.0) for n in line.points if n in lookup]
+        if len(verts) < 2:
+            continue
+        layer = _line_layer(line.code)
+        if layer not in doc.layers:
+            doc.layers.add(layer, color=7)
+        pl = msp.add_polyline3d(verts, dxfattribs={"layer": layer})
+        if line.closed:
+            pl.close(True)
 
     if result.summary.extent:
         x0, y0, x1, y1 = result.summary.extent
