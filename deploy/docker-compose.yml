@@ -1,0 +1,41 @@
+# Production stack for the engine API on the Hetzner VM.
+#   cp deploy/.env.example deploy/.env  # fill in values
+#   docker compose -f deploy/docker-compose.yml --env-file deploy/.env up -d
+services:
+  api:
+    image: ${API_IMAGE:-ghcr.io/kosazna/atsurvey-api:latest}
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      AUTH_DISABLED: "false"
+    expose:
+      - "8000"
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+
+  caddy:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      API_DOMAIN: ${API_DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:
