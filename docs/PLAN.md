@@ -3,8 +3,8 @@
 Goal: a paid web app for Greek surveyors that replaces Excel workbooks for traverse and
 detail-point computations, with projects, accounts, a map and professional exports.
 
-Decisions are recorded in [`adr/0001-architecture.md`](adr/0001-architecture.md); interfaces in
-[`contracts.md`](contracts.md).
+Decisions: [`adr/0001-architecture.md`](adr/0001-architecture.md) · interfaces: [`contracts.md`](contracts.md) ·
+all docs: [`README.md`](README.md).
 
 ## Status
 
@@ -16,19 +16,17 @@ Decisions are recorded in [`adr/0001-architecture.md`](adr/0001-architecture.md)
 | M3 Data platform | Supabase schema, RLS, storage, RPCs, plan limits | ✅ done (tested locally; not yet pushed to a hosted project) |
 | M4 Outputs | CSV, Excel, Shapefile (EPSG:2100), DXF (blocks/attributes/layers by code), PDF report (Greek) | ✅ done |
 | API | parse / compute / suggest / export, JWT, plan gating, anonymous demo | ✅ done |
-| Web app | Auth, projects, import, grids, traverses, results, map, export, settings, demo mode | see `web/README.md` |
+| Web app | Auth, projects, import, grids, traverses + suggestions, results, map, export, settings, demo mode, el/en, dark mode | ✅ done — demo flow verified end-to-end; Supabase store not yet exercised against a live project |
+| Design system | Tokens (`design/tokens.json`) for app and reports, IBM Plex Sans, minimal style | ✅ done — **palette to be chosen** |
 | M5 Launch | Paddle products, onboarding, landing page, legal, beta with Excel users | ⏳ next |
 
-## Validation with the Excel workbooks (next step)
+## Next steps
 
-1. Put each workbook's inputs (control points, observations, traverse definitions) into
-   `engine/tests/fixtures/excel/<name>/` and its expected coordinates/misclosures alongside.
-2. Pick the reduction settings that match the workbook. The legacy workbooks most likely use one
-   scale factor and one mean height per traverse: `scale_mode="traverse_mean"`,
-   `elevation_mode="traverse"`. Check whether they apply curvature/refraction.
-3. Add a test per workbook asserting agreement to **0.1 mm / 0.1 cc**. Differences are either a
-   workbook error or an engine error — resolve each explicitly.
-4. Cross-check two cases with a third tool before treating Excel as the reference.
+1. **Validate against the Excel workbooks**: see [validation.md](validation.md).
+2. Choose the brand palette and edit [`design/tokens.json`](../design/tokens.json).
+3. Create the hosted Supabase project and go live: [deploy.md](deploy.md).
+4. Real instrument files from each family to harden the parsers ([formats.md](formats.md)).
+5. Paddle products, landing page, legal pages, beta with the current Excel users.
 
 ## Known gaps / decisions to make
 
@@ -41,6 +39,9 @@ Decisions are recorded in [`adr/0001-architecture.md`](adr/0001-architecture.md)
 * **Transformations** (HEPOS/HTRS07 → ΕΓΣΑ87, Hatt) — roadmap.
 * **Field codes → lines** in DXF, Cadastre deliverable templates — roadmap.
 * **DWG** export via ODA — roadmap.
+* **Cadastre orthophoto basemap** (WMS) — check whether it serves Web Mercator; OSM and Esri imagery are available now.
+* **Glide Data Grid** declares React ≤ 18 as peer dependency; works on React 19 in testing — watch for a v7 release.
+* **Map bundle** is ~1.2 MB (lazy-loaded); consider a lighter chunk split later.
 
 ## Roadmap after launch
 
