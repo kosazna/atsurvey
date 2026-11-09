@@ -231,3 +231,40 @@ def test_dxf_error_ellipses(computed):
         io.StringIO(export("dxf", "t", inp, rich, ExportOptions(dxf_ellipse_scale=0))[0].decode())
     )
     assert not list(none.modelspace().query("ELLIPSE"))
+
+
+def test_landxml_round_trips_through_our_parser(computed):
+    from atsurvey.formats import parse_file
+
+    inp, res = computed
+    data, name, media = export("landxml", "Αφίδνες", inp, res, ExportOptions(decimals=4))
+    assert name.endswith(".xml") and media == "application/xml"
+    back = {c.name: c for c in parse_file(data, name).control_points}
+    for p in res.points:
+        assert back[p.name].x == pytest.approx(p.x, abs=1e-4)
+        assert back[p.name].y == pytest.approx(p.y, abs=1e-4)
+    assert b'epsgCode="2100"' in data and b"<PlanFeature" in data
+
+
+def test_kml_and_geojson(computed):
+    import json
+    import xml.etree.ElementTree as ET
+
+    inp, res = computed
+    kml, _name, media = export("kml", "t", inp, res)
+    assert media.startswith("application/vnd.google-earth")
+    root = ET.fromstring(kml)
+    ns = {"k": "http://www.opengis.net/kml/2.2"}
+    coords = root.findall(".//k:Placemark/k:Point/k:coordinates", ns)
+    assert len(coords) == len(res.points)
+    lon, lat, _ = map(float, coords[0].text.split(","))
+    # Attica: lon ≈ 23.7, lat ≈ 38.0
+    assert 23.5 < lon < 24.0 and 37.8 < lat < 38.2
+
+    gj = json.loads(export("geojson", "t", inp, res)[0])
+    assert gj["type"] == "FeatureCollection"
+    pts = [f for f in gj["features"] if f["geometry"]["type"] == "Point"]
+    assert len(pts) == len(res.points)
+    first = pts[0]
+    assert first["properties"]["egsa87_x"] == res.points[0].x  # exact survey value kept
+    assert any(f["geometry"]["type"] == "LineString" for f in gj["features"])

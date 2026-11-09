@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 from ..core.models import PointKind, ProjectInput, ProjectResult, ResultPoint
 from ..core.units import AngleUnit
 
-ExportFormat = Literal["csv", "xlsx", "shp", "dxf", "pdf"]
+ExportFormat = Literal["csv", "xlsx", "shp", "dxf", "pdf", "landxml", "kml", "geojson"]
 
 MEDIA_TYPES: dict[str, str] = {
     "csv": "text/csv; charset=utf-8",
@@ -19,8 +19,20 @@ MEDIA_TYPES: dict[str, str] = {
     "shp": "application/zip",
     "dxf": "application/dxf",
     "pdf": "application/pdf",
+    "landxml": "application/xml",
+    "kml": "application/vnd.google-earth.kml+xml",
+    "geojson": "application/geo+json",
 }
-EXTENSIONS = {"csv": "csv", "xlsx": "xlsx", "shp": "zip", "dxf": "dxf", "pdf": "pdf"}
+EXTENSIONS = {
+    "csv": "csv",
+    "xlsx": "xlsx",
+    "shp": "zip",
+    "dxf": "dxf",
+    "pdf": "pdf",
+    "landxml": "xml",
+    "kml": "kml",
+    "geojson": "geojson",
+}
 
 
 class ExportOptions(BaseModel):
@@ -125,6 +137,11 @@ def export(
         from .report import to_pdf
 
         data = to_pdf(project_name, inp, result, opts)
+    elif fmt in ("landxml", "kml", "geojson"):
+        from .interchange import to_geojson, to_kml, to_landxml
+
+        writer = {"landxml": to_landxml, "kml": to_kml, "geojson": to_geojson}[fmt]
+        data = writer(project_name, result, opts)
     else:  # pragma: no cover - guarded by the Literal type
         raise ValueError(f"Unknown export format {fmt}")
     return data, f"{base}.{EXTENSIONS[fmt]}", MEDIA_TYPES[fmt]
