@@ -39,6 +39,10 @@ def _num(s: str | None) -> float | None:
 def parse_dxf(data: bytes) -> ParseResult:
     try:
         from ezdxf import recover
+        from ezdxf.entities.insert import Insert
+        from ezdxf.entities.mtext import MText
+        from ezdxf.entities.point import Point
+        from ezdxf.entities.text import Text
     except ImportError as exc:  # pragma: no cover - ezdxf is an export dependency
         raise ParseError("DXF support is not installed") from exc
     try:
@@ -65,6 +69,8 @@ def parse_dxf(data: bytes) -> ParseResult:
 
     # ---- block inserts with attributes
     for ins in msp.query("INSERT"):
+        if not isinstance(ins, Insert):
+            continue
         attribs = {a.dxf.tag.strip().upper(): a.dxf.text.strip() for a in ins.attribs}
         if not attribs:
             continue
@@ -86,7 +92,13 @@ def parse_dxf(data: bytes) -> ParseResult:
     # ---- plain POINT entities labelled by nearby text
     labels: list[tuple[float, float, float, str]] = []
     for t in msp.query("TEXT MTEXT"):
-        text = t.plain_text() if t.dxftype() == "MTEXT" else t.dxf.text
+        if isinstance(t, MText):
+            plain = t.plain_text()
+            text = plain if isinstance(plain, str) else " ".join(plain)
+        elif isinstance(t, Text):
+            text = t.dxf.text
+        else:
+            continue
         text = (text or "").strip()
         if not text:
             continue
@@ -95,6 +107,8 @@ def parse_dxf(data: bytes) -> ParseResult:
         labels.append((float(ins.x), float(ins.y), max(2.0 * height, 1.0), text))
     auto = 0
     for pt in msp.query("POINT"):
+        if not isinstance(pt, Point):
+            continue
         loc = pt.dxf.location
         x, y = float(loc.x), float(loc.y)
         best, best_d = None, math.inf
