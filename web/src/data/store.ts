@@ -7,8 +7,10 @@ import type {
   ProjectInput,
   ProjectResult,
   Setup,
+  Summary,
   TraverseSpec,
 } from "@/lib/types";
+import type { ReadingKind } from "@/lib/cogoTypes";
 
 export interface ProjectCounts {
   control: number;
@@ -50,12 +52,37 @@ export interface StoredTraverse extends TraverseSpec {
   id: string;
 }
 
+/** One row of the levelling readings grid. Rows with the same `setup` number form one setup. */
+export interface LevelRow {
+  id: string;
+  setup: number;
+  point: string;
+  kind: ReadingKind;
+  reading: number | null;
+  distance: number | null;
+}
+
+export interface LevelingData {
+  benchmarks: { id: string; name: string; h: number | null }[];
+  rows: LevelRow[];
+  tolerance_base_mm: number;
+  tolerance_mm_per_sqrt_km: number;
+  distribute: "distance" | "setups";
+}
+
+/** Free-form per-project data stored in projects.extras (jsonb). */
+export interface ProjectExtras {
+  leveling?: LevelingData;
+  ui?: { ellipseScale?: number };
+}
+
 export interface ProjectData {
   meta: ProjectMeta;
   settings: ComputeSettings;
   control_points: StoredControlPoint[];
   setups: StoredSetup[];
   traverses: StoredTraverse[];
+  extras: ProjectExtras;
 }
 
 export interface StoredRun {
@@ -64,6 +91,14 @@ export interface StoredRun {
   engine_version: string;
   input_hash: string;
   result: ProjectResult;
+}
+
+export interface RunSummary {
+  id: string;
+  created_at: string;
+  engine_version: string;
+  input_hash: string;
+  summary: Summary | null;
 }
 
 export interface CreateProjectInput {
@@ -87,8 +122,11 @@ export interface ProjectStore {
   saveTraverses(id: string, traverses: StoredTraverse[]): Promise<void>;
   /** Persist the original raw file (Supabase storage). Returns the raw_file id, if any. */
   uploadRawFile(id: string, file: File, parsed: ParseResult): Promise<string | null>;
+  saveExtras(id: string, extras: ProjectExtras): Promise<void>;
   saveRun(id: string, result: ProjectResult, settings: ComputeSettings): Promise<StoredRun>;
   latestRun(id: string): Promise<StoredRun | null>;
+  listRuns(id: string): Promise<RunSummary[]>;
+  getRun(id: string, runId: string): Promise<StoredRun | null>;
 }
 
 /** Build the clean engine payload (strips UI/DB-only fields — the engine forbids extras). */

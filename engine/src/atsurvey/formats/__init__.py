@@ -12,6 +12,33 @@ from .xmlformats import parse_jobxml, parse_landxml
 
 PARSER_VERSION = "1"
 
+#: Upper bounds that keep parsing linear and bounded regardless of input
+MAX_BYTES = 64 * 1024 * 1024
+MAX_LINES = 2_000_000
+
+_BINARY_HINT = (
+    "This looks like a binary file. Export the job as text first: Leica GSI or LandXML "
+    "(not DBX), Trimble JobXML (not .job), Nikon RAW, RW5 or CSV."
+)
+
+
+def _guard(data: bytes) -> bytes:
+    """Bound the input and return it as UTF-8-compatible bytes."""
+    if data.startswith((b"\xff\xfe", b"\xfe\xff")):
+        # Excel "Unicode text" exports are UTF-16 (they contain NUL bytes, but are not binary)
+        try:
+            data = data.decode("utf-16").encode("utf-8")
+        except UnicodeDecodeError as exc:
+            raise ParseError("Invalid UTF-16 text file") from exc
+    if len(data) > MAX_BYTES:
+        raise ParseError(f"File too large ({len(data) // (1024 * 1024)} MB)")
+    head = data[:8192]
+    if b"\x00" in head:
+        raise ParseError(_BINARY_HINT)
+    if data.count(b"\n") > MAX_LINES:
+        raise ParseError(f"Too many lines (more than {MAX_LINES:,})")
+    return data
+
 
 def detect_format(data: bytes, filename: str | None = None) -> FormatName:
     name = (filename or "").lower()
@@ -47,6 +74,7 @@ def parse_file(
     fmt: FormatName | None = None,
     angle_unit: AngleUnit | None = None,
 ) -> ParseResult:
+    data = _guard(data)
     fmt = fmt or detect_format(data, filename)
     if fmt == "leica_gsi":
         return parse_gsi(data)

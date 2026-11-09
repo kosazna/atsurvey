@@ -7,7 +7,9 @@ import { uid } from "@/lib/utils";
 import type {
   CreateProjectInput,
   ProjectData,
+  ProjectExtras,
   ProjectMeta,
+  RunSummary,
   ProjectStore,
   StoredControlPoint,
   StoredRun,
@@ -22,6 +24,8 @@ interface ProjectRow {
   description: string | null;
   angle_unit: DisplayAngleUnit;
   settings: Partial<ComputeSettings> | null;
+  /** added by migration 20261110000001; absent on older databases */
+  extras?: ProjectExtras | null;
   created_at: string;
   updated_at: string;
   archived_at: string | null;
@@ -184,6 +188,7 @@ export class SupabaseStore implements ProjectStore {
     return {
       meta: this.toMeta(prow),
       settings: normalizeSettings(prow.settings),
+      extras: prow.extras ?? {},
       control_points: (check(cps) as StoredControlPoint[]).map((c) => ({
         id: c.id,
         name: c.name,
@@ -347,6 +352,33 @@ export class SupabaseStore implements ProjectStore {
       input_hash: result.input_hash,
       result,
     };
+  }
+
+  async saveExtras(id: string, extras: ProjectExtras) {
+    check(await this.sb.from("projects").update({ extras }).eq("id", id));
+  }
+
+  async listRuns(id: string): Promise<RunSummary[]> {
+    return check(
+      await this.sb
+        .from("computation_runs")
+        .select("id, created_at, engine_version, input_hash, summary")
+        .eq("project_id", id)
+        .order("created_at", { ascending: false })
+        .limit(50),
+    ) as RunSummary[];
+  }
+
+  async getRun(id: string, runId: string): Promise<StoredRun | null> {
+    const rows = check(
+      await this.sb
+        .from("computation_runs")
+        .select("id, created_at, engine_version, input_hash, result")
+        .eq("project_id", id)
+        .eq("id", runId)
+        .limit(1),
+    ) as StoredRun[];
+    return rows[0] ?? null;
   }
 
   async latestRun(id: string): Promise<StoredRun | null> {

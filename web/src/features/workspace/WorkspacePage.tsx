@@ -2,6 +2,15 @@ import { Link, Navigate, useNavigate, useParams, useSearch } from "@tanstack/rea
 import {
   ArrowLeft,
   Calculator,
+  Crosshair,
+  Eye,
+  GitCompareArrows,
+  History,
+  Mountain,
+  Redo2,
+  Sigma,
+  Spline,
+  Undo2,
   Download,
   FileText,
   LayoutDashboard,
@@ -33,6 +42,7 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { useSession } from "@/data/session";
 import { toggleTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
+import { ShortcutsDialog } from "@/components/ShortcutsDialog";
 import { ExportDialog } from "./dialogs/ExportDialog";
 import { ImportDialog } from "./dialogs/ImportDialog";
 import { SettingsDialog } from "./dialogs/SettingsDialog";
@@ -48,15 +58,26 @@ import { StatusPill } from "./StatusPill";
 import { useProjectQuery, useWorkspace, WorkspaceProvider } from "./useWorkspace";
 
 const MapPanel = lazy(() => import("./map/MapPanel"));
+const AdjustmentSection = lazy(() => import("./sections/AdjustmentSection"));
+const ToolsSection = lazy(() => import("./sections/ToolsSection"));
+const LevelingSection = lazy(() => import("./sections/LevelingSection"));
+const LineworkSection = lazy(() => import("./sections/LineworkSection"));
+const RunsSection = lazy(() => import("./sections/RunsSection"));
 
-const NAV: { id: Section; icon: React.ReactNode }[] = [
-  { id: "overview", icon: <LayoutDashboard /> },
-  { id: "control", icon: <Triangle /> },
-  { id: "observations", icon: <Telescope /> },
-  { id: "traverses", icon: <RouteIcon /> },
-  { id: "results", icon: <ListOrdered /> },
-  { id: "reports", icon: <FileText /> },
-  { id: "issues", icon: <ShieldCheck /> },
+type NavGroup = "data" | "results" | "tools" | null;
+const NAV: { id: Section; icon: React.ReactNode; group: NavGroup }[] = [
+  { id: "overview", icon: <LayoutDashboard />, group: null },
+  { id: "control", icon: <Triangle />, group: "data" },
+  { id: "observations", icon: <Telescope />, group: "data" },
+  { id: "traverses", icon: <RouteIcon />, group: "data" },
+  { id: "results", icon: <ListOrdered />, group: "results" },
+  { id: "adjustment", icon: <Sigma />, group: "results" },
+  { id: "reports", icon: <FileText />, group: "results" },
+  { id: "linework", icon: <Spline />, group: "results" },
+  { id: "issues", icon: <ShieldCheck />, group: "results" },
+  { id: "tools", icon: <Crosshair />, group: "tools" },
+  { id: "leveling", icon: <Mountain />, group: "tools" },
+  { id: "runs", icon: <History />, group: "tools" },
 ];
 
 export function WorkspacePage() {
@@ -122,6 +143,12 @@ function WorkspaceLoader({ projectId, section, onSection }: { projectId: string;
   );
 }
 
+function isTextField(t: EventTarget | null): boolean {
+  const el = t as HTMLElement | null;
+  if (!el) return false;
+  return el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable;
+}
+
 function useMapWidth() {
   const [width, setWidth] = useState(() => {
     try {
@@ -182,6 +209,13 @@ function WorkspaceLayout() {
       } else if (mod && e.key.toLowerCase() === "e" && !e.shiftKey) {
         e.preventDefault();
         ws.setDialog("export");
+      } else if (mod && e.key.toLowerCase() === "z" && !isTextField(e.target)) {
+        e.preventDefault();
+        if (e.shiftKey) ws.redo();
+        else ws.undo();
+      } else if (mod && e.key.toLowerCase() === "y" && !isTextField(e.target)) {
+        e.preventDefault();
+        ws.redo();
       }
     };
     window.addEventListener("keydown", onKey);
@@ -197,6 +231,10 @@ function WorkspaceLayout() {
       { id: "settings", group: t("cmd.actions"), label: t("set.title"), icon: <SlidersHorizontal />, run: () => ws.setDialog("settings") },
       { id: "save-run", group: t("cmd.actions"), label: t("ws.saveRun"), icon: <Save />, run: () => void ws.saveRun() },
       { id: "map", group: t("cmd.actions"), label: t("cmd.toggleMap"), icon: <MapIcon />, shortcut: "⌘⇧M", run: () => ws.setMapVisible(!ws.mapVisible) },
+      { id: "undo", group: t("cmd.actions"), label: t("ws.undo"), icon: <Undo2 />, shortcut: "⌘Z", run: ws.undo },
+      { id: "redo", group: t("cmd.actions"), label: t("ws.redo"), icon: <Redo2 />, shortcut: "⇧⌘Z", run: ws.redo },
+      { id: "compare", group: t("cmd.actions"), label: t("runs.compare"), icon: <GitCompareArrows />, run: () => ws.goTo("runs") },
+      { id: "shortcuts", group: t("cmd.actions"), label: t("shortcuts.title"), shortcut: "?", run: () => window.dispatchEvent(new CustomEvent("ats:shortcuts")) },
       { id: "theme2", group: t("cmd.actions"), label: t("cmd.toggleTheme"), run: toggleTheme },
     ],
     [t, ws],
@@ -219,6 +257,16 @@ function WorkspaceLayout() {
         return <ReportsSection />;
       case "issues":
         return <IssuesSection />;
+      case "adjustment":
+        return <AdjustmentSection />;
+      case "tools":
+        return <ToolsSection />;
+      case "leveling":
+        return <LevelingSection />;
+      case "linework":
+        return <LineworkSection />;
+      case "runs":
+        return <RunsSection />;
     }
   })();
 
@@ -266,6 +314,18 @@ function WorkspaceLayout() {
               </label>
             </Tooltip>
           </div>
+          <div className="hidden items-center sm:flex">
+            <Tooltip content={<span className="flex items-center gap-1.5">{t("ws.undo")} <Kbd className="border-bg bg-bg/10 text-bg">⌘Z</Kbd></span>}>
+              <Button variant="ghost" size="icon-sm" onClick={ws.undo} disabled={!ws.canUndo} aria-label={t("ws.undo")} data-testid="btn-undo">
+                <Undo2 />
+              </Button>
+            </Tooltip>
+            <Tooltip content={<span className="flex items-center gap-1.5">{t("ws.redo")} <Kbd className="border-bg bg-bg/10 text-bg">⇧⌘Z</Kbd></span>}>
+              <Button variant="ghost" size="icon-sm" onClick={ws.redo} disabled={!ws.canRedo} aria-label={t("ws.redo")}>
+                <Redo2 />
+              </Button>
+            </Tooltip>
+          </div>
           <Tooltip content={t("ws.saveRun")}>
             <Button variant="ghost" size="icon-sm" onClick={() => void ws.saveRun()} disabled={!ws.result} aria-label={t("ws.saveRun")}>
               <Save />
@@ -291,8 +351,13 @@ function WorkspaceLayout() {
       <div className="flex min-h-0 flex-1 flex-col md:flex-row">
         {/* sidebar */}
         <nav className="flex shrink-0 gap-0.5 overflow-x-auto border-b bg-bg p-1.5 md:w-(--sidebar-width) md:flex-col md:overflow-visible md:border-b-0 md:border-r md:p-2" aria-label="Sections">
-          {NAV.map((n) => {
+          {NAV.map((n, idx) => {
             const active = ws.section === n.id;
+            const groupLabel = n.group && n.group !== NAV[idx - 1]?.group ? (
+              <div key={`g-${n.group}`} className="hidden px-2.5 pb-1 pt-3 text-xs font-medium text-subtle md:block">
+                {t(`ws.groups.${n.group}`)}
+              </div>
+            ) : null;
             const badge =
               n.id === "issues" && issueCount > 0 ? (
                 <Badge variant={errorCount ? "destructive" : "warning"} className="ml-auto tabular">
@@ -305,7 +370,8 @@ function WorkspaceLayout() {
               ) : n.id === "traverses" ? (
                 <span className="ml-auto text-xs tabular text-muted">{ws.data.traverses.length || ""}</span>
               ) : null;
-            return (
+            return [
+              groupLabel,
               <button
                 key={n.id}
                 onClick={() => ws.goTo(n.id)}
@@ -319,8 +385,8 @@ function WorkspaceLayout() {
                 {n.icon}
                 <span className="whitespace-nowrap">{t(`ws.sections.${n.id}`)}</span>
                 <span className="hidden md:contents">{badge}</span>
-              </button>
-            );
+              </button>,
+            ];
           })}
           <div className="mt-auto hidden px-2 pb-1 pt-4 text-xs leading-relaxed text-muted md:block">
             <div className="flex items-center gap-1.5">
@@ -335,7 +401,16 @@ function WorkspaceLayout() {
             <div className="lg:hidden px-3 pt-2">
               <StatusPill />
             </div>
-            {content}
+            {ws.viewing && (
+              <div className="flex items-center gap-2 border-b bg-warning-subtle px-4 py-2 text-xs text-warning" data-testid="viewing-banner">
+                <Eye className="size-3.5" />
+                <span className="font-medium">{t("runs.viewingBanner", { when: new Date(ws.viewing.created_at).toLocaleString() })}</span>
+                <Button variant="outline" size="sm" className="ml-auto" onClick={() => ws.setViewing(null)}>
+                  {t("runs.backToLive")}
+                </Button>
+              </div>
+            )}
+            <Suspense fallback={<Skeleton className="m-4 h-64" />}>{content}</Suspense>
           </main>
           {ws.mapVisible && (
             <>
@@ -355,6 +430,7 @@ function WorkspaceLayout() {
       <ImportDialog />
       <ExportDialog />
       <SettingsDialog />
+      <ShortcutsDialog />
     </div>
   );
 }

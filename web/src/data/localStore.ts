@@ -6,7 +6,9 @@ import {
   countProject,
   type CreateProjectInput,
   type ProjectData,
+  type ProjectExtras,
   type ProjectMeta,
+  type RunSummary,
   type ProjectStore,
   type StoredControlPoint,
   type StoredRun,
@@ -16,7 +18,10 @@ import {
 
 const INDEX_KEY = "ats:projects";
 const projectKey = (id: string) => `ats:project:${id}`;
+/** legacy: single latest run */
 const runKey = (id: string) => `ats:run:${id}`;
+const runsKey = (id: string) => `ats:runs:${id}`;
+const MAX_RUNS = 10;
 
 function read<T>(key: string, fallback: T): T {
   try {
@@ -55,7 +60,7 @@ export class LocalStore implements ProjectStore {
     const idx = this.index();
     const i = idx.findIndex((p) => p.id === id);
     if (i >= 0) {
-      const run = read<StoredRun | null>(runKey(id), null);
+      const run = read<StoredRun[]>(runsKey(id), [])[0] ?? read<StoredRun | null>(runKey(id), null);
       idx[i] = {
         ...idx[i],
         updated_at: new Date().toISOString(),
@@ -69,6 +74,7 @@ export class LocalStore implements ProjectStore {
     const data = read<ProjectData | null>(projectKey(id), null);
     if (!data) throw new Error("Project not found");
     data.settings = normalizeSettings(data.settings);
+    data.extras ??= {};
     return data;
   }
 
@@ -98,6 +104,7 @@ export class LocalStore implements ProjectStore {
       control_points: seed?.control_points ?? [],
       setups: seed?.setups ?? [],
       traverses: seed?.traverses ?? [],
+      extras: seed?.extras ?? {},
     };
     meta.counts = countProject(data);
     this.writeIndex([meta, ...this.index()]);
@@ -117,6 +124,7 @@ export class LocalStore implements ProjectStore {
   async deleteProject(id: string) {
     localStorage.removeItem(projectKey(id));
     localStorage.removeItem(runKey(id));
+    localStorage.removeItem(runsKey(id));
     this.writeIndex(this.index().filter((p) => p.id !== id));
   }
 
@@ -162,12 +170,51 @@ export class LocalStore implements ProjectStore {
       input_hash: result.input_hash,
       result,
     };
-    write(runKey(id), run);
+    const runs = this.runs(id);
+    let next = [run, ...runs].slice(0, MAX_RUNS);
+    // results can be large: drop the oldest runs until localStorage accepts the list
+    for (;;) {
+      try {
+        write(runsKey(id), next);
+        break;
+      } catch (e) {
+        if (next.length <= 1) throw e;
+        next = next.slice(0, -1);
+      }
+    }
+    localStorage.removeItem(runKey(id));
     this.touch(id, this.load(id));
     return run;
   }
 
+  private runs(id: string): StoredRun[] {
+    const list = read<StoredRun[]>(runsKey(id), []);
+    if (list.length) return list;
+    const legacy = read<StoredRun | null>(runKey(id), null);
+    return legacy ? [legacy] : [];
+  }
+
   async latestRun(id: string) {
-    return read<StoredRun | null>(runKey(id), null);
+    return this.runs(id)[0] ?? null;
+  }
+
+  async listRuns(id: string): Promise<RunSummary[]> {
+    return this.runs(id).map((r) => ({
+      id: r.id,
+      created_at: r.created_at,
+      engine_version: r.engine_version,
+      input_hash: r.input_hash,
+      summary: r.result.summary ?? null,
+    }));
+  }
+
+  async getRun(id: string, runId: string) {
+    return this.runs(id).find((r) => r.id === runId) ?? null;
+  }
+
+  async saveExtras(id: string, extras: ProjectExtras) {
+    const data = this.load(id);
+    data.extras = extras;
+    this.save(data);
   }
 }

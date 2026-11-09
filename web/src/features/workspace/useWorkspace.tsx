@@ -5,13 +5,35 @@ import { useTranslation } from "react-i18next";
 import { useStore } from "@/data/session";
 import { toProjectInput, type ProjectData, type StoredRun } from "@/data/store";
 import { api, ApiError } from "@/lib/api";
+import { apiErrorMessage } from "@/lib/apiErrors";
 import type { ProjectInput, ProjectResult } from "@/lib/types";
 import type { Section } from "./sections";
 
 export type ComputeStatus = "idle" | "computing" | "ok" | "error" | "offline";
 type Dialog = "import" | "export" | "settings" | null;
-type SaveKey = "control_points" | "setups" | "traverses" | "settings";
+type SaveKey = "control_points" | "setups" | "traverses" | "settings" | "extras";
 export type WorkspacePatch = Partial<Omit<ProjectData, "meta">> & { meta?: Partial<ProjectData["meta"]> };
+
+/** Geometry drawn on the map by tools (COGO inputs/results, levelling, etc.). EGSA87 metres. */
+export interface MapOverlay {
+  points: { x: number; y: number; label?: string; role: "input" | "result" }[];
+  lines: [number, number][][];
+  polygons: [number, number][][];
+}
+export const EMPTY_OVERLAY: MapOverlay = { points: [], lines: [], polygons: [] };
+
+/** A point picked on the map: a project point (with name) or a free coordinate. */
+export interface PickedPoint {
+  name?: string;
+  x: number;
+  y: number;
+  z?: number | null;
+}
+
+type Snapshot = Pick<ProjectData, "settings" | "control_points" | "setups" | "traverses" | "extras"> & {
+  angle_unit: ProjectData["meta"]["angle_unit"];
+};
+const HISTORY_LIMIT = 100;
 
 function readLS(key: string, fallback: string): string {
   try {
@@ -44,6 +66,22 @@ export interface Workspace {
   section: Section;
   goTo: (s: Section, opts?: { setup?: string | null; traverse?: string | null }) => void;
   focus: { setup?: string | null; traverse?: string | null };
+  /** live result, even while an older run is being viewed */
+  liveResult: ProjectResult | null;
+  viewing: StoredRun | null;
+  setViewing: (r: StoredRun | null) => void;
+  undo: () => void;
+  redo: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
+  overlay: MapOverlay;
+  setOverlay: (o: MapOverlay) => void;
+  /** when set, a map click calls this instead of selecting */
+  pick: ((p: PickedPoint) => void) | null;
+  setPick: (fn: ((p: PickedPoint) => void) | null) => void;
+  ellipseScale: number;
+  setEllipseScale: (v: number) => void;
+  runsVersion: number;
 }
 
 const Ctx = createContext<Workspace | null>(null);
@@ -95,6 +133,24 @@ export function WorkspaceProvider({
   const [mapVisible, setMapVisibleState] = useState(() => readLS("ats-map", "1") === "1");
   const [dialog, setDialog] = useState<Dialog>(null);
   const [focus, setFocus] = useState<{ setup?: string | null; traverse?: string | null }>({});
+  const [viewing, setViewing] = useState<StoredRun | null>(null);
+  const [overlay, setOverlay] = useState<MapOverlay>(EMPTY_OVERLAY);
+  const [pick, setPickState] = useState<((p: PickedPoint) => void) | null>(null);
+  const setPick = useCallback((fn: ((p: PickedPoint) => void) | null) => setPickState(() => fn), []);
+  const [ellipseScale, setEllipseScaleState] = useState(() => Number(readLS("ats-ellipse-scale", "100")) || 100);
+  const setEllipseScale = useCallback((v: number) => {
+    setEllipseScaleState(v);
+    try {
+      localStorage.setItem("ats-ellipse-scale", String(v));
+    } catch {
+      /* ignore */
+    }
+  }, []);
+  const [runsVersion, setRunsVersion] = useState(0);
+  const past = useRef<Snapshot[]>([]);
+  const future = useRef<Snapshot[]>([]);
+  const lastPush = useRef(0);
+  const [historyTick, setHistoryTick] = useState(0);
 
   // ------------------------------------------------------------ persistence
   const pending = useRef(new Set<SaveKey>());
@@ -114,6 +170,7 @@ export function WorkspaceProvider({
         if (k === "setups") await store.saveSetups(projectId, d.setups);
         if (k === "traverses") await store.saveTraverses(projectId, d.traverses);
         if (k === "settings") await store.saveSettings(projectId, d.settings, d.meta.angle_unit);
+        if (k === "extras") await store.saveExtras(projectId, d.extras);
       }
       setSaveState(pending.current.size ? "dirty" : "saved");
       void qc.invalidateQueries({ queryKey: ["projects"] });
@@ -124,19 +181,68 @@ export function WorkspaceProvider({
     }
   }, [projectId, qc, store, t]);
 
-  const update = useCallback(
-    (patch: WorkspacePatch) => {
-      setData((d) => ({ ...d, ...patch, meta: { ...d.meta, ...(patch.meta ?? {}) } }));
-      (Object.keys(patch) as (keyof typeof patch)[]).forEach((k) => {
-        if (k === "meta") pending.current.add("settings");
-        else pending.current.add(k as SaveKey);
-      });
+  const scheduleSave = useCallback(
+    (keys: SaveKey[]) => {
+      keys.forEach((k) => pending.current.add(k));
       setSaveState("dirty");
       window.clearTimeout(saveTimer.current);
       saveTimer.current = window.setTimeout(() => void flush(), 700);
     },
     [flush],
   );
+
+  const snapshot = (d: ProjectData): Snapshot => ({
+    settings: d.settings,
+    control_points: d.control_points,
+    setups: d.setups,
+    traverses: d.traverses,
+    extras: d.extras,
+    angle_unit: d.meta.angle_unit,
+  });
+
+  const update = useCallback(
+    (patch: WorkspacePatch) => {
+      // undo history: coalesce rapid edits (typing, drag-fill) into one step
+      const now = Date.now();
+      if (now - lastPush.current > 600 || past.current.length === 0) {
+        past.current.push(snapshot(dataRef.current));
+        if (past.current.length > HISTORY_LIMIT) past.current.shift();
+      }
+      lastPush.current = now;
+      future.current = [];
+      setHistoryTick((n) => n + 1);
+      setData((d) => ({ ...d, ...patch, meta: { ...d.meta, ...(patch.meta ?? {}) } }));
+      scheduleSave(
+        (Object.keys(patch) as (keyof typeof patch)[]).map((k) => (k === "meta" ? "settings" : (k as SaveKey))),
+      );
+    },
+    [scheduleSave],
+  );
+
+  const restore = useCallback(
+    (snap: Snapshot) => {
+      setData((d) => ({ ...d, ...snap, meta: { ...d.meta, angle_unit: snap.angle_unit } }));
+      scheduleSave(["settings", "control_points", "setups", "traverses", "extras"]);
+      setHistoryTick((n) => n + 1);
+    },
+    [scheduleSave],
+  );
+
+  const undo = useCallback(() => {
+    const prev = past.current.pop();
+    if (!prev) return;
+    future.current.push(snapshot(dataRef.current));
+    lastPush.current = 0;
+    restore(prev);
+  }, [restore]);
+
+  const redo = useCallback(() => {
+    const next = future.current.pop();
+    if (!next) return;
+    past.current.push(snapshot(dataRef.current));
+    lastPush.current = 0;
+    restore(next);
+  }, [restore]);
 
   useEffect(() => {
     const onUnload = () => void flush();
@@ -169,10 +275,12 @@ export function WorkspaceProvider({
     } catch (e) {
       if ((e as Error).name === "AbortError" || ctrl.signal.aborted) return;
       const err = e as ApiError;
-      setError(err.message);
+      const msg = apiErrorMessage(err, t);
+      setError(msg);
       setStatus(err.status === 0 ? "offline" : "error");
+      if (err.status === 429 || err.status === 413 || err.status === 503) toast.warning(msg, { id: "compute-limit" });
     }
-  }, []);
+  }, [t]);
 
   const compute = useCallback(() => void runCompute(input, inputKey), [input, inputKey, runCompute]);
 
@@ -189,6 +297,7 @@ export function WorkspaceProvider({
     try {
       const run = await store.saveRun(projectId, result, data.settings);
       setLastRun(run);
+      setRunsVersion((n) => n + 1);
       toast.success(t("ws.runSaved"));
     } catch (e) {
       toast.error((e as Error).message);
@@ -221,13 +330,28 @@ export function WorkspaceProvider({
     [onSection],
   );
 
+  void historyTick;
   const value: Workspace = {
     projectId,
     data,
     input,
     update,
     saveState,
-    result,
+    result: viewing?.result ?? result,
+    liveResult: result,
+    viewing,
+    setViewing,
+    undo,
+    redo,
+    canUndo: past.current.length > 0,
+    canRedo: future.current.length > 0,
+    overlay,
+    setOverlay,
+    pick,
+    setPick,
+    ellipseScale,
+    setEllipseScale,
+    runsVersion,
     status,
     error,
     compute,

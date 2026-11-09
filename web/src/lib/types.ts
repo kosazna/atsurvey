@@ -80,9 +80,33 @@ export interface Tolerances {
   check_shot_m: number;
 }
 
+export type AdjustmentMethod = "bowditch" | "least_squares";
+
+export interface AdjustmentSettings {
+  method: AdjustmentMethod;
+  sigma_direction_cc: number;
+  sigma_distance_mm: number;
+  sigma_distance_ppm: number;
+  sigma_centering_mm: number;
+  sigma_height_mm: number;
+  alpha_global: number;
+  alpha_w: number;
+  max_iterations: number;
+}
+
+export interface LineworkSettings {
+  line_codes: string[];
+  start_tokens: string[];
+  close_tokens: string[];
+  end_tokens: string[];
+  case_sensitive: boolean;
+}
+
 export interface ComputeSettings {
   reduction: ReductionSettings;
   tolerances: Tolerances;
+  adjustment: AdjustmentSettings;
+  linework: LineworkSettings;
   compute_detail: boolean;
 }
 
@@ -121,10 +145,32 @@ export const DEFAULT_TOLERANCES: Tolerances = {
   check_shot_m: 0.03,
 };
 
+export const DEFAULT_ADJUSTMENT: AdjustmentSettings = {
+  method: "bowditch",
+  sigma_direction_cc: 10.0,
+  sigma_distance_mm: 2.0,
+  sigma_distance_ppm: 2.0,
+  sigma_centering_mm: 1.0,
+  sigma_height_mm: 5.0,
+  alpha_global: 0.05,
+  alpha_w: 0.001,
+  max_iterations: 10,
+};
+
+export const DEFAULT_LINEWORK: LineworkSettings = {
+  line_codes: [],
+  start_tokens: ["ST", "B", "ΑΡΧ"],
+  close_tokens: ["CL", "C", "ΚΛ"],
+  end_tokens: ["E", "END", "ΤΕΛ"],
+  case_sensitive: false,
+};
+
 export function defaultSettings(): ComputeSettings {
   return {
     reduction: { ...DEFAULT_REDUCTION },
     tolerances: { ...DEFAULT_TOLERANCES },
+    adjustment: { ...DEFAULT_ADJUSTMENT },
+    linework: { ...DEFAULT_LINEWORK, line_codes: [], start_tokens: [...DEFAULT_LINEWORK.start_tokens], close_tokens: [...DEFAULT_LINEWORK.close_tokens], end_tokens: [...DEFAULT_LINEWORK.end_tokens] },
     compute_detail: true,
   };
 }
@@ -136,6 +182,8 @@ export function normalizeSettings(s: Partial<ComputeSettings> | null | undefined
   return {
     reduction: { ...d.reduction, ...(s.reduction ?? {}) },
     tolerances: { ...d.tolerances, ...(s.tolerances ?? {}) },
+    adjustment: { ...d.adjustment, ...(s.adjustment ?? {}) },
+    linework: { ...d.linework, ...(s.linework ?? {}) },
     compute_detail: s.compute_detail ?? d.compute_detail,
   };
 }
@@ -160,6 +208,66 @@ export interface ResultPoint {
   code?: string | null;
   source?: string | null;
   n: number;
+  sx?: number | null;
+  sy?: number | null;
+  sz?: number | null;
+  ellipse?: ErrorEllipse | null;
+}
+
+export interface ErrorEllipse {
+  /** semi-major axis, m (1σ) */
+  a: number;
+  b: number;
+  /** azimuth of the major axis, rad */
+  theta: number;
+  /** scale factor for a 95 % ellipse */
+  k95: number;
+}
+
+export type ObservationKind = "direction" | "distance" | "height";
+
+export interface AdjustedObservation {
+  kind: ObservationKind;
+  station: string;
+  target: string;
+  observed: number;
+  adjusted: number;
+  residual: number;
+  sigma: number;
+  redundancy: number;
+  w: number | null;
+  flagged: boolean;
+}
+
+export interface GlobalTest {
+  statistic: number;
+  lower: number;
+  upper: number;
+  passed: boolean;
+}
+
+export interface AdjustmentResult {
+  method: "least_squares";
+  converged: boolean;
+  iterations: number;
+  n_observations: number;
+  n_unknowns: number;
+  dof: number;
+  sigma0: number;
+  global_test: GlobalTest | null;
+  w_critical: number;
+  max_w: number | null;
+  suspect: AdjustedObservation | null;
+  observations: AdjustedObservation[];
+}
+
+export interface Polyline {
+  code: string;
+  name: string;
+  points: string[];
+  closed: boolean;
+  length: number;
+  area: number | null;
 }
 
 export interface TraverseStation {
@@ -264,11 +372,13 @@ export interface ProjectResult {
   orientations: SetupOrientation[];
   issues: Issue[];
   summary: Summary;
+  adjustment?: AdjustmentResult | null;
+  linework?: Polyline[];
 }
 
 // ---------------------------------------------------------------- API envelopes
 
-export type RawFormat = "leica_gsi" | "trimble_jobxml" | "landxml" | "nikon_raw" | "rw5" | "csv";
+export type RawFormat = "leica_gsi" | "trimble_jobxml" | "landxml" | "nikon_raw" | "rw5" | "csv" | "dxf";
 
 export interface ParseResult {
   format: RawFormat;
@@ -279,7 +389,7 @@ export interface ParseResult {
   stats: { setups: number; observations: number; control_points?: number };
 }
 
-export type ExportFormat = "csv" | "xlsx" | "shp" | "dxf" | "pdf";
+export type ExportFormat = "csv" | "xlsx" | "shp" | "dxf" | "pdf" | "landxml" | "kml" | "geojson";
 
 export interface ExportOptions {
   angle_unit?: DisplayAngleUnit;
@@ -288,6 +398,8 @@ export interface ExportOptions {
   csv_header?: boolean;
   include?: PointKind[];
   dxf_text_height?: number;
+  /** exaggeration of 95 % error ellipses in DXF (0 = omit) */
+  dxf_ellipse_scale?: number;
   language?: "el" | "en";
 }
 
@@ -305,4 +417,4 @@ export interface Me {
   export_formats: ExportFormat[];
 }
 
-export const ALL_EXPORT_FORMATS: ExportFormat[] = ["csv", "xlsx", "shp", "dxf", "pdf"];
+export const ALL_EXPORT_FORMATS: ExportFormat[] = ["csv", "xlsx", "shp", "dxf", "pdf", "landxml", "kml", "geojson"];

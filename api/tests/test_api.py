@@ -38,6 +38,7 @@ def token(sub="user-1", **claims):
         "sub": sub,
         "aud": "authenticated",
         "role": "authenticated",
+        "iss": "http://supabase.invalid/auth/v1",
         "exp": time.time() + 600,
     }
     payload.update(claims)
@@ -83,7 +84,7 @@ def test_invalid_token_rejected(client):
     )
     r = client.post("/v1/compute", json=project_json(), headers={"Authorization": f"Bearer {bad}"})
     assert r.status_code == 401
-    expired = token(exp=time.time() - 10)
+    expired = token(exp=time.time() - 120)  # beyond the 30 s clock-skew leeway
     r = client.post(
         "/v1/compute", json=project_json(), headers={"Authorization": f"Bearer {expired}"}
     )

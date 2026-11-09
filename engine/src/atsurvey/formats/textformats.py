@@ -259,7 +259,11 @@ def _sniff(text: str) -> tuple[list[list[str]], bool]:
         delim = ";"
     elif sample.count("\t") > sample.count(","):
         delim = "\t"
-    rows = [r for r in csv.reader(io.StringIO(text), delimiter=delim) if any(c.strip() for c in r)]
+    try:
+        reader = csv.reader(io.StringIO(text, newline=""), delimiter=delim)
+        rows = [r for r in reader if any(c.strip() for c in r)]
+    except csv.Error as exc:
+        raise ParseError(f"Malformed CSV: {exc}") from exc
     decimal_comma = delim != "," and bool(re.search(r"\d,\d", sample))
     if decimal_comma:
         rows = [[c.replace(",", ".") for c in r] for r in rows]

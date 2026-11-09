@@ -64,7 +64,8 @@ def _iter(root: Element, name: str):
 
 def _parse_xml(data: bytes) -> Element:
     try:
-        return DET.fromstring(data)
+        # no DTDs at all: JobXML/LandXML never need them; blocks entity tricks outright
+        return DET.fromstring(data, forbid_dtd=True)
     except Exception as exc:  # defusedxml raises several types
         raise ParseError(f"Invalid XML: {exc}") from exc
 

@@ -55,3 +55,42 @@ export function toSubscriptionRow(event: PaddleEvent): SubscriptionRow | null {
     current_period_end: data.current_billing_period?.ends_at ?? null,
   };
 }
+
+/** Timestamp of the event (used to drop stale or replayed deliveries). */
+export function occurredAt(event: PaddleEvent): string | null {
+  const t = event.occurred_at ? Date.parse(event.occurred_at) : NaN;
+  return Number.isFinite(t) ? new Date(t).toISOString() : null;
+}
+
+export interface ExistingSubscription {
+  subscription_id: string | null;
+  plan: string;
+  last_event_at: string | null;
+}
+
+export type Decision = { apply: true } | { apply: false; reason: "stale" | "foreign_downgrade" };
+
+/**
+ * Whether an event may overwrite the stored row for its workspace.
+ *
+ * - stale: events for the same subscription that are not newer than the last applied one
+ *   (Paddle retries out of order; a replay within the signature window is a no-op).
+ * - foreign_downgrade: `custom_data.workspace_id` is set by the buyer at checkout, so a
+ *   second subscription aimed at someone else's workspace must never downgrade the
+ *   workspace's own active subscription (e.g. buy-then-cancel griefing).
+ */
+export function decide(
+  existing: ExistingSubscription | null,
+  row: SubscriptionRow,
+  eventAt: string | null,
+): Decision {
+  if (!existing) return { apply: true };
+  const same = existing.subscription_id === row.subscription_id;
+  if (same && eventAt && existing.last_event_at && Date.parse(eventAt) <= Date.parse(existing.last_event_at)) {
+    return { apply: false, reason: "stale" };
+  }
+  if (!same && existing.subscription_id && existing.plan === "pro" && row.plan !== "pro") {
+    return { apply: false, reason: "foreign_downgrade" };
+  }
+  return { apply: true };
+}

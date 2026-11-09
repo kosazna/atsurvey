@@ -1,5 +1,7 @@
+import { Link } from "@tanstack/react-router";
+import { apiErrorMessage } from "@/lib/apiErrors";
 import { useQuery } from "@tanstack/react-query";
-import { Check, Download, FileCode2, FileSpreadsheet, FileText, Loader2, Lock, MapPinned, Table } from "lucide-react";
+import { Braces, Check, Download, FileCode2, FileSpreadsheet, FileText, Globe2, Loader2, Lock, MapPinned, Network, Table } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -22,6 +24,9 @@ const ICONS: Record<ExportFormat, React.ReactNode> = {
   shp: <MapPinned />,
   dxf: <FileCode2 />,
   pdf: <FileText />,
+  landxml: <Network />,
+  kml: <Globe2 />,
+  geojson: <Braces />,
 };
 
 export function ExportDialog() {
@@ -45,6 +50,8 @@ export function ExportDialog() {
   const [delimiter, setDelimiter] = useState<"," | ";" | "\t" | " ">(",");
   const [header, setHeader] = useState(true);
   const [textHeight, setTextHeight] = useState(0.5);
+  const [ellipseScale, setEllipseScale] = useState(1000);
+  const lsa = Boolean(ws.result?.adjustment);
   const [busy, setBusy] = useState(false);
 
   const chosen = [...formats].filter((f) => allowed.has(f));
@@ -64,6 +71,7 @@ export function ExportDialog() {
             csv_header: header,
             include: [...include],
             dxf_text_height: textHeight,
+            dxf_ellipse_scale: lsa ? ellipseScale : 0,
             language: i18n.language === "en" ? "en" : "el",
           },
           workspace_id: wsId.data ?? null,
@@ -75,7 +83,7 @@ export function ExportDialog() {
     } catch (e) {
       if (e instanceof ApiError && (e.status === 402 || e.code === "plan_required"))
         toast.warning(me.data?.plan === "anonymous" ? t("exp.signupHint") : t("exp.upgrade"));
-      else toast.error(t("errors.api", { message: (e as Error).message }));
+      else toast.error(t("errors.api", { message: apiErrorMessage(e, t) }));
     } finally {
       setBusy(false);
     }
@@ -125,8 +133,13 @@ export function ExportDialog() {
               })}
             </div>
             {ALL_EXPORT_FORMATS.some((f) => !allowed.has(f)) && (
-              <p className="mt-2 flex items-center gap-1.5 text-xs text-muted">
+              <p className="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-muted">
                 <Lock className="size-3" /> {me.data?.plan === "anonymous" ? t("exp.signupHint") : t("exp.upgrade")}
+                {me.data?.plan === "free" && (
+                  <Link to="/billing" className="font-medium text-accent hover:underline" onClick={() => ws.setDialog(null)}>
+                    {t("billing.upgrade")} →
+                  </Link>
+                )}
               </p>
             )}
           </div>
@@ -175,6 +188,20 @@ export function ExportDialog() {
               <div className="space-y-1.5">
                 <Label htmlFor="ex-th">{t("exp.textHeight")}</Label>
                 <Input id="ex-th" type="number" step={0.1} min={0.05} value={textHeight} onChange={(e) => setTextHeight(Number(e.target.value) || 0.5)} />
+              </div>
+            )}
+            {formats.has("dxf") && lsa && (
+              <div className="space-y-1.5">
+                <Label htmlFor="ex-es">{t("exp.ellipseScale")}</Label>
+                <Input
+                  id="ex-es"
+                  type="number"
+                  step={100}
+                  min={0}
+                  max={100000}
+                  value={ellipseScale}
+                  onChange={(e) => setEllipseScale(Math.max(0, Math.min(100000, Number(e.target.value) || 0)))}
+                />
               </div>
             )}
           </div>

@@ -22,6 +22,7 @@ const FORMAT_LABEL: Record<RawFormat, string> = {
   nikon_raw: "Nikon RAW",
   rw5: "Carlson RW5",
   csv: "CSV",
+  dxf: "DXF",
 };
 
 interface Item {
@@ -154,7 +155,7 @@ export function ImportDialog() {
               type="file"
               multiple
               className="hidden"
-              accept=".gsi,.jxl,.xml,.raw,.rw5,.csv,.txt"
+              accept=".gsi,.gs8,.gs16,.jxl,.xml,.raw,.rw5,.csv,.txt,.dxf"
               onChange={(e) => {
                 if (e.target.files?.length) addFiles(e.target.files);
                 e.target.value = "";

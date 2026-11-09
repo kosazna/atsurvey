@@ -8,8 +8,15 @@
 // Deploy with JWT verification off (see config.toml): Paddle signs requests itself.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { BodyTooLarge, readBodyLimited } from "./limits.ts";
 import { verifyPaddleSignature } from "./signature.ts";
-import { HANDLED_EVENTS, type PaddleEvent, toSubscriptionRow } from "./subscription.ts";
+import {
+  decide,
+  HANDLED_EVENTS,
+  occurredAt,
+  type PaddleEvent,
+  toSubscriptionRow,
+} from "./subscription.ts";
 
 const json = (status: number, body: Record<string, unknown>) =>
   new Response(JSON.stringify(body), {
@@ -28,9 +35,18 @@ Deno.serve(async (req: Request) => {
     return json(500, { error: "not_configured" });
   }
 
-  const rawBody = await req.text();
+  let rawBody: string;
+  try {
+    rawBody = await readBodyLimited(req);
+  } catch (e) {
+    if (e instanceof BodyTooLarge) return json(413, { error: "too_large" });
+    throw e;
+  }
   const sig = await verifyPaddleSignature(req.headers.get("paddle-signature"), rawBody, secret);
-  if (!sig.ok) return json(401, { error: "invalid_signature", reason: sig.reason });
+  if (!sig.ok) {
+    console.warn("paddle-webhook: rejected signature", sig.reason);
+    return json(401, { error: "invalid_signature" }); // no detail for the caller
+  }
 
   let event: PaddleEvent;
   try {
@@ -68,6 +84,22 @@ Deno.serve(async (req: Request) => {
     return json(200, { ignored: "unknown_workspace" });
   }
 
+  const { data: existing, error: readError } = await db
+    .from("subscriptions")
+    .select("subscription_id, plan, last_event_at")
+    .eq("workspace_id", workspaceId)
+    .maybeSingle();
+  if (readError) {
+    console.error("paddle-webhook: read failed", readError);
+    return json(500, { error: "lookup_failed" });
+  }
+  const eventAt = occurredAt(event);
+  const decision = decide(existing, row, eventAt);
+  if (!decision.apply) {
+    console.warn("paddle-webhook: skipped", decision.reason, row.subscription_id);
+    return json(200, { ignored: decision.reason });
+  }
+
   const { error } = await db.from("subscriptions").upsert(
     {
       workspace_id: workspaceId,
@@ -77,13 +109,19 @@ Deno.serve(async (req: Request) => {
       plan: row.plan,
       status: row.status,
       current_period_end: row.current_period_end,
+      last_event_at: eventAt,
     },
     { onConflict: "workspace_id" },
   );
   if (error) {
+    if (error.code === "23503") {
+      // unknown workspace id in custom_data: acknowledge so Paddle stops retrying
+      console.warn("paddle-webhook: workspace does not exist", workspaceId);
+      return json(200, { ignored: "unknown_workspace" });
+    }
     console.error("paddle-webhook: upsert failed", error);
     return json(500, { error: "upsert_failed" });
   }
 
-  return json(200, { ok: true, event: type, workspace_id: workspaceId, plan: row.plan });
+  return json(200, { ok: true });
 });

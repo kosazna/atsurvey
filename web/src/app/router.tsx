@@ -1,6 +1,7 @@
 import { createRootRoute, createRoute, createRouter, lazyRouteComponent, Outlet } from "@tanstack/react-router";
 import { CommandPalette } from "@/components/CommandPalette";
 import { AuthPage } from "@/features/auth/AuthPage";
+import { LandingPage } from "@/features/landing/LandingPage";
 import { ProjectsPage } from "@/features/projects/ProjectsPage";
 import { SECTIONS, type Section } from "@/features/workspace/sections";
 
@@ -13,7 +14,18 @@ const rootRoute = createRootRoute({
   ),
 });
 
-const indexRoute = createRoute({ getParentRoute: () => rootRoute, path: "/", component: AuthPage });
+const indexRoute = createRoute({ getParentRoute: () => rootRoute, path: "/", component: LandingPage });
+const loginRoute = createRoute({ getParentRoute: () => rootRoute, path: "/login", component: AuthPage });
+const accountRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/account",
+  component: lazyRouteComponent(() => import("@/features/account/AccountPage"), "AccountPage"),
+});
+const billingRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/billing",
+  component: lazyRouteComponent(() => import("@/features/account/BillingPage"), "BillingPage"),
+});
 const projectsRoute = createRoute({ getParentRoute: () => rootRoute, path: "/projects", component: ProjectsPage });
 export const projectRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -25,7 +37,7 @@ export const projectRoute = createRoute({
   component: lazyRouteComponent(() => import("@/features/workspace/WorkspacePage"), "WorkspacePage"),
 });
 
-const routeTree = rootRoute.addChildren([indexRoute, projectsRoute, projectRoute]);
+const routeTree = rootRoute.addChildren([indexRoute, loginRoute, accountRoute, billingRoute, projectsRoute, projectRoute]);
 
 export const router = createRouter({ routeTree, defaultPreload: "intent" });
 

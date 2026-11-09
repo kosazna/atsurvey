@@ -12,6 +12,7 @@ from ..core.models import ProjectInput, ProjectResult
 from ..core.units import from_rad, rad_to_cc
 from . import ExportOptions, selected_points
 from .labels import KIND_LABELS, L
+from .sanitize import safe_text
 from .theme import color, load_theme
 
 
@@ -26,7 +27,9 @@ def to_csv(result: ProjectResult, opts: ExportOptions) -> bytes:
         w.writerow(["name", "x", "y", "z", "code", "kind"])
     d = opts.decimals
     for p in selected_points(result, opts):
-        w.writerow([p.name, _fmt(p.x, d), _fmt(p.y, d), _fmt(p.z, d), p.code or "", p.kind])
+        w.writerow(
+            [safe_text(p.name), _fmt(p.x, d), _fmt(p.y, d), _fmt(p.z, d), safe_text(p.code), p.kind]
+        )
     # BOM so Excel opens UTF-8 (Greek point names/codes) correctly
     return ("\ufeff" + buf.getvalue()).encode("utf-8")
 
@@ -44,6 +47,9 @@ def to_xlsx(
         buf,
         {
             "in_memory": True,
+            # user text is never a formula or a hyperlink (formula / DDE injection)
+            "strings_to_formulas": False,
+            "strings_to_urls": False,
             "default_format_properties": {
                 "font_name": font,
                 "font_size": 10,

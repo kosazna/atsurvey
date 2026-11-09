@@ -8,7 +8,7 @@ server; the engine stays server-side so paid features cannot be bypassed.
 
 from __future__ import annotations
 
-import asyncio
+import logging
 from typing import Annotated, Literal
 from urllib.parse import quote
 
@@ -28,23 +28,43 @@ from atsurvey.formats.base import FormatName
 from .auth import EXPORTS_BY_PLAN, Caller, get_caller, plan_for, require_compute
 from .config import Settings, get_settings
 from .routers import cogo
+from .security import (
+    BodySizeLimitMiddleware,
+    JsonNumberSafetyMiddleware,
+    RateLimiter,
+    RateLimitMiddleware,
+    SecurityHeadersMiddleware,
+    run_guarded,
+    run_killable,
+)
 
-settings = get_settings()
+log = logging.getLogger("atsurvey.api")
+settings = get_settings()  # validated at import: unsafe production config refuses to start
+_production = settings.environment == "production"
 
 app = FastAPI(
     title="ATSurvey Engine API",
     version=__version__,
     description="Parse total-station raw data, compute traverses and detail points, export results.",
+    docs_url=None if _production else "/docs",
+    redoc_url=None if _production else "/redoc",
 )
+app.state.rate_limiter = RateLimiter(settings)
+# Added inner → outer: security headers and CORS also wrap 413/429 responses.
 app.add_middleware(GZipMiddleware, minimum_size=2048)
+app.add_middleware(JsonNumberSafetyMiddleware)
+app.add_middleware(BodySizeLimitMiddleware, settings=settings)
+app.add_middleware(RateLimitMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
     allow_credentials=False,
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type"],
-    expose_headers=["Content-Disposition", "X-Input-Hash"],
+    expose_headers=["Content-Disposition", "X-Input-Hash", "Retry-After"],
+    max_age=600,
 )
+app.add_middleware(SecurityHeadersMiddleware)
 
 app.include_router(cogo.router)
 
@@ -53,16 +73,22 @@ ComputeCaller = Annotated[Caller, Depends(require_compute)]
 
 
 def _check_size(inp: ProjectInput, s: Settings) -> None:
+    """Bound every dimension that drives computation time."""
     n = sum(len(x.observations) for x in inp.setups)
-    if n > s.max_observations:
-        raise HTTPException(413, f"Too many observations ({n})")
+    limits = (
+        ("observations", n, s.max_observations),
+        ("setups", len(inp.setups), s.max_setups),
+        ("control points", len(inp.control_points), s.max_control_points),
+        ("traverses", len(inp.traverses), s.max_traverses),
+        ("route points", max((len(t.route) for t in inp.traverses), default=0), s.max_route_points),
+    )
+    for label, value, limit in limits:
+        if value > limit:
+            raise HTTPException(413, f"Too many {label} ({value} > {limit})")
 
 
 async def _run(fn, *args, timeout: float):
-    try:
-        return await asyncio.wait_for(asyncio.to_thread(fn, *args), timeout=timeout)
-    except TimeoutError as exc:
-        raise HTTPException(status.HTTP_504_GATEWAY_TIMEOUT, "Computation timed out") from exc
+    return await run_guarded(get_settings(), fn, *args, timeout=timeout)
 
 
 @app.get("/health")
@@ -118,7 +144,9 @@ class Suggestions(BaseModel):
 @app.post("/v1/suggest-traverses", response_model=Suggestions)
 async def suggest(inp: ProjectInput, caller: ComputeCaller, s: SettingsDep) -> Suggestions:
     _check_size(inp, s)
-    return Suggestions(suggestions=await _run(suggest_traverses, inp, timeout=s.compute_timeout_s))
+    # route enumeration is input-dependent: run in a child process that is killed on timeout
+    found = await run_killable(s, suggest_traverses, inp, timeout=s.suggest_timeout_s)
+    return Suggestions(suggestions=found)
 
 
 class ExportRequest(BaseModel):
@@ -167,4 +195,12 @@ async def export_file(req: ExportRequest, caller: ComputeCaller, s: SettingsDep)
 
 @app.exception_handler(ValueError)
 async def value_error(_: Request, exc: ValueError) -> JSONResponse:
-    return JSONResponse(status_code=422, content={"detail": str(exc)})
+    # engine ValueErrors describe bad input (degenerate geometry, units); keep them short
+    return JSONResponse(status_code=422, content={"detail": str(exc)[:500]})
+
+
+@app.exception_handler(Exception)
+async def internal_error(request: Request, exc: Exception) -> JSONResponse:
+    # never leak stack traces or internals; details go to the server log only
+    log.exception("unhandled error on %s %s", request.method, request.url.path)
+    return JSONResponse(status_code=500, content={"detail": "Internal error"})

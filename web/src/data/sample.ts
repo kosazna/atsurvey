@@ -54,7 +54,7 @@ const DETAIL: [string, string, string, number, number, number][] = [
   ["1", "S1", "OIK", 18.4, 22.1, 0.35],
   ["2", "S1", "OIK", 31.2, 19.8, 0.4],
   ["3", "S1", "OIK", 29.7, 4.6, 0.31],
-  ["4", "S1", "OIK", 16.9, 6.8, 0.28],
+  ["4", "S1", "OIK CL", 16.9, 6.8, 0.28],
   ["5", "S1", "FRAX", -12.5, 35.4, 0.8],
   ["6", "S2", "FRAX", 8.6, 41.2, 1.1],
   ["7", "S2", "DROM", -20.3, -14.9, -0.42],
@@ -64,7 +64,7 @@ const DETAIL: [string, string, string, number, number, number][] = [
   ["11", "S3", "DROM", -35.1, -12.6, -0.2],
   ["12", "S3", "DROM", 22.7, -9.4, -0.12],
   ["13", "S3", "FRAX", 40.2, 28.9, 0.45],
-  ["14", "S3", "OIK", -6.3, 33.7, 0.9],
+  ["14", "S3", "OIK ST", -6.3, 33.7, 0.9],
   ["15", "S3", "OIK", 12.8, 37.5, 0.95],
 ];
 
@@ -172,5 +172,40 @@ export function buildSampleProject(): Omit<ProjectData, "meta"> {
     { id: id("trav-1"), name: "Όδευση Τ2–Τ3", route: [...SAMPLE_ROUTE], kind: "auto", end_orientation: null, enabled: true },
   ];
 
-  return { settings: defaultSettings(), control_points, setups, traverses };
+  const settings = defaultSettings();
+  settings.linework.line_codes = ["OIK", "DROM", "FRAX"];
+
+  // a short levelling line T2 → T3 through three turning points (closes at +4 mm)
+  const lv = (setup: number, point: string, kind: "bs" | "fs" | "is", reading: number, distance: number) => ({
+    id: id(`lv-${setup}-${point}-${kind}`),
+    setup,
+    point,
+    kind,
+    reading,
+    distance,
+  });
+  const extras: ProjectData["extras"] = {
+    leveling: {
+      benchmarks: [
+        { id: id("bm-T2"), name: "T2", h: SAMPLE_KNOWN.T2.z },
+        { id: id("bm-T3"), name: "T3", h: SAMPLE_KNOWN.T3.z },
+      ],
+      rows: [
+        lv(1, "T2", "bs", 1.832, 38.5),
+        lv(1, "ΣΠ1", "fs", 3.415, 41.2),
+        lv(2, "ΣΠ1", "bs", 0.912, 44.0),
+        lv(2, "ΣΠ2", "fs", 3.724, 42.6),
+        lv(3, "ΣΠ2", "bs", 1.205, 39.8),
+        lv(3, "S2", "is", 2.13, 25.1),
+        lv(3, "ΣΠ3", "fs", 3.088, 40.3),
+        lv(4, "ΣΠ3", "bs", 1.42, 43.7),
+        lv(4, "T3", "fs", 4.688, 41.9),
+      ],
+      tolerance_base_mm: 0,
+      tolerance_mm_per_sqrt_km: 12,
+      distribute: "distance",
+    },
+  };
+
+  return { settings, control_points, setups, traverses, extras };
 }

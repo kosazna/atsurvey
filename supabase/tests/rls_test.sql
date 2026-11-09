@@ -370,6 +370,79 @@ select tests.throws(
   'the last owner cannot step down', '42501');
 commit;
 
+-- ---------------------------------------------------------------- security hardening (2026-11-10)
+begin;
+set local role authenticated;
+select tests.login('22222222-2222-2222-2222-222222222222');
+select tests.throws(
+  $q$insert into public.workspaces (name, personal) values ('B team', false)$q$,
+  'free users cannot create team workspaces (project-limit bypass)', 'P0001');
+-- created_by cannot be spoofed
+insert into public.projects (id, workspace_id, name, created_by)
+values ('bbbbbbbb-0000-0000-0000-0000000000c7',
+        tests.ws_of('22222222-2222-2222-2222-222222222222'), 'B spoof',
+        '11111111-1111-1111-1111-111111111111');
+select tests.ok(
+  (select created_by from public.projects where id = 'bbbbbbbb-0000-0000-0000-0000000000c7')
+    = '22222222-2222-2222-2222-222222222222',
+  'created_by is forced to the caller on insert');
+update public.projects set created_by = '11111111-1111-1111-1111-111111111111'
+where id = 'bbbbbbbb-0000-0000-0000-0000000000c7';
+select tests.ok(
+  (select created_by from public.projects where id = 'bbbbbbbb-0000-0000-0000-0000000000c7')
+    = '22222222-2222-2222-2222-222222222222',
+  'created_by is immutable on update');
+select tests.throws(
+  $q$insert into public.control_points (project_id, name, x, y)
+     values ('bbbbbbbb-0000-0000-0000-000000000001', 'NAN', 'NaN', 1)$q$,
+  'NaN coordinates rejected', '23514');
+select tests.throws(
+  $q$insert into public.control_points (project_id, name, x, y)
+     values ('bbbbbbbb-0000-0000-0000-000000000001', 'INF', 'Infinity', 1)$q$,
+  'infinite coordinates rejected', '23514');
+select tests.throws(
+  $q$insert into public.observations (setup_id, target, hz) values
+     ('bbbbbbbb-0000-0000-0000-0000000000a1', repeat('x', 201), 0)$q$,
+  'oversized point names rejected', '23514');
+select tests.throws(
+  $q$update public.projects set settings = jsonb_build_object('blob', repeat(md5(random()::text), 5000))
+     where id = 'bbbbbbbb-0000-0000-0000-000000000001'$q$,
+  'oversized project settings rejected', '23514');
+select tests.throws(
+  $q$select public.save_computation_run('bbbbbbbb-0000-0000-0000-000000000001',
+       '{"points": {"not": "an array"}}'::jsonb, '{}'::jsonb)$q$,
+  'save_computation_run rejects malformed points', '22023');
+select tests.throws(
+  $q$select public.save_computation_run('bbbbbbbb-0000-0000-0000-000000000001',
+       '{"points": [{"name": "P", "kind": "detail", "x": 1e15, "y": 1}]}'::jsonb, '{}'::jsonb)$q$,
+  'save_computation_run rejects absurd coordinates', '23514');
+select tests.throws(
+  $q$select public.save_computation_run('bbbbbbbb-0000-0000-0000-000000000001',
+       '{}'::jsonb, '[1]'::jsonb)$q$,
+  'save_computation_run rejects non-object settings', '22023');
+select tests.throws(
+  $q$insert into public.computation_runs (project_id, engine_version, input_hash, result)
+     select 'bbbbbbbb-0000-0000-0000-000000000001', '0', 'h', '{}'::jsonb
+     from generate_series(1, 1001)$q$,
+  'row cap: at most 1000 runs per project', 'P0001');
+select tests.ok(
+  (select count(*) from public.computation_runs
+   where project_id = 'bbbbbbbb-0000-0000-0000-000000000001' and engine_version = '0') = 0,
+  'row cap rolls back the whole statement');
+commit;
+
+-- signup with hostile metadata must still succeed (values are truncated)
+insert into auth.users (id, email, raw_user_meta_data) values
+  ('33333333-3333-3333-3333-333333333333', 'c@example.test',
+   jsonb_build_object('full_name', repeat('Ω', 5000), 'locale', 'xx'));
+select tests.ok(
+  (select length(name) from public.workspaces
+   where created_by = '33333333-3333-3333-3333-333333333333') = 200,
+  'signup truncates oversized display names');
+select tests.ok(
+  (select locale from public.profiles where id = '33333333-3333-3333-3333-333333333333') = 'el',
+  'signup ignores unknown locales');
+
 -- ---------------------------------------------------------------- RLS enabled everywhere
 select tests.ok(
   not exists (

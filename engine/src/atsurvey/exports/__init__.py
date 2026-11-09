@@ -103,7 +103,7 @@ def slug(name: str) -> str:
         else:
             out.append(ch)
     n = "".join(out)
-    n = re.sub(r"[^A-Za-z0-9._-]+", "_", n).strip("_")
+    n = re.sub(r"[^A-Za-z0-9._-]+", "_", n).strip("._-")  # no hidden or relative names
     return n or "project"
 
 
