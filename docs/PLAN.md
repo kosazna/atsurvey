@@ -18,6 +18,9 @@ all docs: [`README.md`](README.md).
 | API | parse / compute / suggest / export, JWT, plan gating, anonymous demo | ✅ done |
 | Web app | Auth, projects, import, grids, traverses + suggestions, results, map, export, settings, demo mode, el/en, dark mode | ✅ done — demo flow verified end-to-end; Supabase store not yet exercised against a live project |
 | Design system | Tokens (`design/tokens.json`) for app and reports, IBM Plex Sans, minimal style | ✅ done — **palette to be chosen** |
+| Night 1 — engine | Least-squares network adjustment (σ, error ellipses, χ² global test, Baarda w-test); COGO (inverse, polar, intersections, resection, area, Helmert/affine, chainage, stakeout); geometric levelling; field-code linework; LandXML/KML/GeoJSON exports; DXF point import; DXF error ellipses; report sections; float64 precision proof | ✅ done |
+| Night 1 — security | Threat model, API hardening, export sanitisation, parser fuzzing, RLS re-review, CSP, supply-chain checks | see [security.md](security.md) |
+| Night 1 — web | Landing page, least-squares UI, tools, levelling, linework, run history and comparison, map tools, account and billing | see [web.md](web.md) |
 | M5 Launch | Paddle products, onboarding, landing page, legal, beta with Excel users | ⏳ next |
 
 ## Next steps
@@ -35,8 +38,7 @@ all docs: [`README.md`](README.md).
 * **Parsers**: unit codes and record layouts follow the published formats; firmware quirks need real
   files. Nikon RAW and RW5 do not state their angle unit — taken from the project setting (gon).
 * **Geoid**: heights are treated as orthometric; `geoid_undulation` is a single value per project.
-* **Least squares** network adjustment, error ellipses, blunder detection — roadmap.
-* **Transformations** (HEPOS/HTRS07 → ΕΓΣΑ87, Hatt) — roadmap.
+* **Official transformations** (HEPOS/HTRS07 → ΕΓΣΑ87 grid, Hatt polynomials) — roadmap; local Helmert/affine from common points is available now.
 * **Field codes → lines** in DXF, Cadastre deliverable templates — roadmap.
 * **DWG** export via ODA — roadmap.
 * **Cadastre orthophoto basemap** (WMS) — check whether it serves Web Mercator; OSM and Esri imagery are available now.
@@ -45,7 +47,7 @@ all docs: [`README.md`](README.md).
 
 ## Roadmap after launch
 
-1. Least-squares adjustment (traverse networks with nodes), statistics and error ellipses
-2. Resection / intersection, Helmert & affine transformations, HEPOS→ΕΓΣΑ87
-3. Field coding → polylines/layers in DXF, Ktimatologio templates
-4. Team workspaces (schema already supports them), DWG, more instrument formats
+1. Official HEPOS→ΕΓΣΑ87 and Hatt transformations, Ktimatologio deliverable templates
+2. Team workspaces UI (schema and role guards are in place), DWG export
+3. More instrument formats (Topcon GTS-7, Sokkia SDR33, South) once real samples exist
+4. Parcel subdivision (κατάτμηση), curves/alignments, volumes from surfaces
