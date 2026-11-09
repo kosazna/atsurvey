@@ -1,0 +1,148 @@
+/* Generated from design/tokens.json by scripts/build_tokens.py — do not edit. */
+
+:root {
+  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --text-xs: 0.75rem;
+  --text-sm: 0.8125rem;
+  --text-base: 0.875rem;
+  --text-lg: 1rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+  --text-3xl: 2rem;
+  --leading-tight: 1.25;
+  --leading-normal: 1.5;
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-full: 9999px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --duration-fast: 120ms;
+  --duration-normal: 200ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --sidebar-width: 232px;
+  --topbar-height: 52px;
+  --z-dropdown: 40;
+  --z-overlay: 50;
+  --z-modal: 60;
+  --z-toast: 70;
+  --color-bg: #fafafa;
+  --color-surface: #ffffff;
+  --color-surface-raised: #ffffff;
+  --color-surface-sunken: #f4f4f5;
+  --color-border: #e4e4e7;
+  --color-border-strong: #d4d4d8;
+  --color-text: #18181b;
+  --color-text-muted: #52525b;
+  --color-text-subtle: #a1a1aa;
+  --color-accent: #2f5bd3;
+  --color-accent-hover: #2549b0;
+  --color-accent-contrast: #ffffff;
+  --color-accent-subtle: #eef2fc;
+  --color-success: #15803d;
+  --color-success-subtle: #ecfdf3;
+  --color-warning: #b45309;
+  --color-warning-subtle: #fffbeb;
+  --color-danger: #b91c1c;
+  --color-danger-subtle: #fef2f2;
+  --color-info: #2f5bd3;
+  --color-info-subtle: #eef2fc;
+  --color-focus: #2f5bd3;
+  --color-overlay: rgb(9 9 11 / 0.35);
+  --color-point-control: #c2410c;
+  --color-point-traverse: #2f5bd3;
+  --color-point-detail: #52525b;
+  --color-traverse-line: #2f5bd3;
+  --color-map-bg: #fafafa;
+  --color-map-grid: #ececef;
+  --shadow-sm: 0 1px 2px rgb(15 23 42 / 0.05);
+  --shadow-md: 0 2px 8px rgb(15 23 42 / 0.06), 0 1px 2px rgb(15 23 42 / 0.04);
+  --shadow-lg: 0 12px 32px rgb(15 23 42 / 0.10), 0 2px 6px rgb(15 23 42 / 0.05);
+}
+
+:root[data-theme="dark"] {
+  --color-bg: #0b0b0d;
+  --color-surface: #121214;
+  --color-surface-raised: #18181b;
+  --color-surface-sunken: #0e0e10;
+  --color-border: #26262b;
+  --color-border-strong: #3f3f46;
+  --color-text: #f4f4f5;
+  --color-text-muted: #a1a1aa;
+  --color-text-subtle: #71717a;
+  --color-accent: #7c9cf0;
+  --color-accent-hover: #97b0f4;
+  --color-accent-contrast: #0b0b0d;
+  --color-accent-subtle: #1a2340;
+  --color-success: #4ade80;
+  --color-success-subtle: #0f2418;
+  --color-warning: #fbbf24;
+  --color-warning-subtle: #2a2110;
+  --color-danger: #f87171;
+  --color-danger-subtle: #2c1414;
+  --color-info: #7c9cf0;
+  --color-info-subtle: #1a2340;
+  --color-focus: #7c9cf0;
+  --color-overlay: rgb(0 0 0 / 0.6);
+  --color-point-control: #fb923c;
+  --color-point-traverse: #7c9cf0;
+  --color-point-detail: #a1a1aa;
+  --color-traverse-line: #7c9cf0;
+  --color-map-bg: #0b0b0d;
+  --color-map-grid: #1c1c20;
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-md: 0 2px 8px rgb(0 0 0 / 0.45);
+  --shadow-lg: 0 12px 32px rgb(0 0 0 / 0.55);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --color-bg: #0b0b0d;
+    --color-surface: #121214;
+    --color-surface-raised: #18181b;
+    --color-surface-sunken: #0e0e10;
+    --color-border: #26262b;
+    --color-border-strong: #3f3f46;
+    --color-text: #f4f4f5;
+    --color-text-muted: #a1a1aa;
+    --color-text-subtle: #71717a;
+    --color-accent: #7c9cf0;
+    --color-accent-hover: #97b0f4;
+    --color-accent-contrast: #0b0b0d;
+    --color-accent-subtle: #1a2340;
+    --color-success: #4ade80;
+    --color-success-subtle: #0f2418;
+    --color-warning: #fbbf24;
+    --color-warning-subtle: #2a2110;
+    --color-danger: #f87171;
+    --color-danger-subtle: #2c1414;
+    --color-info: #7c9cf0;
+    --color-info-subtle: #1a2340;
+    --color-focus: #7c9cf0;
+    --color-overlay: rgb(0 0 0 / 0.6);
+    --color-point-control: #fb923c;
+    --color-point-traverse: #7c9cf0;
+    --color-point-detail: #a1a1aa;
+    --color-traverse-line: #7c9cf0;
+    --color-map-bg: #0b0b0d;
+    --color-map-grid: #1c1c20;
+    --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
+    --shadow-md: 0 2px 8px rgb(0 0 0 / 0.45);
+    --shadow-lg: 0 12px 32px rgb(0 0 0 / 0.55);
+  }
+}
+
+:root { color-scheme: light; }
+:root[data-theme="dark"] { color-scheme: dark; }

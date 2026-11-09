@@ -32,15 +32,17 @@ def to_dxf(result: ProjectResult, opts: ExportOptions) -> bytes:
     th = opts.dxf_text_height
     for name, color in LAYER_COLORS.items():
         doc.layers.add(name, color=color)
+    # brand font; CAD programs substitute a default if IBM Plex Sans is not installed
+    doc.styles.add("ATS", font="IBMPlexSans-Regular.ttf")
 
     blk = doc.blocks.new("ATS_PT")
     s = th * 0.4
     blk.add_line((-s, 0), (s, 0))
     blk.add_line((0, -s), (0, s))
     blk.add_circle((0, 0), s * 0.6)
-    blk.add_attdef("NAME", (th * 0.5, th * 0.3), dxfattribs={"height": th})
-    blk.add_attdef("ELEV", (th * 0.5, -th * 1.1), dxfattribs={"height": th * 0.8})
-    blk.add_attdef("CODE", (th * 0.5, -th * 2.3), dxfattribs={"height": th * 0.7})
+    blk.add_attdef("NAME", (th * 0.5, th * 0.3), dxfattribs={"height": th, "style": "ATS"})
+    blk.add_attdef("ELEV", (th * 0.5, -th * 1.1), dxfattribs={"height": th * 0.8, "style": "ATS"})
+    blk.add_attdef("CODE", (th * 0.5, -th * 2.3), dxfattribs={"height": th * 0.7, "style": "ATS"})
 
     msp = doc.modelspace()
     d = opts.decimals
@@ -76,7 +78,7 @@ def to_dxf(result: ProjectResult, opts: ExportOptions) -> bytes:
             msp.add_polyline3d(verts, dxfattribs={"layer": "ATS_TRAVERSE_LINES"})
             mid = verts[len(verts) // 2]
             msp.add_text(
-                t.name, height=th * 0.8, dxfattribs={"layer": "ATS_TRAVERSE_LINES"}
+                t.name, height=th * 0.8, dxfattribs={"layer": "ATS_TRAVERSE_LINES", "style": "ATS"}
             ).set_placement((mid[0], mid[1]), align=TextEntityAlignment.BOTTOM_CENTER)
 
     if result.summary.extent:

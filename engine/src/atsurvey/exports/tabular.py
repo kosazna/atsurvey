@@ -12,6 +12,7 @@ from ..core.models import ProjectInput, ProjectResult
 from ..core.units import from_rad, rad_to_cc
 from . import ExportOptions, selected_points
 from .labels import KIND_LABELS, L
+from .theme import color, load_theme
 
 
 def _fmt(v: float | None, d: int) -> str:
@@ -27,7 +28,7 @@ def to_csv(result: ProjectResult, opts: ExportOptions) -> bytes:
     for p in selected_points(result, opts):
         w.writerow([p.name, _fmt(p.x, d), _fmt(p.y, d), _fmt(p.z, d), p.code or "", p.kind])
     # BOM so Excel opens UTF-8 (Greek point names/codes) correctly
-    return ("﻿" + buf.getvalue()).encode("utf-8")
+    return ("\ufeff" + buf.getvalue()).encode("utf-8")
 
 
 def to_xlsx(
@@ -38,20 +39,73 @@ def to_xlsx(
     unit = opts.angle_unit
     d = opts.decimals
     buf = io.BytesIO()
-    wb = xlsxwriter.Workbook(buf, {"in_memory": True})
+    font = load_theme()["font"]
+    wb = xlsxwriter.Workbook(
+        buf,
+        {
+            "in_memory": True,
+            "default_format_properties": {
+                "font_name": font,
+                "font_size": 10,
+                "font_color": color("text"),
+            },
+        },
+    )
     wb.set_properties({"title": project_name, "author": "ATSurvey"})
-    h = wb.add_format({"bold": True, "bg_color": "#EEF2F7", "border": 1, "border_color": "#CBD5E1"})
+    hair = color("border")
+    h = wb.add_format(
+        {
+            "bold": True,
+            "font_color": color("text-muted"),
+            "bg_color": color("surface-sunken"),
+            "bottom": 1,
+            "bottom_color": color("border-strong"),
+            "valign": "vcenter",
+        }
+    )
+    h_num = wb.add_format(
+        {
+            "bold": True,
+            "font_color": color("text-muted"),
+            "bg_color": color("surface-sunken"),
+            "bottom": 1,
+            "bottom_color": color("border-strong"),
+            "valign": "vcenter",
+            "align": "right",
+        }
+    )
+
+    def head(ws, row: int, labels: list[str], text_cols: tuple[int, ...]) -> None:
+        for col, label in enumerate(labels):
+            ws.write_string(row, col, label, h if col in text_cols else h_num)
+
     title = wb.add_format({"bold": True, "font_size": 14})
     num = wb.add_format({"num_format": "0." + "0" * d if d else "0"})
     ang = wb.add_format({"num_format": "0.0000" if unit in ("gon", "deg") else "0.000000"})
     cc = wb.add_format({"num_format": "+0.0;-0.0;0.0"})
     mm = wb.add_format({"num_format": "+0.000;-0.000;0.000"})
-    red = wb.add_format({"font_color": "#B91C1C", "bold": True})
-    green = wb.add_format({"font_color": "#15803D", "bold": True})
+    scale = wb.add_format({"num_format": "0.0000000"})
+    red = wb.add_format({"font_color": color("danger"), "bold": True})
+    green = wb.add_format({"font_color": color("success"), "bold": True})
+    muted = wb.add_format({"font_color": color("text-muted")})
+
+    def finish(ws, rows: int, cols: int) -> None:
+        """Hairline row separators, hidden gridlines, frozen header."""
+        ws.hide_gridlines(2)
+        ws.freeze_panes(1, 0)
+        ws.set_row(0, 22)
+        if rows > 0:
+            ws.conditional_format(
+                1,
+                0,
+                rows,
+                cols - 1,
+                {"type": "no_errors", "format": wb.add_format({"bottom": 1, "bottom_color": hair})},
+            )
 
     # Points
     ws = wb.add_worksheet(t["points"])
-    ws.write_row(0, 0, [t["name"], "X", "Y", "Z", t["code"], t["kind"], t["source"]], h)
+    head(ws, 0, [t["name"], "X", "Y", "Z", t["code"], t["kind"], t["source"]], (0, 4, 5, 6))
     for i, p in enumerate(selected_points(result, opts), 1):
         ws.write_string(i, 0, p.name)
         ws.write_number(i, 1, round(p.x, d), num)
@@ -59,18 +113,18 @@ def to_xlsx(
         if p.z is not None:
             ws.write_number(i, 3, round(p.z, d), num)
         ws.write_string(i, 4, p.code or "")
-        ws.write_string(i, 5, KIND_LABELS[lang][p.kind])
-        ws.write_string(i, 6, p.source or "")
+        ws.write_string(i, 5, KIND_LABELS[lang][p.kind], muted)
+        ws.write_string(i, 6, p.source or "", muted)
     ws.set_column(0, 0, 12)
     ws.set_column(1, 3, 14)
     ws.set_column(4, 6, 16)
-    ws.freeze_panes(1, 0)
-    ws.autofilter(0, 0, max(1, len(result.points)), 6)
+    finish(ws, len(selected_points(result, opts)), 7)
+    ws.autofilter(0, 0, max(1, len(selected_points(result, opts))), 6)
 
     # Traverse summary
     ws = wb.add_worksheet(t["traverses"])
-    ws.write_row(
-        0,
+    head(
+        ws,
         0,
         [
             t["traverse"],
@@ -87,7 +141,7 @@ def to_xlsx(
             "wz",
             t["status"],
         ],
-        h,
+        (0, 1, 12),
     )
     for i, tr in enumerate(result.traverses, 1):
         ws.write_string(i, 0, tr.name)
@@ -109,14 +163,16 @@ def to_xlsx(
         ws.write_string(i, 12, label, green if ok else red if ok is False else None)
     ws.set_column(0, 0, 28)
     ws.set_column(1, 12, 11)
+    finish(ws, len(result.traverses), 13)
 
     # One sheet per traverse (computation sheet)
     for k, tr in enumerate(result.traverses, 1):
         ws = wb.add_worksheet(f"{t['traverse_short']} {k}"[:31])
+        ws.hide_gridlines(2)
         ws.write(0, 0, tr.name, title)
-        ws.write_row(
+        head(
+            ws,
             2,
-            0,
             [
                 t["station"],
                 t["bs"],
@@ -129,7 +185,7 @@ def to_xlsx(
                 "Y",
                 "Z",
             ],
-            h,
+            (0, 1, 2),
         )
         for i, s in enumerate(tr.stations, 3):
             ws.write_row(i, 0, [s.station, s.backsight, s.foresight])
@@ -142,9 +198,9 @@ def to_xlsx(
             if s.z is not None:
                 ws.write_number(i, 9, round(s.z, d), num)
         r0 = len(tr.stations) + 5
-        ws.write_row(
+        head(
+            ws,
             r0,
-            0,
             [
                 t["from"],
                 t["to"],
@@ -161,14 +217,14 @@ def to_xlsx(
                 "ΔH",
                 "δH",
             ],
-            h,
+            (0, 1),
         )
         for i, leg in enumerate(tr.legs, r0 + 1):
             ws.write_row(i, 0, [leg.frm, leg.to])
             ws.write_number(i, 2, leg.hd_measured, mm)
             ws.write_number(i, 3, leg.n_measurements)
-            ws.write_number(i, 4, leg.reduction_scale, wb.add_format({"num_format": "0.0000000"}))
-            ws.write_number(i, 5, leg.elevation_factor, wb.add_format({"num_format": "0.0000000"}))
+            ws.write_number(i, 4, leg.reduction_scale, scale)
+            ws.write_number(i, 5, leg.elevation_factor, scale)
             ws.write_number(i, 6, leg.distance_grid, mm)
             ws.write_number(i, 7, from_rad(leg.azimuth, unit), ang)
             ws.write_number(i, 8, leg.dx, mm)
@@ -183,8 +239,8 @@ def to_xlsx(
 
     # Detail shots
     ws = wb.add_worksheet(t["detail"])
-    ws.write_row(
-        0,
+    head(
+        ws,
         0,
         [
             t["station"],
@@ -200,7 +256,7 @@ def to_xlsx(
             t["code"],
             t["check"],
         ],
-        h,
+        (0, 1, 10, 11),
     )
     for i, s in enumerate(result.detail, 1):
         ws.write_row(i, 0, [s.station, s.target])
@@ -219,14 +275,16 @@ def to_xlsx(
         if s.check:
             ws.write_string(i, 11, f"{(s.residual or 0) * 1000:.1f} mm")
     ws.set_column(0, 11, 12)
+    finish(ws, len(result.detail), 12)
 
     # Issues
     ws = wb.add_worksheet(t["issues"])
-    ws.write_row(0, 0, [t["severity"], t["code"], t["message"]], h)
+    head(ws, 0, [t["severity"], t["code"], t["message"]], (0, 1, 2))
     for i, iss in enumerate(result.issues, 1):
         ws.write_row(i, 0, [iss.severity, iss.code, localize(iss, lang)])
     ws.set_column(0, 1, 26)
     ws.set_column(2, 2, 100)
+    finish(ws, len(result.issues), 3)
 
     wb.close()
     return buf.getvalue()

@@ -65,6 +65,14 @@ REPORT_LABELS = {
             "Σημεία λεπτομερειών",
             "Οδεύσεις εντός ορίων",
         ],
+        "computation_id": "κωδ. υπολογισμού",
+        "angles_count": "γωνίες",
+        "angular_misclosure": "Γωνιακό σφάλμα",
+        "linear_misclosure": "Γραμμικό σφάλμα",
+        "relative_precision": "Σχετική ακρίβεια",
+        "height_misclosure": "Υψομετρικό σφάλμα",
+        "no_check": "χωρίς έλεγχο",
+        "closing_azimuth": "με αζιμούθιο κλεισίματος",
     },
     "en": {
         "report_title": "Computation report",
@@ -109,6 +117,14 @@ REPORT_LABELS = {
             "Detail points",
             "Traverses within tolerance",
         ],
+        "computation_id": "computation id",
+        "angles_count": "angles",
+        "angular_misclosure": "Angular misclosure",
+        "linear_misclosure": "Linear misclosure",
+        "relative_precision": "Relative precision",
+        "height_misclosure": "Height misclosure",
+        "no_check": "no check",
+        "closing_azimuth": "with closing azimuth",
     },
 }
 
@@ -173,26 +189,53 @@ def to_pdf(
             if tr.within_tolerance is False
             else "unchecked"
         )
-        wb = c(tr.angular_misclosure)
-        if tr.angular_tolerance is not None:
-            wb += f" / {rad_to_cc(tr.angular_tolerance):.0f}"
-        w = m(tr.linear_misclosure, 3, False)
-        if tr.linear_tolerance is not None:
-            w += f" / {tr.linear_tolerance:.3f}"
+        wb_value = c(tr.angular_misclosure)
+        wb_note = (
+            f"{t['limit']} ±{rad_to_cc(tr.angular_tolerance):.0f} cc"
+            if tr.angular_tolerance is not None
+            else t["no_check"]
+        )
+        w_value = "–" if tr.linear_misclosure is None else f"{tr.linear_misclosure * 100:.1f} cm"
+        w_note = (
+            f"{t['limit']} {tr.linear_tolerance * 100:.1f} cm"
+            if tr.linear_tolerance is not None
+            else t["no_check"]
+        )
+        wz_note = (
+            f"{t['limit']} {tr.height_tolerance * 100:.1f} cm"
+            if tr.height_tolerance is not None
+            else t["no_check"]
+        )
+        rel = (
+            f"1:{tr.relative_precision:,.0f}".replace(",", "." if lang == "el" else ",")
+            if tr.relative_precision
+            else "–"
+        )
         trs.append(
             {
                 "name": tr.name,
-                "kind": kinds[tr.kind] + (" (α)" if tr.end_orientation else ""),
+                "kind": kinds[tr.kind]
+                + (f" · {t['closing_azimuth']}" if tr.end_orientation else ""),
+                "kind_short": kinds[tr.kind],
                 "n": str(tr.n_angles),
                 "length": f"{tr.length:.2f} m",
-                "wb": wb,
-                "w": w,
-                "wxy": f"{m(tr.wx)} / {m(tr.wy)}",
-                "rel": f"1:{tr.relative_precision:,.0f}".replace(",", ".")
-                if tr.relative_precision
-                else "–",
+                "wb": (
+                    f"{rad_to_cc(tr.angular_misclosure):+.1f} / "
+                    f"{rad_to_cc(tr.angular_tolerance or 0):.0f}"
+                    if tr.angular_misclosure is not None
+                    else "–"
+                ),
+                "w": m(tr.linear_misclosure, 3, False)
+                + (f" / {tr.linear_tolerance:.3f}" if tr.linear_tolerance is not None else ""),
+                "wb_value": wb_value,
+                "wb_note": wb_note,
+                "w_value": w_value,
+                "w_note": w_note,
+                "wx": m(tr.wx),
+                "wy": m(tr.wy),
+                "rel": rel,
                 "wz": m(tr.wz),
-                "corr": c(tr.stations[0].angle_correction) if tr.stations else "–",
+                "wz_note": wz_note,
                 "status": status,
                 "stations": [
                     [
@@ -259,6 +302,7 @@ def to_pdf(
         ],
         "issues": [
             [
+                i.severity,
                 {
                     "error": "Σφάλμα" if lang == "el" else "Error",
                     "warning": "Προσοχή" if lang == "el" else "Warning",
@@ -269,7 +313,14 @@ def to_pdf(
             if i.severity in ("error", "warning")
         ],
     }
-    template = resources.files("atsurvey.exports").joinpath("templates/report.typ").read_bytes()
-    return typst.compile(
-        template, format="pdf", sys_inputs={"data": json.dumps(data, ensure_ascii=False)}
-    )
+    pkg = resources.files("atsurvey.exports")
+    template = pkg.joinpath("templates/report.typ").read_bytes()
+    theme = pkg.joinpath("theme.json").read_text(encoding="utf-8")
+    with resources.as_file(pkg.joinpath("fonts")) as fonts:
+        return typst.compile(
+            template,
+            format="pdf",
+            # typst's stubs tie font_paths to the template's type; the runtime wants str paths
+            font_paths=[str(fonts)],  # pyright: ignore[reportArgumentType]
+            sys_inputs={"data": json.dumps(data, ensure_ascii=False), "theme": theme},
+        )
