@@ -8,10 +8,12 @@ are added under tests/fixtures/ as they become available.
 import math
 
 import pytest
+
 from atsurvey import ProjectInput, TraverseSpec, compute_project
 from atsurvey.core.units import from_rad
 from atsurvey.formats import detect_format, parse_file
 from atsurvey.formats.base import ParseError
+
 from synth import TRUTH, observe, traverse_setups
 from test_traverse import LINK, assert_truth, control
 

@@ -1,6 +1,7 @@
 import math
 
 import pytest
+
 from atsurvey import ProjectInput, TraverseSpec, compute_project
 from atsurvey.core.geodesy import egsa87_line_scale, egsa87_point_scale, grid_azimuth
 from atsurvey.core.units import (
@@ -12,6 +13,7 @@ from atsurvey.core.units import (
     wrap_2pi,
     wrap_pi,
 )
+
 from synth import TRUTH, observe, traverse_setups
 from test_traverse import LINK, assert_truth, control, pts
 

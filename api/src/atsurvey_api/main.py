@@ -12,17 +12,18 @@ import asyncio
 from typing import Annotated, Literal
 from urllib.parse import quote
 
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile, status
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.responses import JSONResponse, Response
+from pydantic import BaseModel, Field
+
 from atsurvey import ProjectInput, ProjectResult, TraverseSpec, __version__, compute_project
 from atsurvey.core.suggest import suggest_traverses
 from atsurvey.core.units import AngleUnit
 from atsurvey.exports import ExportFormat, ExportOptions, export
 from atsurvey.formats import PARSER_VERSION, ParseError, ParseResult, parse_file
 from atsurvey.formats.base import FormatName
-from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile, status
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import JSONResponse, Response
-from pydantic import BaseModel, Field
 
 from .auth import EXPORTS_BY_PLAN, Caller, get_caller, plan_for, require_compute
 from .config import Settings, get_settings

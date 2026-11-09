@@ -11,6 +11,7 @@ from atsurvey import ProjectInput, TraverseSpec
 from atsurvey_api import auth
 from atsurvey_api.config import Settings, get_settings
 from atsurvey_api.main import app
+
 from synth import TRUTH, observe, traverse_setups
 from test_formats import gsi16
 from test_traverse import LINK, control

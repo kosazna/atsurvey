@@ -3,12 +3,14 @@ import math
 import random
 
 import pytest
+from hypothesis import given, settings
+from hypothesis import strategies as st
+
 from atsurvey import ControlPoint, ProjectInput, TraverseSpec, compute_project
 from atsurvey.core.geodesy import grid_azimuth
 from atsurvey.core.models import ComputeSettings, ReductionSettings
 from atsurvey.core.units import CC_TO_RAD, GON_TO_RAD, rad_to_cc
-from hypothesis import given, settings
-from hypothesis import strategies as st
+
 from synth import CONTROL, TRUTH, observe, traverse_setups
 
 TOL = 1e-4  # 0.1 mm

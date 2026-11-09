@@ -6,8 +6,10 @@ import zipfile
 import ezdxf
 import pytest
 import shapefile
+
 from atsurvey import ProjectInput, TraverseSpec, compute_project
 from atsurvey.exports import ExportOptions, export, slug
+
 from synth import TRUTH, observe, traverse_setups
 from test_traverse import LINK, control
 

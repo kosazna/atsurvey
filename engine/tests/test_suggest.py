@@ -1,5 +1,6 @@
 from atsurvey import ProjectInput, compute_project
 from atsurvey.core.suggest import suggest_traverses
+
 from synth import TRUTH, observe, traverse_setups
 from test_traverse import LINK, control
 
