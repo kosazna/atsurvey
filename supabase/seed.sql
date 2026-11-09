@@ -1,0 +1,6 @@
+-- Seed data for local development.
+--
+-- Intentionally empty: every row in this schema belongs to a workspace, and workspaces are
+-- created by the signup trigger on auth.users. Sign up through the app (or Studio →
+-- Authentication) to get a personal workspace, then use the in-app "demo project" to load
+-- sample data.
