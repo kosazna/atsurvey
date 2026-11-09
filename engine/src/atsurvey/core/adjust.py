@@ -531,11 +531,21 @@ def adjust_network(
         global_test = GlobalTest(
             statistic=vtpv, lower=lower, upper=upper, passed=lower <= vtpv <= upper
         )
-        if not global_test.passed:
+        if vtpv > upper:
+            # observations fit worse than their stated precision: blunders or optimistic σ
             sink.warning(
                 "ADJUSTMENT_GLOBAL_TEST",
                 f"Global test failed: σ0 = {sigma0:.3f} with {dof} degrees of freedom "
                 f"(a priori σ0 = 1); check the a priori precisions or look for blunders",
+                sigma0=round(sigma0, 3),
+                dof=dof,
+            )
+        elif vtpv < lower:
+            # observations fit better than stated: the a priori σ are conservative, not an error
+            sink.info(
+                "ADJUSTMENT_SIGMA0_LOW",
+                f"σ0 = {sigma0:.3f} is below the expected range ({dof} degrees of freedom): "
+                f"the a priori precisions are conservative",
                 sigma0=round(sigma0, 3),
                 dof=dof,
             )

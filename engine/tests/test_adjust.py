@@ -376,6 +376,7 @@ def test_greek_messages_exist():
         "ADJUSTMENT_TOO_LARGE",
         "ADJUSTMENT_NOT_CONVERGED",
         "ADJUSTMENT_GLOBAL_TEST",
+        "ADJUSTMENT_SIGMA0_LOW",
         "ADJUSTMENT_BLUNDER",
         "ADJUSTMENT_NO_REDUNDANCY",
         "ADJUSTMENT_EXCLUDED_POINT",
@@ -396,3 +397,26 @@ def test_control_point_input_untouched():
     )
     assert [c.model_dump() for c in cps] == before
     assert isinstance(cps[0], ControlPoint)
+
+
+def test_low_sigma0_is_informational_not_a_warning():
+    """Perfect data fits better than the a-priori σ: that is a note, not a quality problem."""
+    from atsurvey import ControlPoint, ProjectInput, TraverseSpec, compute_project
+    from atsurvey.core.models import AdjustmentSettings, ComputeSettings
+
+    from synth import CONTROL, TRUTH, traverse_setups
+
+    route = ["T1", "T2", "S1", "S2", "S3", "T3", "T4"]
+    r = compute_project(
+        ProjectInput(
+            control_points=[
+                ControlPoint(name=n, x=TRUTH[n][0], y=TRUTH[n][1], z=TRUTH[n][2]) for n in CONTROL
+            ],
+            setups=traverse_setups(TRUTH, route),
+            traverses=[TraverseSpec(route=route)],
+            settings=ComputeSettings(adjustment=AdjustmentSettings(method="least_squares")),
+        )
+    )
+    codes = {(i.code, i.severity) for i in r.issues}
+    assert ("ADJUSTMENT_SIGMA0_LOW", "info") in codes
+    assert not any(c == "ADJUSTMENT_GLOBAL_TEST" for c, _ in codes)

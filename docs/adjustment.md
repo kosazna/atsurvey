@@ -108,3 +108,12 @@ the axes by `k95 = 2.4477` for a 95 % confidence ellipse.
 * Single-blunder data snooping; there is no iterative automatic rejection.
 * Vertical deflection and geoid variation over the network are ignored (one `geoid_undulation`).
 * The scale factor is not estimated (EGSA87 k is applied in the reduction).
+
+
+### Interpreting the global test
+
+* σ₀ **above** the upper bound → `ADJUSTMENT_GLOBAL_TEST` (warning): the observations fit worse
+  than their stated precision. Look for blunders (w-test) or a priori σ that are too optimistic.
+* σ₀ **below** the lower bound → `ADJUSTMENT_SIGMA0_LOW` (info): the observations fit better
+  than stated; the a priori σ are conservative. This is common with good instruments and is not
+  a quality problem.
