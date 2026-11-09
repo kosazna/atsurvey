@@ -73,6 +73,20 @@ REPORT_LABELS = {
         "height_misclosure": "Υψομετρικό σφάλμα",
         "no_check": "χωρίς έλεγχο",
         "closing_azimuth": "με αζιμούθιο κλεισίματος",
+        "yes": "ναι",
+        "adjustment": "Συνόρθωση ελαχίστων τετραγώνων",
+        "adj_points": "Ακρίβεια σημείων (mm, έλλειψη 95 %)",
+        "adj_obs": "Μεγαλύτερα τυποποιημένα σφάλματα (w-test)",
+        "global_test": "Συνολικός έλεγχος χ²",
+        "suspect": "Πιθανό χονδροειδές σφάλμα",
+        "linework": "Γραμμικά στοιχεία",
+        "line": "Γραμμή",
+        "points_n": "Σημεία",
+        "closed": "Κλειστή",
+        "area": "Εμβαδόν (m²)",
+        "kind_obs": "Είδος",
+        "residual": "Υπόλοιπο",
+        "redundancy": "r",
     },
     "en": {
         "report_title": "Computation report",
@@ -125,6 +139,20 @@ REPORT_LABELS = {
         "height_misclosure": "Height misclosure",
         "no_check": "no check",
         "closing_azimuth": "with closing azimuth",
+        "yes": "yes",
+        "adjustment": "Least-squares adjustment",
+        "adj_points": "Point precision (mm, 95 % ellipse)",
+        "adj_obs": "Largest standardised residuals (w-test)",
+        "global_test": "Global χ² test",
+        "suspect": "Suspected blunder",
+        "linework": "Line work",
+        "line": "Line",
+        "points_n": "Points",
+        "closed": "Closed",
+        "area": "Area (m²)",
+        "kind_obs": "Kind",
+        "residual": "Residual",
+        "redundancy": "r",
     },
 }
 
@@ -150,6 +178,80 @@ def _reductions_text(inp: ProjectInput, lang: str) -> str:
             + f" (κ = {rs.refraction_coefficient})"
         )
     return " · ".join(parts)
+
+
+def _adjustment_section(result: ProjectResult, lang: str, d: int) -> dict | None:
+    adj = result.adjustment
+    if adj is None:
+        return None
+    el = lang == "el"
+    gt = adj.global_test
+    status = "unchecked" if gt is None else ("ok" if gt.passed else "bad")
+    kinds = {
+        "direction": "διεύθυνση" if el else "direction",
+        "distance": "απόσταση" if el else "distance",
+        "height": "υψομ. διαφορά" if el else "height diff.",
+    }
+
+    def resid(o) -> str:
+        if o.kind == "direction":
+            return f"{rad_to_cc(o.residual):+.1f} cc"
+        return f"{o.residual * 1000:+.1f} mm"
+
+    def mm(v: float | None) -> str:
+        return "–" if v is None else f"{v * 1000:.1f}"
+
+    points = [
+        [
+            p.name,
+            mm(p.sx),
+            mm(p.sy),
+            mm(p.sz),
+            mm(p.ellipse.a * p.ellipse.k95) if p.ellipse else "–",
+            mm(p.ellipse.b * p.ellipse.k95) if p.ellipse else "–",
+            f"{from_rad(p.ellipse.theta, 'gon'):.1f}" if p.ellipse else "–",
+        ]
+        for p in result.points
+        if p.sx is not None or p.sz is not None
+    ]
+    worst = sorted(
+        (o for o in adj.observations if o.w is not None),
+        key=lambda o: abs(o.w or 0.0),
+        reverse=True,
+    )[:10]
+    return {
+        "status": status,
+        "stats": [
+            ["σ₀", f"{adj.sigma0:.3f}"],
+            ["dof" if not el else "β. ελευθερίας", str(adj.dof)],
+            ["n", f"{adj.n_observations} / {adj.n_unknowns}"],
+            [
+                "max |w|",
+                f"{adj.max_w:.2f} / {adj.w_critical:.2f}" if adj.max_w is not None else "–",
+            ],
+        ],
+        "global_test": (
+            f"χ² = {gt.statistic:.2f} ∈ [{gt.lower:.2f}, {gt.upper:.2f}]" if gt else "–"
+        ),
+        "points": points,
+        "observations": [
+            [
+                kinds[o.kind],
+                f"{o.station} → {o.target}",
+                resid(o),
+                f"{o.redundancy:.2f}",
+                f"{o.w:+.2f}" if o.w is not None else "–",
+                "●" if o.flagged else "",
+            ]
+            for o in worst
+        ],
+        "suspect": (
+            f"{kinds[adj.suspect.kind]} {adj.suspect.station} → {adj.suspect.target}, "
+            f"w = {adj.suspect.w:+.2f}"
+            if adj.suspect is not None and adj.suspect.w is not None
+            else None
+        ),
+    }
 
 
 def to_pdf(
@@ -311,6 +413,18 @@ def to_pdf(
             ]
             for i in result.issues
             if i.severity in ("error", "warning")
+        ],
+        "adjustment": _adjustment_section(result, lang, d),
+        "linework": [
+            [
+                ln.name,
+                ln.code,
+                str(len(ln.points)),
+                t["yes"] if ln.closed else "–",
+                f"{ln.length:.{d}f}",
+                f"{ln.area:,.2f}".replace(",", " ") if ln.area is not None else "–",
+            ]
+            for ln in result.linework
         ],
     }
     pkg = resources.files("atsurvey.exports")

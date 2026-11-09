@@ -30,6 +30,12 @@ class ExportOptions(BaseModel):
     csv_header: bool = True
     include: list[PointKind] = Field(default_factory=lambda: ["control", "traverse", "detail"])
     dxf_text_height: float = Field(default=0.5, gt=0, le=50)
+    dxf_ellipse_scale: float = Field(
+        default=1000.0,
+        ge=0,
+        le=100_000,
+        description="Exaggeration of 95 % error ellipses in DXF (0 = omit)",
+    )
     language: Literal["el", "en"] = "el"
 
 

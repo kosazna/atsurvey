@@ -164,6 +164,56 @@
   )
 ]
 
+// -------------------------------------------------------------- least squares
+#if d.adjustment != none [
+  #let adj = d.adjustment
+  #pagebreak(weak: true)
+  #grid(
+    columns: (1fr, auto),
+    align: (left + bottom, right + bottom),
+    text(15pt, weight: "semibold", t.adjustment), pill(adj.status),
+  )
+  #v(2pt)
+  #text(fill: muted, t.global_test + ": " + adj.global_test)
+  #v(8pt)
+  #grid(
+    columns: (1fr,) * 4,
+    column-gutter: 8pt,
+    ..adj.stats.map(s => stat(s.at(0), s.at(1))),
+  )
+  #if adj.suspect != none [
+    #v(8pt)
+    #block(width: 100%, inset: (x: 10pt, y: 7pt), radius: th.radius_pt * 1pt, fill: c("warning-subtle"))[
+      #text(weight: "medium", fill: c("warning"), t.suspect + ": ") #adj.suspect
+    ]
+  ]
+  == #t.adj_points
+  #tbl(
+    (1.2fr, 1fr, 1fr, 1fr, 1fr, 1fr, 1fr),
+    (t.name, "σx", "σy", "σz", "a₉₅", "b₉₅", "θ (gon)"),
+    adj.points.map(r => (text(weight: "medium", r.at(0)), ..r.slice(1))),
+  )
+  #if adj.observations.len() > 0 [
+    == #t.adj_obs
+    #tbl(
+      (1.2fr, 2fr, 1.2fr, 0.7fr, 0.8fr, 0.4fr),
+      (t.kind_obs, t.station + " → " + t.fore, t.residual, t.redundancy, "w", ""),
+      adj.observations.map(r => (text(fill: muted, r.at(0)), ..r.slice(1, 5), text(fill: c("danger"), r.at(5)))),
+    )
+  ]
+]
+
+// ------------------------------------------------------------------- linework
+#if d.linework.len() > 0 [
+  = #t.linework
+  #tbl(
+    (1.4fr, 1fr, 0.8fr, 0.8fr, 1.2fr, 1.4fr),
+    (t.line, t.code, t.points_n, t.closed, t.length + " (m)", t.area),
+    d.linework.map(r => (text(weight: "medium", r.at(0)), ..r.slice(1))),
+    align-spec: (x, y) => if x in (0, 1, 3) { left } else { right },
+  )
+]
+
 // ----------------------------------------------------------------- coordinates
 #pagebreak(weak: true)
 = #t.coordinates

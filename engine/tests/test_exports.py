@@ -1,4 +1,6 @@
 import io
+import math
+import pathlib
 import shutil
 import subprocess
 import zipfile
@@ -124,3 +126,108 @@ def test_pdf_english(computed):
 def test_slug():
     assert slug("Οικόπεδο Κηφισιάς / 12") == "Oikopedo_Kifisias_12"
     assert slug("***") == "project"
+
+
+def test_pdf_with_adjustment_and_linework_sections(computed, tmp_path):
+    """Render the least-squares and linework sections from a hand-built result."""
+    from atsurvey.core.models import (
+        AdjustedObservation,
+        AdjustmentResult,
+        ErrorEllipse,
+        GlobalTest,
+        Polyline,
+    )
+
+    inp, res = computed
+    obs = AdjustedObservation(
+        kind="direction",
+        station="S1",
+        target="S2",
+        observed=1.0,
+        adjusted=1.00001,
+        residual=1e-5,
+        sigma=1.6e-5,
+        redundancy=0.4,
+        w=4.1,
+        flagged=True,
+    )
+    adj = AdjustmentResult(
+        converged=True,
+        iterations=3,
+        n_observations=24,
+        n_unknowns=12,
+        dof=12,
+        sigma0=1.12,
+        global_test=GlobalTest(statistic=15.0, lower=4.4, upper=23.3, passed=True),
+        w_critical=3.29,
+        max_w=4.1,
+        suspect=obs,
+        observations=[
+            obs,
+            obs.model_copy(update={"kind": "distance", "w": -1.2, "flagged": False}),
+        ],
+    )
+    points = [
+        p.model_copy(
+            update={
+                "sx": 0.002,
+                "sy": 0.003,
+                "sz": 0.004,
+                "ellipse": ErrorEllipse(a=0.003, b=0.0015, theta=0.5),
+            }
+        )
+        if p.kind == "traverse"
+        else p
+        for p in res.points
+    ]
+    lw = [
+        Polyline(
+            code="OIK",
+            name="OIK#1",
+            points=["S1", "S2", "S3"],
+            closed=True,
+            length=700.0,
+            area=12345.678,
+        )
+    ]
+    rich = res.model_copy(update={"adjustment": adj, "points": points, "linework": lw})
+    data, *_ = export("pdf", "LSA", inp, rich)
+    f = tmp_path / "r.pdf"
+    f.write_bytes(data)
+    if shutil.which("pdftotext"):
+        text = subprocess.run(["pdftotext", str(f), "-"], capture_output=True, text=True).stdout
+        assert "Συνόρθωση ελαχίστων τετραγώνων" in text
+        assert "Πιθανό χονδροειδές σφάλμα" in text
+        assert "Γραμμικά στοιχεία" in text and "OIK#1" in text
+    data_en, *_ = export("pdf", "LSA", inp, rich, ExportOptions(language="en"))
+    assert data_en[:5] == b"%PDF-"
+    (tmp_path / "en.pdf").write_bytes(data_en)
+    import os
+
+    out = os.environ.get("REPORT_PREVIEW")
+    if out:
+        (pathlib.Path(out)).write_bytes(data)
+
+
+def test_dxf_error_ellipses(computed):
+    from atsurvey.core.models import ErrorEllipse
+
+    inp, res = computed
+    points = [
+        p.model_copy(update={"ellipse": ErrorEllipse(a=0.004, b=0.002, theta=math.pi / 2)})
+        if p.kind == "traverse"
+        else p
+        for p in res.points
+    ]
+    rich = res.model_copy(update={"points": points})
+    doc = ezdxf.read(io.StringIO(export("dxf", "t", inp, rich)[0].decode()))
+    ells = list(doc.modelspace().query("ELLIPSE"))
+    assert len(ells) == 3 and ells[0].dxf.layer == "ATS_ELLIPSE_X1000"
+    major = ells[0].dxf.major_axis
+    # θ = 100 gon (east): major axis along +X, length a·k95·scale
+    assert major.x == pytest.approx(0.004 * 2.4477 * 1000) and abs(major.y) < 1e-9
+    assert ells[0].dxf.ratio == pytest.approx(0.5)
+    none = ezdxf.read(
+        io.StringIO(export("dxf", "t", inp, rich, ExportOptions(dxf_ellipse_scale=0))[0].decode())
+    )
+    assert not list(none.modelspace().query("ELLIPSE"))

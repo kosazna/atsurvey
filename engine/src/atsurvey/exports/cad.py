@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import io
+import math
 import re
 
 import ezdxf
@@ -85,6 +86,27 @@ def to_dxf(result: ProjectResult, opts: ExportOptions) -> bytes:
             msp.add_text(
                 t.name, height=th * 0.8, dxfattribs={"layer": "ATS_TRAVERSE_LINES", "style": "ATS"}
             ).set_placement((mid[0], mid[1]), align=TextEntityAlignment.BOTTOM_CENTER)
+
+    # 95 % error ellipses from the least-squares adjustment, exaggerated for visibility
+    scale = opts.dxf_ellipse_scale
+    with_ellipse = [p for p in selected_points(result, opts) if p.ellipse is not None]
+    if scale > 0 and with_ellipse:
+        layer = f"ATS_ELLIPSE_X{scale:g}"
+        doc.layers.add(layer, color=6)
+        for p in with_ellipse:
+            e = p.ellipse
+            assert e is not None
+            a = e.a * e.k95 * scale
+            b = e.b * e.k95 * scale
+            if a <= 0:
+                continue
+            major = (a * math.sin(e.theta), a * math.cos(e.theta), 0.0)
+            msp.add_ellipse(
+                (p.x, p.y, p.z or 0.0),
+                major_axis=major,
+                ratio=max(min(b / a, 1.0), 1e-6),
+                dxfattribs={"layer": layer},
+            )
 
     # field-code line work: one layer per feature code, 3D polylines (closed when coded so)
     for line in result.linework:
