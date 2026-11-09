@@ -9,7 +9,9 @@ from pydantic import BaseModel, Field
 from ..core.models import ControlPoint, Setup
 from ..core.units import AngleUnit
 
-FormatName = Literal["leica_gsi", "trimble_jobxml", "landxml", "nikon_raw", "rw5", "csv", "dxf"]
+FormatName = Literal[
+    "leica_gsi", "trimble_jobxml", "landxml", "nikon_raw", "rw5", "csv", "dxf", "topcon_gts7"
+]
 
 
 class ParseStats(BaseModel):

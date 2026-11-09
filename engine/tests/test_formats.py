@@ -296,3 +296,26 @@ def test_legacy_rw5_style_with_backsight_record():
     assert [o.target for o in s.observations] == ["T2", "101"]
     assert s.observations[1].target_height == pytest.approx(1.8)
     assert s.observations[1].code == "KR"
+
+
+def topcon_gts7(setups, unit="gon"):
+    lines = ["GTS-7", "JOB    test", f"UNITS  M,{'G' if unit == 'gon' else 'D'}"]
+    for s in setups:
+        lines.append(f"STN    {s.station},{s.instrument_height:.3f},STN")
+        for i, o in enumerate(s.observations):
+            rec = "BS" if i == 0 else "SS"
+            lines.append(
+                f"{rec:<6} {o.target},{o.target_height:.3f}" + (f",{o.code}" if o.code else "")
+            )
+            lines.append(f"SD     {from_rad(o.hz, unit):.6f},{from_rad(o.v, unit):.6f},{o.sd:.4f}")
+    return "\n".join(lines).encode()
+
+
+@pytest.mark.parametrize("unit", ["gon", "deg"])
+def test_topcon_gts7_roundtrip(unit):
+    from atsurvey.formats.topcon import parse_topcon_gts7
+
+    p = parse_topcon_gts7(topcon_gts7(survey(), unit), angle_unit="gon")
+    assert p.format == "topcon_gts7" and p.angle_unit == unit
+    r = check(p)
+    assert {pt.name: pt for pt in r.points}["D1"].code == "KR"
