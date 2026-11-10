@@ -69,8 +69,44 @@ supabase functions deploy paddle-webhook --no-verify-jwt
 * Not handled yet: out-of-order delivery (an older event arriving after a newer one overwrites it).
   Paddle retries in order in practice; add an `occurred_at` guard column if it becomes a problem.
 
-Tests: `node --test supabase/functions/paddle-webhook/signature_test.ts` (Node ≥ 22.18) or
-`deno test` inside the function folder.
+### Edge Function: `delete-account`
+
+The signed-in user deletes their own account (Account page). `POST {"confirm": true}` with the
+user's access token; answers `401 reauth_required` unless they signed in within the last 10
+minutes, `409 sole_owner` (with the team names) while they alone own a team that has other
+members. Otherwise it calls `delete_account_data()` (every workspace they are the only member of,
+personal included, with projects, runs and audit events), erases their files at once and deletes
+the auth user (profile and memberships cascade).
+
+```bash
+supabase secrets set ALLOWED_ORIGINS=https://app.atsurvey.gr
+supabase functions deploy delete-account --no-verify-jwt   # token checked with auth.getUser()
+```
+
+### Edge Function: `storage-janitor`
+
+Service-role only (the caller must present the service-role key). Erases queued Storage objects
+(`storage_deletions`, filled when `raw_files` rows are deleted, including cascades), objects no
+row references (older than a day) and workspaces nobody belongs to. Schedule it on the hosted
+project (store the key in Vault first: `select vault.create_secret('<service-role-key>', 'service_role_key');`):
+
+```sql
+select cron.schedule('storage-janitor', '*/15 * * * *', $$
+  select net.http_post(
+    url := 'https://<project-ref>.supabase.co/functions/v1/storage-janitor',
+    headers := jsonb_build_object('Authorization', 'Bearer ' ||
+      (select decrypted_secret from vault.decrypted_secrets where name = 'service_role_key')));
+$$);
+```
+
+```bash
+supabase functions deploy storage-janitor --no-verify-jwt
+# locally (functions are served by `supabase start`):
+curl -X POST http://127.0.0.1:54321/functions/v1/storage-janitor -H "Authorization: Bearer $SERVICE_ROLE_KEY"
+```
+
+Tests for all functions: `node --test supabase/functions/*/*_test.ts` (Node ≥ 22.18; CI runs it).
+Pure logic lives beside each `index.ts` (`signature.ts`, `account.ts`, `_shared/*.ts`).
 
 ## Local development
 
@@ -79,6 +115,15 @@ supabase start            # needs Docker; API on :54321, Studio on :54323, Inbuc
 supabase db reset         # re-apply migrations + seed
 supabase functions serve paddle-webhook --no-verify-jwt --env-file supabase/.env.local
 ```
+
+## Tests inside the local Supabase (macOS, no PostGIS install needed)
+
+```bash
+bash supabase/tests/run_in_supabase.sh     # after `npx supabase start`
+```
+
+Same shim, migrations and tests as below, in a throwaway database inside the running Supabase
+container (Postgres 17 + PostGIS). The app database is not touched.
 
 ## Tests (plain PostgreSQL, no Docker)
 
@@ -89,9 +134,10 @@ supabase/tests/run.sh
 
 `run.sh` creates a throwaway cluster, applies `tests/00_supabase_shim.sql` (roles `anon`,
 `authenticated`, `service_role`; `auth.users`, `auth.uid()`; `storage.buckets/objects`,
-`storage.foldername()`), applies all migrations and runs `tests/rls_test.sql` (66 checks: signup
+`storage.foldername()`), applies all migrations and runs `tests/rls_test.sql` (123 checks: signup
 trigger, cross-user isolation on every table and storage, free-plan limit, subscriptions write
-protection, `save_computation_run` geometry, immutability, cascades, anon lockout, owner-role guards). It exits
+protection, `save_computation_run` geometry, immutability, cascades, anon lockout, owner-role guards,
+viewer/member limits, project moves, storage path rules, audit log, file and account erasure). It exits
 non-zero on the first failure. Env: `PG_BIN`, `PGTEST_DIR`, `PGTEST_PORT`, `KEEP_CLUSTER=1`.
 As root it runs PostgreSQL as the `postgres` user, so `PGTEST_DIR` must be traversable by that user
 (the default `mktemp -d` under `/tmp` is).
@@ -131,3 +177,20 @@ The current user's personal workspace: `from('workspaces').select('*').eq('perso
 * Hosted Supabase grants EXECUTE on new `public` functions to `anon` by default privileges:
   future migrations that add functions should repeat the `revoke execute ... from public, anon`
   pattern at the end of `20261109000001_init.sql`.
+* **Isolation, audit and erasure** (`20261111000001…4`, docs/security.md DB-7 … DB-13):
+  * Role `viewer` (read-only). `can_write_project(uuid)` (owner/admin/member) guards every write
+    policy; `projects_delete` is owner/admin; trigger `guard_project_move` requires owner/admin in
+    both workspaces for a `workspace_id` change.
+  * Storage: `storage_path_project(text)`, `storage_path_in_project(text)`; object access follows
+    the project segment; uploads must name the project's current workspace; bucket
+    `allowed_mime_types` = text/plain, text/csv, application/xml, text/xml, application/dxf,
+    application/octet-stream. Check `raw_files_path_matches_project`.
+  * `audit_events(id, workspace_id, project_id, actor, action, details, created_at)`: written by
+    triggers on projects, workspace_members, workspaces, raw_files, computation_runs and by RPC
+    `log_export(project_id, format)` (authenticated); select for owner/admin; no update/delete
+    for any role. Actions: `project.{created,renamed,archived,restored,moved_out,moved_in,deleted,exported}`,
+    `member.{added,removed,role_changed}`, `workspace.{created,renamed}`, `file.{uploaded,deleted}`,
+    `run.{saved,deleted}`.
+  * Service-role only: `storage_deletions` (queue), `claim_storage_deletions(limit)`,
+    `storage_orphans(limit)`, `purge_memberless_workspaces()`, `account_deletion_blockers(user)`,
+    `delete_account_data(user)`. Authenticated: `my_account_deletion_blockers()`.

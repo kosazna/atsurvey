@@ -41,14 +41,14 @@ jobs:
           PG_BIN: /usr/lib/postgresql/16/bin
 
   webhook:
-    name: Paddle webhook unit tests
+    name: Edge function unit tests
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: "22.18.0"
-      - run: node --test supabase/functions/paddle-webhook/signature_test.ts
+      - run: node --test supabase/functions/*/*_test.ts
 
   web:
     name: Web app (types, tests, build)

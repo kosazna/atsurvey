@@ -25,6 +25,7 @@ from atsurvey.exports import ExportFormat, ExportOptions, export
 from atsurvey.formats import PARSER_VERSION, ParseError, ParseResult, parse_file
 from atsurvey.formats.base import FormatName
 
+from .audit import log_export
 from .auth import EXPORTS_BY_PLAN, Caller, get_caller, plan_for, require_compute
 from .config import Settings, get_settings
 from .routers import cogo
@@ -155,6 +156,8 @@ class ExportRequest(BaseModel):
     input: ProjectInput
     options: ExportOptions = Field(default_factory=ExportOptions)
     workspace_id: str | None = None
+    #: stored project being exported: recorded in its workspace audit log (signed-in callers)
+    project_id: str | None = Field(default=None, max_length=64)
 
 
 @app.post(
@@ -180,6 +183,7 @@ async def export_file(req: ExportRequest, caller: ComputeCaller, s: SettingsDep)
         req.options,
         timeout=s.compute_timeout_s,
     )
+    await log_export(caller, s, req.project_id, req.format)
     ascii_name = filename.encode("ascii", "ignore").decode() or "export"
     return Response(
         content=data,

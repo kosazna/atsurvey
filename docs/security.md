@@ -1,6 +1,7 @@
 # Security
 
-Audit date: 2026-11-10. Scope: engine API, exports, parsers, Supabase schema/RLS/storage,
+Audit dates: 2026-11-10 (full scope), 2026-11-11 (isolation inside workspaces, data removal,
+audit trail). Scope: engine API, exports, parsers, Supabase schema/RLS/storage,
 billing webhook, web app headers, containers and deployment, supply chain.
 
 ## Threat model
@@ -34,8 +35,23 @@ credentials); Paddle ↔ edge function (HMAC signature); CI ↔ VM (SSH key, env
 * `created_by` forced to the caller; owner-role guards; personal workspaces can't be orphaned.
 * Value limits (finite numbers, sane magnitudes, text/jsonb sizes, rows per project/run).
 * Free plan limits enforced in triggers: 3 active projects **and** no extra team workspaces.
-* Storage: private bucket, the path must start with a workspace the caller belongs to, 20 MB.
-* Tests: `supabase/tests/run.sh`, **80 checks** (cross-tenant isolation on every table and storage).
+* Roles inside a workspace: `owner`, `admin`, `member` write; `viewer` reads only. Deleting a
+  project needs owner/admin; moving it to another workspace needs owner/admin on **both** sides.
+* Storage: private bucket, 20 MB, survey file types only (no html/svg/scripts). Access follows the
+  **project** in the path (`{workspace}/{project}/…`), so a moved project's files move with it;
+  an upload must name the project's current workspace; a `raw_files` row may only point at its
+  own project's objects.
+* Append-only `audit_events`: project created/renamed/archived/moved/deleted/exported, members
+  added/removed/role changed, files uploaded/deleted, runs saved/deleted. Written only by
+  `security definer` triggers and the `log_export` RPC; read by owners/admins; no role (not even
+  `service_role`) may update or delete events.
+* Data removal: deleted files are queued (`storage_deletions`) and erased from Storage by the
+  `storage-janitor` edge function, which also sweeps unreferenced objects and memberless
+  workspaces. `delete-account` erases every workspace the user alone belongs to, their files and
+  the auth user; it needs a sign-in within 10 minutes and refuses while the user is the only owner
+  of a team that has other members.
+* Tests: `supabase/tests/run.sh` (CI) or `run_in_supabase.sh` (local), **123 checks**
+  (cross-tenant isolation on every table and storage, roles, moves, audit immutability, erasure).
 
 **Engine API**
 * JWT: ES256/RS256 against JWKS public keys; HS256 only against the shared secret (if set), the
@@ -94,6 +110,13 @@ credentials); Paddle ↔ edge function (HMAC signature); CI ↔ VM (SSH key, env
 
 | ID | Severity | Finding | Status |
 |---|---|---|---|
+| DB-8 | High | Any team member could delete a team project, or move it into their personal workspace and take the data with them | Fixed 2026-11-11 (owner/admin; move needs both sides) |
+| DB-11 | High | Deleting a project or workspace left its raw files in Storage forever | Fixed 2026-11-11 (queue + `storage-janitor`) |
+| DB-12 | High | Deleting an account left the personal workspace, projects and files behind (GDPR erasure) | Fixed 2026-11-11 (`delete-account`) |
+| DB-10 | High | No audit trail: no way to answer who deleted, moved or exported what | Fixed 2026-11-11 (`audit_events`) |
+| DB-13 | High | `raw_files.storage_path` is client-written: a row pointing at another tenant's object would make a service-role cleanup delete that tenant's file | Fixed 2026-11-11 (check constraint, found while building DB-11) |
+| DB-9 | Medium | Storage access followed the workspace segment of the path: a moved project's files stayed readable by the old workspace; any content type was accepted | Fixed 2026-11-11 |
+| DB-7 | Medium | Every member could write; no read-only role for clients or reviewers | Fixed 2026-11-11 (`viewer`) |
 | DB-5 | High | Free users could create unlimited team workspaces, each with 3 free projects (bypass of the project limit) | Fixed (trigger + test) |
 | DB-1 | Medium | `created_by` could be set to another user's id (attribution spoofing) | Fixed |
 | DB-6 | Medium | `save_computation_run` accepted unbounded payloads and malformed point arrays | Fixed |
@@ -130,6 +153,7 @@ Open items and accepted risks:
 - [ ] Rotate `PADDLE_WEBHOOK_SECRET` and the deploy SSH key yearly (the webhook accepts two signatures during rotation)
 - [ ] GitHub: branch protection on `master`, required CI, secret scanning and Dependabot alerts enabled
 - [ ] Review `pnpm audit` / `pip-audit` failures within a week; rerun `supabase/tests/run.sh` after every migration
+- [ ] Schedule `storage-janitor` every 15 min (pg_cron + pg_net, [supabase.md](supabase.md)); set `ALLOWED_ORIGINS` for `delete-account`
 - [ ] Keep the CSP in sync when adding third-party services (CI checks inline scripts only)
 
 ## Reporting a vulnerability

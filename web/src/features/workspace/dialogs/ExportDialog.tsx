@@ -86,6 +86,7 @@ export function ExportDialog() {
             language: i18n.language === "en" ? "en" : "el",
           },
           workspace_id: wsId.data ?? null,
+          project_id: store.kind === "supabase" ? ws.projectId : null,
         });
         downloadBlob(blob, filename);
         toast.success(t("exp.done", { file: filename }));

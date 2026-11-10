@@ -21,6 +21,8 @@ all docs: [`README.md`](README.md).
 | Night 1 — engine | Least-squares network adjustment (σ, error ellipses, χ² global test, Baarda w-test); COGO (inverse, polar, intersections, resection, area, Helmert/affine, chainage, stakeout); geometric levelling; field-code linework; LandXML/KML/GeoJSON exports; DXF point import; DXF error ellipses; report sections; float64 precision proof | ✅ done |
 | Night 1 — security | Threat model, API hardening, export sanitisation, parser fuzzing, RLS re-review, CSP, supply-chain checks | see [security.md](security.md) |
 | Night 1 — web | Landing page, least-squares UI, tools, levelling, linework, run history and comparison, map tools, account and billing | see [web.md](web.md) |
+| Security plan — phase 1 | Isolation inside workspaces (viewer role, delete/move rules), audit log, storage and account erasure | ✅ done 2026-11-11 — see [features.md](features.md) |
+| Security plan — phases 2–4 | Account security + MFA, team workspaces UI, project lifecycle | ⏳ next |
 | M5 Launch | Paddle products, onboarding, landing page, legal, beta with Excel users | ⏳ next |
 
 ## Next steps

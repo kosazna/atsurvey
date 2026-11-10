@@ -80,5 +80,16 @@ enabled = true
 # Paddle cannot send a Supabase JWT; the function verifies the Paddle signature instead.
 verify_jwt = false
 
+[functions.storage-janitor]
+enabled = true
+# Called by pg_cron with the service-role key, which the function compares itself.
+verify_jwt = false
+
+[functions.delete-account]
+enabled = true
+# The function validates the user's token with auth.getUser() (works with ES256 signing keys
+# and rejects signed-out sessions), so the gateway check is not needed.
+verify_jwt = false
+
 [analytics]
 enabled = false

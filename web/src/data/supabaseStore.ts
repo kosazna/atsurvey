@@ -1,5 +1,6 @@
 // Supabase-backed store. Tables and RPCs per docs/contracts.md. RLS scopes everything
 // to the user's workspace; we only need the workspace id when creating rows.
+import { rawFileContentType } from "@/lib/rawFiles";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { normalizeSettings } from "@/lib/types";
 import type { ComputeSettings, DisplayAngleUnit, ParseResult, ProjectResult } from "@/lib/types";
@@ -322,7 +323,7 @@ export class SupabaseStore implements ProjectStore {
   async uploadRawFile(id: string, file: File, parsed: ParseResult) {
     const workspace_id = await this.workspace();
     const path = `${workspace_id}/${id}/${uid()}-${file.name.replace(/[^\w.\-]+/g, "_")}`;
-    const up = await this.sb.storage.from("raw-files").upload(path, file, { upsert: false });
+    const up = await this.sb.storage.from("raw-files").upload(path, file, { upsert: false, contentType: rawFileContentType(file.name) });
     if (up.error) throw new Error(up.error.message);
     const buf = await file.arrayBuffer();
     const hash = await crypto.subtle.digest("SHA-256", buf);

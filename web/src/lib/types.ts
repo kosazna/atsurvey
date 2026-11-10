@@ -425,6 +425,8 @@ export interface ExportRequest {
   input: ProjectInput;
   options: ExportOptions;
   workspace_id?: string | null;
+  /** Stored project being exported; recorded in the workspace audit log when signed in. */
+  project_id?: string | null;
 }
 
 export interface Me {

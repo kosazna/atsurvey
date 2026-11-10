@@ -97,7 +97,8 @@ insert into public.control_points (project_id, name, x, y, z)
 values ('bbbbbbbb-0000-0000-0000-000000000001', 'K1', 476000, 4210000, 120.5);
 insert into public.raw_files (id, project_id, storage_path, filename, format)
 values ('bbbbbbbb-0000-0000-0000-0000000000f1', 'bbbbbbbb-0000-0000-0000-000000000001',
-        'x/y/z.gsi', 'z.gsi', 'leica_gsi');
+        tests.ws_of('22222222-2222-2222-2222-222222222222')::text
+          || '/bbbbbbbb-0000-0000-0000-000000000001/f1-z.gsi', 'z.gsi', 'leica_gsi');
 insert into public.setups (id, project_id, raw_file_id, station, instrument_height)
 values ('bbbbbbbb-0000-0000-0000-0000000000a1', 'bbbbbbbb-0000-0000-0000-000000000001',
         'bbbbbbbb-0000-0000-0000-0000000000f1', 'S1', 1.55);
@@ -442,6 +443,245 @@ select tests.ok(
 select tests.ok(
   (select locale from public.profiles where id = '33333333-3333-3333-3333-333333333333') = 'el',
   'signup ignores unknown locales');
+
+-- ================================================================ isolation (2026-11-11)
+-- Team 'cccc…0001': A owner, B admin (above); D member and V viewer join here.
+insert into auth.users (id, email) values
+  ('44444444-4444-4444-4444-444444444444', 'd@example.test'),
+  ('55555555-5555-5555-5555-555555555555', 'v@example.test');
+insert into public.workspace_members (workspace_id, user_id, role) values
+  ('cccccccc-0000-0000-0000-000000000001', '44444444-4444-4444-4444-444444444444', 'member'),
+  ('cccccccc-0000-0000-0000-000000000001', '55555555-5555-5555-5555-555555555555', 'viewer');
+
+begin;
+set local role authenticated;
+select tests.login('11111111-1111-1111-1111-111111111111');
+insert into public.projects (id, workspace_id, name)
+values ('cccccccc-0000-0000-0000-000000000101', 'cccccccc-0000-0000-0000-000000000001', 'Team project');
+commit;
+
+-- ---------------------------------------------------------------- viewer is read-only (DB-7)
+begin;
+set local role authenticated;
+select tests.login('55555555-5555-5555-5555-555555555555');
+select tests.ok(
+  (select count(*) from public.projects where id = 'cccccccc-0000-0000-0000-000000000101') = 1,
+  'viewer sees team projects');
+select tests.throws(
+  $q$insert into public.control_points (project_id, name, x, y)
+     values ('cccccccc-0000-0000-0000-000000000101', 'V1', 1, 1)$q$,
+  'viewer cannot add points', '42501');
+select tests.ok(
+  tests.affected($q$update public.projects set name = 'hacked'
+                    where id = 'cccccccc-0000-0000-0000-000000000101'$q$) = 0,
+  'viewer cannot rename a project');
+select tests.throws(
+  $q$insert into public.projects (workspace_id, name)
+     values ('cccccccc-0000-0000-0000-000000000001', 'V project')$q$,
+  'viewer cannot create projects', '42501');
+select tests.throws(
+  $q$select public.save_computation_run('cccccccc-0000-0000-0000-000000000101',
+       '{"points":[]}'::jsonb, '{}'::jsonb)$q$,
+  'viewer cannot save runs', '42501');
+select tests.throws(
+  $q$insert into storage.objects (bucket_id, name) values ('raw-files',
+     'cccccccc-0000-0000-0000-000000000001/cccccccc-0000-0000-0000-000000000101/v.gsi')$q$,
+  'viewer cannot upload files', '42501');
+select tests.ok((select count(*) from public.audit_events
+                 where workspace_id = 'cccccccc-0000-0000-0000-000000000001') = 0,
+  'viewer cannot read the team audit log');
+commit;
+
+-- ---------------------------------------------------------------- member limits (DB-8, DB-9)
+begin;
+set local role authenticated;
+select tests.login('44444444-4444-4444-4444-444444444444');
+insert into public.control_points (project_id, name, x, y)
+values ('cccccccc-0000-0000-0000-000000000101', 'D1', 476000, 4210000);
+select tests.ok(true, 'member can edit team project data');
+insert into storage.objects (bucket_id, name) values ('raw-files',
+  'cccccccc-0000-0000-0000-000000000001/cccccccc-0000-0000-0000-000000000101/f-team.gsi');
+insert into public.raw_files (id, project_id, storage_path, filename, format)
+values ('cccccccc-0000-0000-0000-0000000001f1', 'cccccccc-0000-0000-0000-000000000101',
+        'cccccccc-0000-0000-0000-000000000001/cccccccc-0000-0000-0000-000000000101/f-team.gsi',
+        'team.gsi', 'leica_gsi');
+select tests.ok(true, 'member can upload files into the team project');
+select tests.throws(
+  format($q$insert into storage.objects (bucket_id, name) values ('raw-files', %L)$q$,
+    tests.ws_of('44444444-4444-4444-4444-444444444444')::text
+      || '/cccccccc-0000-0000-0000-000000000101/f-wrong-ws.gsi'),
+  'upload path must name the project''s own workspace', '42501');
+select tests.throws(
+  format($q$insert into public.raw_files (project_id, storage_path, filename, format)
+     values ('cccccccc-0000-0000-0000-000000000101', %L, 'x.gsi', 'leica_gsi')$q$,
+    tests.ws_of('22222222-2222-2222-2222-222222222222')::text
+      || '/bbbbbbbb-0000-0000-0000-000000000001/f1-z.gsi'),
+  'a raw file row cannot point at another project''s object', '23514');
+select tests.ok(
+  tests.affected($q$delete from public.projects where id = 'cccccccc-0000-0000-0000-000000000101'$q$) = 0,
+  'member cannot delete a team project');
+select tests.throws(
+  format($q$update public.projects set workspace_id = %L
+            where id = 'cccccccc-0000-0000-0000-000000000101'$q$,
+    tests.ws_of('44444444-4444-4444-4444-444444444444')),
+  'member cannot move a team project into their own workspace', '42501');
+select public.log_export('cccccccc-0000-0000-0000-000000000101', 'pdf');
+select tests.throws(
+  $q$select public.log_export('cccccccc-0000-0000-0000-000000000101', 'pdf; drop')$q$,
+  'log_export rejects malformed formats', '22023');
+select tests.ok((select count(*) from public.audit_events
+                 where workspace_id = 'cccccccc-0000-0000-0000-000000000001') = 0,
+  'member cannot read the team audit log');
+commit;
+
+begin;
+set local role authenticated;
+select tests.login('33333333-3333-3333-3333-333333333333');
+select tests.throws(
+  $q$select public.log_export('cccccccc-0000-0000-0000-000000000101', 'pdf')$q$,
+  'outsiders cannot log exports of a foreign project', '42501');
+commit;
+
+-- ---------------------------------------------------------------- audit log (DB-10)
+begin;
+set local role authenticated;
+select tests.login('11111111-1111-1111-1111-111111111111');
+select tests.ok(
+  (select array_agg(distinct action order by action) from public.audit_events
+   where workspace_id = 'cccccccc-0000-0000-0000-000000000001')
+  @> array['file.uploaded', 'member.added', 'project.created', 'project.exported', 'workspace.created'],
+  'owner reads team events: created, member added, file uploaded, exported');
+select tests.ok(
+  (select actor from public.audit_events where action = 'project.exported')
+    = '44444444-4444-4444-4444-444444444444',
+  'audit events record the actor');
+select tests.ok(
+  not exists (select 1 from public.audit_events
+              where workspace_id = tests.ws_of('22222222-2222-2222-2222-222222222222')),
+  'owner cannot read events of a workspace they do not own');
+select tests.throws($q$update public.audit_events set action = 'x.y'$q$,
+  'audit events cannot be edited', '42501');
+select tests.throws($q$delete from public.audit_events$q$,
+  'audit events cannot be deleted', '42501');
+select tests.throws(
+  $q$insert into public.audit_events (workspace_id, action)
+     values ('cccccccc-0000-0000-0000-000000000001', 'fake.event')$q$,
+  'audit events cannot be forged', '42501');
+commit;
+
+begin;
+set local role service_role;
+select tests.throws($q$update public.audit_events set action = 'x.y'$q$,
+  'not even service_role can edit audit events', '42501');
+select tests.throws($q$delete from public.audit_events$q$,
+  'not even service_role can delete audit events', '42501');
+commit;
+
+-- ---------------------------------------------------------------- moves follow the project (DB-8/9)
+begin;
+set local role authenticated;
+select tests.login('22222222-2222-2222-2222-222222222222');  -- B: team admin, owns personal
+update public.projects set workspace_id = tests.ws_of('22222222-2222-2222-2222-222222222222')
+where id = 'cccccccc-0000-0000-0000-000000000101';
+select tests.ok(
+  (select workspace_id from public.projects where id = 'cccccccc-0000-0000-0000-000000000101')
+    = tests.ws_of('22222222-2222-2222-2222-222222222222'),
+  'admin can move a project between workspaces they administer');
+select tests.ok(
+  (select count(*) from storage.objects where name like '%/cccccccc-0000-0000-0000-000000000101/%') = 1,
+  'moved project''s files stay readable by its new workspace');
+commit;
+
+begin;
+set local role authenticated;
+select tests.login('55555555-5555-5555-5555-555555555555');
+select tests.ok(
+  (select count(*) from storage.objects where name like '%/cccccccc-0000-0000-0000-000000000101/%') = 0,
+  'moved project''s files are no longer readable by the old workspace');
+commit;
+
+select tests.ok(
+  (select count(*) from public.audit_events
+   where project_id = 'cccccccc-0000-0000-0000-000000000101'
+     and action in ('project.moved_out', 'project.moved_in')) = 2,
+  'a move is recorded in both workspaces');
+
+-- ---------------------------------------------------------------- storage cleanup (DB-11)
+begin;
+set local role authenticated;
+select tests.login('22222222-2222-2222-2222-222222222222');
+delete from public.projects where id = 'cccccccc-0000-0000-0000-000000000101';
+select tests.throws($q$select count(*) from public.storage_deletions$q$,
+  'users cannot read the storage deletion queue', '42501');
+select tests.throws($q$select public.storage_orphans()$q$,
+  'users cannot list storage orphans', '42501');
+commit;
+select tests.ok(
+  exists (select 1 from public.storage_deletions
+          where name = 'cccccccc-0000-0000-0000-000000000001/cccccccc-0000-0000-0000-000000000101/f-team.gsi'),
+  'deleting a project queues its stored files for removal');
+-- an object another row still references must not be deleted
+insert into public.storage_deletions (bucket_id, name)
+select 'raw-files', storage_path from public.raw_files where id = 'bbbbbbbb-0000-0000-0000-0000000000f1';
+begin;
+set local role service_role;
+create temporary table claimed on commit drop as select * from public.claim_storage_deletions(100);
+select tests.ok(
+  exists (select 1 from claimed where name like '%/f-team.gsi')
+  and not exists (select 1 from claimed where name like '%/f1-z.gsi'),
+  'janitor claims unreferenced objects and skips ones still referenced');
+commit;
+select tests.ok(
+  exists (select 1 from public.audit_events where action = 'project.deleted'
+          and project_id = 'cccccccc-0000-0000-0000-000000000101'),
+  'project deletion is audited');
+select tests.ok(
+  not exists (select 1 from public.audit_events where action = 'file.deleted'
+              and project_id = 'cccccccc-0000-0000-0000-000000000101'),
+  'cascaded child deletes do not flood the audit log');
+select tests.ok(
+  (select allowed_mime_types from storage.buckets where id = 'raw-files') @> array['text/plain']
+  and not ((select allowed_mime_types from storage.buckets where id = 'raw-files') && array['text/html', 'image/svg+xml']),
+  'raw-files bucket accepts survey file types only');
+
+-- ---------------------------------------------------------------- account deletion (DB-12)
+begin;
+set local role authenticated;
+select tests.login('11111111-1111-1111-1111-111111111111');
+select tests.ok(
+  (select count(*) from public.my_account_deletion_blockers()) = 1,
+  'sole team owner sees the team as a deletion blocker');
+select tests.throws(
+  $q$select public.delete_account_data('33333333-3333-3333-3333-333333333333')$q$,
+  'users cannot call delete_account_data', '42501');
+commit;
+
+begin;
+set local role service_role;
+select tests.throws(
+  $q$select public.delete_account_data('11111111-1111-1111-1111-111111111111')$q$,
+  'account deletion refused while the user alone owns a team with members', 'P0001');
+select tests.ok(
+  public.delete_account_data('33333333-3333-3333-3333-333333333333') = 1,
+  'account deletion removes the personal workspace');
+commit;
+select tests.ok(
+  not exists (select 1 from public.workspace_members where user_id = '33333333-3333-3333-3333-333333333333'),
+  'no memberships remain for the deleted account');
+delete from auth.users where id = '33333333-3333-3333-3333-333333333333';
+select tests.ok(
+  not exists (select 1 from public.profiles where id = '33333333-3333-3333-3333-333333333333'),
+  'deleting the auth user removes the profile');
+
+insert into public.workspaces (id, name, personal) values
+  ('dddddddd-0000-0000-0000-000000000001', 'Orphan', false);
+begin;
+set local role service_role;
+select tests.ok(public.purge_memberless_workspaces() >= 1, 'memberless workspaces are purged');
+commit;
+select tests.ok(
+  not exists (select 1 from public.workspaces where id = 'dddddddd-0000-0000-0000-000000000001'),
+  'orphan workspace is gone');
 
 -- ---------------------------------------------------------------- RLS enabled everywhere
 select tests.ok(

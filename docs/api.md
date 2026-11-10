@@ -18,6 +18,11 @@ or `/openapi.json` and `/docs` on a running server.
 
 \* Anonymous calls are allowed while `ALLOW_ANONYMOUS_COMPUTE=true`; this powers the no-signup demo.
 
+`ExportRequest` = `{format, project_name, input, options, workspace_id?, project_id?}`. When a
+signed-in caller sends `project_id` (a stored project), the API records `project.exported` in
+that workspace's audit log through the `log_export` RPC with the caller's own token
+(`audit.py`; best effort: a logging failure never blocks the download).
+
 ## Authentication and plans
 
 `Authorization: Bearer <Supabase access token>`. Tokens are verified against the project's JWKS

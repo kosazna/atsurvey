@@ -15,10 +15,13 @@ the reference the engine must reproduce.
 engine/   Python package `atsurvey`: pure computations, parsers, exports (pydantic, numpy)
 api/      FastAPI `atsurvey_api`: stateless, verifies Supabase JWTs, plan-gated exports
 web/      Vite + React 19 + TS, TanStack Router/Query, Tailwind v4, Glide grid, MapLibre, i18n el/en
-supabase/ migrations (RLS, storage), Paddle webhook edge function, SQL tests
+supabase/ migrations (RLS, roles, storage, audit), edge functions (paddle-webhook, delete-account,
+          storage-janitor), SQL tests
 deploy/   Docker Compose + Caddy for the Hetzner VM
 design/   tokens.json → scripts/build_tokens.py (palette TBD, font IBM Plex Sans)
 docs/     ALL documentation lives here; index in docs/README.md. Update docs with code.
+          docs/features.md is the feature catalogue: EVERY new or changed feature gets an entry
+          (what, where, status, docs link) and a changelog line, in the same commit.
 ```
 
 ## Run and check
@@ -31,6 +34,8 @@ uv run ruff check engine api && uv run ruff format --check engine api && uv run 
 cd web && pnpm typecheck && pnpm test && pnpm build
 uv run python scripts/check_secrets.py && uv run python scripts/check_csp.py
 bash supabase/tests/run.sh          # migrations + RLS tests (needs local Postgres + PostGIS)
+bash supabase/tests/run_in_supabase.sh  # same tests inside the local Supabase container (macOS)
+node --test supabase/functions/*/*_test.ts  # edge function unit tests
 ```
 Chain gates with `&&` before `git commit` so a failure stops the commit.
 
@@ -52,6 +57,11 @@ Chain gates with `&&` before `git commit` so a failure stops the commit.
   algorithm with the other key type.
 * API tests ignore the repo `.env` (`api/tests/conftest.py`); keep them hermetic.
 * Local Supabase is Postgres 17 (`supabase/config.toml`), same as hosted.
+* New tables/functions in `public` get grants for anon/authenticated by default (Supabase default
+  privileges): always `revoke` explicitly; a CHECK that evaluates to null passes (use coalesce).
+* Roles: owner/admin/member write, viewer reads (`can_write_project`); project delete is
+  owner/admin; moves need owner/admin on both workspaces. Storage access follows the project
+  segment of the path. Audit events are append-only; add a trigger/`audit()` call for new actions.
 * Anything that passes in demo mode still needs the signed-in flow against local Supabase.
 
 ## Open items (docs/PLAN.md has the full list)

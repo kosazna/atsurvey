@@ -2,6 +2,7 @@
 
 | Document | For |
 |---|---|
+| [features.md](features.md) | **what the app offers**: every feature, its status and where it is documented |
 | [PLAN.md](PLAN.md) | roadmap, status, open decisions |
 | [adr/0001-architecture.md](adr/0001-architecture.md) | why the system is built this way |
 | [contracts.md](contracts.md) | API payloads and database schema shared by all parts |
