@@ -4,6 +4,7 @@ Any other exception (IndexError, KeyError, OverflowError, …) would surface as 
 robustness bug; anything slow is a denial-of-service vector.
 """
 
+import contextlib
 import time
 
 import pytest
@@ -16,21 +17,33 @@ from atsurvey.formats.base import FormatName
 FORMATS: list[FormatName] = ["leica_gsi", "trimble_jobxml", "landxml", "nikon_raw", "rw5", "csv"]
 
 PREFIXES = {
-    "leica_gsi": ["*110001+", "21.322+", "22.324+", "31..00+", "84..10+", "87..10+", "88..10+", "11"],
+    "leica_gsi": [
+        "*110001+",
+        "21.322+",
+        "22.324+",
+        "31..00+",
+        "84..10+",
+        "87..10+",
+        "88..10+",
+        "11",
+    ],
     "nikon_raw": ["CO,", "ST,", "F1,", "F2,", "SS,", "UP,", "MO,", ","],
     "rw5": ["LS,HI", "OC,OP", "BK,OP", "SS,OP", "FP", "AR", "ZE", "SD", "--", ",N ", ",E "],
     "csv": ["station,target,hz,v,sd\n", "name,x,y,z\n", ";", ",", "\t", "1e309", "nan", "-"],
     "trimble_jobxml": ["<JOBFile>", "<PointRecord>", "<Circle>", "<StationRecord ID='1'>", "</"],
-    "landxml": ["<LandXML>", "<InstrumentSetup stationName='a'>", "<RawObservation horizAngle='x'>", "<CgPoint name='p'>"],
+    "landxml": [
+        "<LandXML>",
+        "<InstrumentSetup stationName='a'>",
+        "<RawObservation horizAngle='x'>",
+        "<CgPoint name='p'>",
+    ],
 }
 
 
 def _call(data: bytes, fmt: FormatName | None) -> None:
     start = time.perf_counter()
-    try:
+    with contextlib.suppress(ParseError, ValueError):
         parse_file(data, None, fmt=fmt, angle_unit="gon")
-    except (ParseError, ValueError):
-        pass
     assert time.perf_counter() - start < 2.0, "parser too slow on small input"
 
 

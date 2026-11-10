@@ -16,4 +16,5 @@
 | [web.md](web.md) | web app structure, data layer, demo mode, build |
 | [design-system.md](design-system.md) | tokens, typography (IBM Plex Sans), visual rules |
 | [development.md](development.md) | local setup, commands, tests, CI, conventions |
+| [security.md](security.md) | threat model, controls by layer, audit findings, operational checklist |
 | [deploy.md](deploy.md) | going live: Supabase, Hetzner, Cloudflare Pages, checklist |

@@ -6,8 +6,10 @@ import re
 
 from ..core.units import AngleUnit
 from .base import FormatName, ParseError, ParseResult, decode
+from .dxf import parse_dxf
 from .gsi import parse_gsi
 from .textformats import parse_csv, parse_nikon_raw, parse_rw5
+from .topcon import parse_topcon_gts7
 from .xmlformats import parse_jobxml, parse_landxml
 
 PARSER_VERSION = "1"
@@ -15,6 +17,8 @@ PARSER_VERSION = "1"
 #: Upper bounds that keep parsing linear and bounded regardless of input
 MAX_BYTES = 64 * 1024 * 1024
 MAX_LINES = 2_000_000
+
+BINARY_DXF = b"AutoCAD Binary DXF"
 
 _BINARY_HINT = (
     "This looks like a binary file. Export the job as text first: Leica GSI or LandXML "
@@ -33,7 +37,7 @@ def _guard(data: bytes) -> bytes:
     if len(data) > MAX_BYTES:
         raise ParseError(f"File too large ({len(data) // (1024 * 1024)} MB)")
     head = data[:8192]
-    if b"\x00" in head:
+    if b"\x00" in head and not data.startswith(BINARY_DXF):
         raise ParseError(_BINARY_HINT)
     if data.count(b"\n") > MAX_LINES:
         raise ParseError(f"Too many lines (more than {MAX_LINES:,})")
@@ -42,6 +46,8 @@ def _guard(data: bytes) -> bytes:
 
 def detect_format(data: bytes, filename: str | None = None) -> FormatName:
     name = (filename or "").lower()
+    if data.startswith(BINARY_DXF) or name.endswith(".dxf"):
+        return "dxf"
     head = decode(data[:8192]).lstrip("﻿ \r\n\t")
     if head.startswith("<") or name.endswith((".jxl", ".xml")):
         if "<JOBFile" in head:
@@ -52,6 +58,10 @@ def detect_format(data: bytes, filename: str | None = None) -> FormatName:
             return "trimble_jobxml"
         return "landxml"
     lines = [ln.strip() for ln in head.splitlines() if ln.strip()]
+    if lines[:2] == ["0", "SECTION"]:
+        return "dxf"
+    if name.endswith((".gt7", ".gts7")) or (lines and lines[0].upper().startswith("GTS-7")):
+        return "topcon_gts7"
     if name.endswith((".gsi", ".gs8", ".gs16")) or any(
         re.match(r"^\*?11[0-9.]{4}[+-]", ln) for ln in lines[:20]
     ):
@@ -88,6 +98,10 @@ def parse_file(
         return parse_rw5(data, angle_unit or "gon")
     if fmt == "csv":
         return parse_csv(data, angle_unit or "gon")
+    if fmt == "dxf":
+        return parse_dxf(data)
+    if fmt == "topcon_gts7":
+        return parse_topcon_gts7(data, angle_unit or "gon")
     raise ParseError(f"Unsupported format {fmt}")
 
 

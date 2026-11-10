@@ -152,3 +152,24 @@ def test_openapi_schema_lists_routes(client):
     assert {"/v1/parse", "/v1/compute", "/v1/export", "/v1/suggest-traverses", "/v1/me"} <= set(
         paths
     )
+
+
+def test_pro_plan_includes_interchange_formats(client, monkeypatch):
+    async def fake_plan(caller, settings, workspace_id=None):
+        return "pro"
+
+    monkeypatch.setattr("atsurvey_api.main.plan_for", fake_plan)
+    for fmt, ext in (("landxml", ".xml"), ("kml", ".kml"), ("geojson", ".geojson")):
+        r = client.post(
+            "/v1/export",
+            json={"format": fmt, "project_name": "p", "input": project_json()},
+            headers={"Authorization": f"Bearer {token()}"},
+        )
+        assert r.status_code == 200, (fmt, r.text)
+        assert ext in r.headers["content-disposition"]
+    # and they stay locked without the pro plan
+    monkeypatch.undo()
+    r = client.post(
+        "/v1/export", json={"format": "kml", "project_name": "p", "input": project_json()}
+    )
+    assert r.status_code == 402

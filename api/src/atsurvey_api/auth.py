@@ -22,7 +22,7 @@ Plan = Literal["anonymous", "free", "pro"]
 EXPORTS_BY_PLAN: dict[str, list[str]] = {
     "anonymous": ["csv"],
     "free": ["csv", "xlsx"],
-    "pro": ["csv", "xlsx", "shp", "dxf", "pdf"],
+    "pro": ["csv", "xlsx", "shp", "dxf", "pdf", "landxml", "kml", "geojson"],
 }
 
 

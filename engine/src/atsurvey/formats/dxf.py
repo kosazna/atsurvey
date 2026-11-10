@@ -46,13 +46,29 @@ def parse_dxf(data: bytes) -> ParseResult:
     except ImportError as exc:  # pragma: no cover - ezdxf is an export dependency
         raise ParseError("DXF support is not installed") from exc
     try:
-        doc, auditor = recover.read(io.BytesIO(data))
+        if data.startswith(b"AutoCAD Binary DXF"):
+            # recover mode reads ASCII only; binary DXF needs ezdxf's file reader
+            import os
+            import tempfile
+
+            import ezdxf
+
+            fd, tmp = tempfile.mkstemp(suffix=".dxf")
+            try:
+                with os.fdopen(fd, "wb") as fh:
+                    fh.write(data)
+                doc, structural_errors = ezdxf.readfile(tmp), 0  # pyright: ignore[reportPrivateImportUsage]
+            finally:
+                os.unlink(tmp)
+        else:
+            doc, auditor = recover.read(io.BytesIO(data))
+            structural_errors = len(auditor.errors) if auditor.has_errors else 0
     except Exception as exc:  # ezdxf raises several structure errors
         raise ParseError(f"Invalid DXF file: {exc}") from exc
 
     res = ParseResult(format="dxf")
-    if auditor.has_errors:
-        res.warnings.append(f"The DXF had {len(auditor.errors)} structural errors (recovered)")
+    if structural_errors:
+        res.warnings.append(f"The DXF had {structural_errors} structural errors (recovered)")
     msp = doc.modelspace()
     points: list[ControlPoint] = []
     seen: set[str] = set()

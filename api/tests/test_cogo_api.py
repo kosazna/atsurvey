@@ -10,7 +10,7 @@ from atsurvey_api.main import app
 @pytest.fixture
 def client():
     app.dependency_overrides[get_settings] = lambda: Settings(
-        supabase_jwt_secret="test-secret-with-at-least-32-bytes-long!",
+        supabase_jwt_secret="test-secret-with-at-least-32-bytes-long!",  # secret-scan: allow
         supabase_url="http://supabase.invalid",
     )
     yield TestClient(app)

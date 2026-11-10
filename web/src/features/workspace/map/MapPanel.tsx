@@ -91,7 +91,7 @@ function baseStyle(c: MapColors): StyleSpecification {
         tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
         tileSize: 256,
         maxzoom: 19,
-        attribution: '© <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>',
+        attribution: '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a>',
       },
       sat: {
         type: "raster",

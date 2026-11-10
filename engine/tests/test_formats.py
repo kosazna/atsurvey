@@ -319,3 +319,29 @@ def test_topcon_gts7_roundtrip(unit):
     assert p.format == "topcon_gts7" and p.angle_unit == unit
     r = check(p)
     assert {pt.name: pt for pt in r.points}["D1"].code == "KR"
+
+
+def test_detection_of_dxf_and_topcon(computed_dxf_bytes=None):
+    import io as _io
+
+    import ezdxf
+
+    doc = ezdxf.new("R2010")
+    doc.modelspace().add_point((476000.0, 4205000.0, 10.0))
+    s = _io.StringIO()
+    doc.write(s)
+    ascii_dxf = s.getvalue().encode()
+    assert detect_format(ascii_dxf) == "dxf"
+    assert detect_format(b"anything", "drawing.DXF") == "dxf"
+    p = parse_file(ascii_dxf, "x.dxf")
+    assert p.format == "dxf" and len(p.control_points) == 1
+
+    bio = _io.BytesIO()
+    doc.write(bio, fmt="bin")
+    binary = bio.getvalue()
+    assert binary.startswith(b"AutoCAD Binary DXF") and b"\x00" in binary[:200]
+    assert parse_file(binary).format == "dxf"  # not rejected as binary garbage
+
+    gts = topcon_gts7(survey())
+    assert detect_format(gts) == "topcon_gts7"
+    assert parse_file(gts, angle_unit="gon").format == "topcon_gts7"

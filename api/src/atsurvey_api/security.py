@@ -39,7 +39,9 @@ HEAVY_PATHS = ("/v1/export", "/v1/parse")
 # --------------------------------------------------------------------------- helpers
 
 
-async def _send_json(send: Send, status: int, body: dict, headers: list[tuple[bytes, bytes]] = ()):
+async def _send_json(
+    send: Send, status: int, body: dict, headers: tuple[tuple[bytes, bytes], ...] = ()
+):
     payload = json.dumps(body).encode()
     await send(
         {
@@ -348,7 +350,7 @@ class RateLimitMiddleware:
                 send,
                 429,
                 {"detail": "Too many requests", "retry_after": int(retry)},
-                [(b"retry-after", retry.encode())],
+                ((b"retry-after", retry.encode()),),
             )
             return
         await self.app(scope, receive, send)
@@ -380,7 +382,9 @@ async def _acquire(settings: Settings) -> asyncio.Semaphore:
     return sem
 
 
-async def run_guarded(settings: Settings, fn: Callable[..., Any], *args: Any, timeout: float) -> Any:
+async def run_guarded(
+    settings: Settings, fn: Callable[..., Any], *args: Any, timeout: float
+) -> Any:
     """Run ``fn`` in a worker thread, holding a computation slot until the thread finishes
     (a timed-out thread keeps running, so its slot stays taken until it really ends)."""
     sem = await _acquire(settings)
@@ -395,7 +399,7 @@ async def run_guarded(settings: Settings, fn: Callable[..., Any], *args: Any, ti
 def _child(conn, fn, args) -> None:  # pragma: no cover - runs in the child process
     try:
         conn.send((True, fn(*args)))
-    except BaseException as exc:  # noqa: BLE001 - report every failure to the parent
+    except BaseException as exc:
         try:
             conn.send((False, exc))
         except Exception:  # unpicklable exception
