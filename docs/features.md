@@ -45,7 +45,12 @@ screen yet) · 📋 planned (see [PLAN.md](PLAN.md))
 | Project list | Cards with search, create, rename, delete, open the example project | `/projects` | ✅ | [web.md](web.md) |
 | Free-plan limit | 3 active projects (archived ones don't count); Pro unlimited | enforced in the database | ✅ | [supabase.md](supabase.md) |
 | Autosave, undo/redo, keyboard shortcuts, ⌘K command palette | Saved/saving indicator, leave-page guard, `?` shows shortcuts | workspace | ✅ | [web.md](web.md) |
-| Archive / restore, trash (30 days), duplicate, new from another project's settings, download original files, name/delete runs | Project lifecycle | — | 📋 Phase 4 | — |
+| Archive / restore | Archived projects leave the active list and stop counting towards the free-plan limit; restoring checks the limit again | card menu "Αρχειοθέτηση"; tab "Αρχειοθετημένα" | ✅ | [supabase.md](supabase.md) |
+| Trash (30 days) | "Delete" moves a project to the trash (owner/admin), with Undo; trashed projects are read-only and free their plan slot; restore any time within 30 days, then they are purged with their files. "Delete forever" for owner/admin | tab "Κάδος" | ✅ | [security.md](security.md) |
+| Duplicate project | Full copy (points, setups, observations, traverses, settings) in the same workspace; not the original files or runs; counts towards the plan limit | card menu "Αντίγραφο" | ✅ | — |
+| New project with another's settings | Copy computation settings (reductions, tolerances, units) from an existing project | "Νέο έργο" → "Ρυθμίσεις από" | ✅ | — |
+| Original files | The imported instrument files of a project, with size and date; download through a 60-second link | project → Επισκόπηση → "Πρωτότυπα αρχεία" | ✅ (signed in) | — |
+| Named runs, delete runs | Give a saved run a name ("Τελική λύση"); delete runs (writers); everything else in a run stays immutable | project → Ιστορικό | ✅ | — |
 
 ## 4. Importing field data
 
@@ -94,17 +99,27 @@ are recorded in the workspace activity log. Payments (Paddle) are built but park
 ## 8. Security and privacy (what users can rely on)
 
 * **Isolation:** nobody outside a workspace can see or even detect its projects, members or
-  files: enforced by the database on every table and file, with 123 automated checks.
+  files: enforced by the database on every table and file, with 174 automated checks.
 * **Least privilege inside a team:** viewers read only; members cannot delete or take projects
   away; only owners/admins move or delete them.
 * **Accountability:** an activity log that nobody can edit or delete.
-* **Erasure:** deleting a project removes its files from storage; deleting an account removes
-  everything that belonged only to that user.
+* **Erasure:** deleted projects stay 30 days in the trash, then are purged with their files;
+  deleting an account removes everything that belonged only to that user.
 * **Safe files:** private storage, 20 MB limit, survey file types only.
 * **Hardened service:** strict web security headers (CSP), rate limits, size limits, signed
   tokens verified on every request, no data in logs. Details: [security.md](security.md).
 
 ## Changelog (for developers and agents)
+
+* **2026-11-11: project lifecycle (security plan, phase 4).** Migration
+  `20261111000007_lifecycle.sql`: `projects.deleted_at`, `trash_project` / `restore_project`
+  (owner/admin, audited), `purge_trashed_projects` (janitor, 30 days), `duplicate_project`
+  (security invoker), plan limit counts neither archived nor trashed and re-checks on restore,
+  writes blocked in the trash, `computation_runs.label` (column-level update grant only). Web:
+  `data/lifecycle.ts` (+ tests), `features/projects/ProjectShelves.tsx` (Archived / Trash tabs),
+  card menu archive/duplicate, delete → trash with Undo, "settings from" on create,
+  `sections/RawFilesCard.tsx`, `sections/RunLabel.tsx`, run delete; `ProjectStore.deleteRun /
+  labelRun`; locales `lifecycle.*.ts`. Tests: 174 DB checks.
 
 * **2026-11-11: team workspaces (security plan, phase 3).** Migration `20261111000006_teams.sql`:
   `workspace_invitations`, `invite_member` / `my_invitations` / `accept_invitation` /

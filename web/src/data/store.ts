@@ -97,6 +97,8 @@ export interface StoredRun {
   engine_version: string;
   input_hash: string;
   result: ProjectResult;
+  /** user-given name ("Τελική λύση") */
+  label?: string | null;
 }
 
 export interface RunSummary {
@@ -105,6 +107,7 @@ export interface RunSummary {
   engine_version: string;
   input_hash: string;
   summary: Summary | null;
+  label?: string | null;
 }
 
 export interface CreateProjectInput {
@@ -135,6 +138,8 @@ export interface ProjectStore {
   latestRun(id: string): Promise<StoredRun | null>;
   listRuns(id: string): Promise<RunSummary[]>;
   getRun(id: string, runId: string): Promise<StoredRun | null>;
+  deleteRun(id: string, runId: string): Promise<void>;
+  labelRun(id: string, runId: string, label: string | null): Promise<void>;
 }
 
 /** Build the clean engine payload (strips UI/DB-only fields — the engine forbids extras). */

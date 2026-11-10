@@ -56,7 +56,9 @@ credentials); Paddle ↔ edge function (HMAC signature); CI ↔ VM (SSH key, env
 * Membership only by invitation and consent: an invitation names a confirmed e-mail; only that
   user can see and accept it (`my_invitations`, `accept_invitation`); no direct inserts. Fellow
   members' names and e-mails come from `workspace_roster()` (members only); profiles stay private.
-* Tests: `supabase/tests/run.sh` (CI) or `run_in_supabase.sh` (local), **159 checks**
+* Project lifecycle: delete = 30-day trash (owner/admin, audited, read-only while trashed), then
+  purged by `storage-janitor`; runs stay immutable except their label (column-level grant).
+* Tests: `supabase/tests/run.sh` (CI) or `run_in_supabase.sh` (local), **174 checks**
   (cross-tenant isolation on every table and storage, roles, moves, audit immutability, erasure).
 
 **Engine API**

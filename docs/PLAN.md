@@ -22,7 +22,7 @@ all docs: [`README.md`](README.md).
 | Night 1 — security | Threat model, API hardening, export sanitisation, parser fuzzing, RLS re-review, CSP, supply-chain checks | see [security.md](security.md) |
 | Night 1 — web | Landing page, least-squares UI, tools, levelling, linework, run history and comparison, map tools, account and billing | see [web.md](web.md) |
 | Security plan — phase 1 | Isolation inside workspaces (viewer role, delete/move rules), audit log, storage and account erasure | ✅ done 2026-11-11 — see [features.md](features.md) |
-| Security plan — phases 2–4 | Account security + MFA, team workspaces UI, project lifecycle | ⏳ next |
+| Security plan — phases 2–4 | Account security + two-factor + Google sign-in, team workspaces with invitations and roles, project lifecycle (archive, trash, duplicate, files, named runs) | ✅ done 2026-11-11 — see [features.md](features.md) |
 | M5 Launch | Paddle products, onboarding, landing page, legal, beta with Excel users | ⏳ next |
 
 ## Next steps

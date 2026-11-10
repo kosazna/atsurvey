@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { formatMisclosure } from "@/lib/angles";
 import { fmtInt, relativeTime } from "@/lib/utils";
+import { RawFilesCard } from "./RawFilesCard";
 import { useWorkspace } from "../useWorkspace";
 import { TraverseStatusBadge } from "./ReportsSection";
 
@@ -151,6 +152,7 @@ export function OverviewSection() {
             </span>
           )}
         </div>
+        <RawFilesCard projectId={ws.projectId} />
       </div>
     </div>
   );

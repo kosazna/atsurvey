@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, Navigate, useNavigate } from "@tanstack/react-router";
-import { FolderInput, FolderOpen, MoreHorizontal, Pencil, Plus, Search, Sparkles, Trash2, Triangle } from "lucide-react";
+import { Archive, Copy, FolderInput, FolderOpen, MoreHorizontal, Pencil, Plus, Search, Sparkles, Trash2, Triangle } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -12,6 +12,8 @@ import { type MyWorkspace, canManage, canWrite, teams } from "@/data/teams";
 import { teamErrorMessage, useCurrentWorkspace } from "@/data/useTeams";
 import { supabase } from "@/lib/supabase";
 import { InvitationsBanner } from "./InvitationsBanner";
+import { ProjectShelves, type Shelf } from "./ProjectShelves";
+import { lifecycle, TRASH_DAYS } from "@/data/lifecycle";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -36,6 +38,7 @@ function ProjectFormDialog({
   submitLabel,
   onSubmit,
   showUnit,
+  sources,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
@@ -43,12 +46,15 @@ function ProjectFormDialog({
   title: string;
   submitLabel: string;
   showUnit?: boolean;
-  onSubmit: (v: { name: string; description: string | null; angle_unit: DisplayAngleUnit }) => Promise<void>;
+  /** projects whose computation settings can be copied into the new one */
+  sources?: ProjectMeta[];
+  onSubmit: (v: { name: string; description: string | null; angle_unit: DisplayAngleUnit; copyFrom: string | null }) => Promise<void>;
 }) {
   const { t } = useTranslation();
   const [name, setName] = useState(initial?.name ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
   const [unit, setUnit] = useState<DisplayAngleUnit>(initial?.angle_unit ?? "gon");
+  const [copyFrom, setCopyFrom] = useState<string>("");
   const [busy, setBusy] = useState(false);
 
   return (
@@ -61,7 +67,7 @@ function ProjectFormDialog({
             if (!name.trim()) return;
             setBusy(true);
             try {
-              await onSubmit({ name: name.trim(), description: description.trim() || null, angle_unit: unit });
+              await onSubmit({ name: name.trim(), description: description.trim() || null, angle_unit: unit, copyFrom: copyFrom || null });
               onOpenChange(false);
             } catch (err) {
               if ((err as Error).name === "ProjectLimitError") toast.warning(t("projects.limitReached"));
@@ -85,6 +91,17 @@ function ProjectFormDialog({
               </Label>
               <Textarea id="pdesc" value={description} onChange={(e) => setDescription(e.target.value)} rows={2} />
             </div>
+            {sources && sources.length > 0 && (
+              <div className="space-y-1.5">
+                <Label htmlFor="pcopy">{t("life.copySettings")}</Label>
+                <Select<string>
+                  id="pcopy"
+                  value={copyFrom}
+                  onValueChange={setCopyFrom}
+                  options={[{ value: "", label: t("life.copySettingsNone") }, ...sources.map((s) => ({ value: s.id, label: s.name }))]}
+                />
+              </div>
+            )}
             {showUnit && (
               <div className="space-y-1.5">
                 <Label htmlFor="punit">{t("projects.angleUnit")}</Label>
@@ -124,9 +141,12 @@ interface ProjectCardProps {
   /** other workspaces the project can be moved to (caller is owner/admin there) */
   moveTargets: MyWorkspace[];
   onMove: (ws: MyWorkspace) => void;
+  /** signed-in only: archive and duplicate */
+  onArchive?: () => void;
+  onDuplicate?: () => void;
 }
 
-function ProjectCard({ p, onRename, onDelete, role, moveTargets, onMove }: ProjectCardProps) {
+function ProjectCard({ p, onRename, onDelete, role, moveTargets, onMove, onArchive, onDuplicate }: ProjectCardProps) {
   const { t, i18n } = useTranslation();
   const demo = role === undefined;
   const mayRename = demo || canWrite(role);
@@ -154,6 +174,16 @@ function ProjectCard({ p, onRename, onDelete, role, moveTargets, onMove }: Proje
             {mayRename && (
               <DropdownMenuItem onSelect={onRename}>
                 <Pencil /> {t("common.rename")}
+              </DropdownMenuItem>
+            )}
+            {mayRename && onDuplicate && (
+              <DropdownMenuItem onSelect={onDuplicate}>
+                <Copy /> {t("life.duplicate")}
+              </DropdownMenuItem>
+            )}
+            {mayRename && onArchive && (
+              <DropdownMenuItem onSelect={onArchive}>
+                <Archive /> {t("life.archive")}
               </DropdownMenuItem>
             )}
             {mayManage &&
@@ -195,6 +225,7 @@ export function ProjectsPage() {
   const role = cloud ? current?.role : undefined;
   const moveTargets = cloud && current ? workspaces.filter((w) => w.id !== current.id && canManage(w.role)) : [];
   const [q, setQ] = useState("");
+  const [tab, setTab] = useState<"active" | Shelf>("active");
   const [createOpen, setCreateOpen] = useState(false);
   const [renaming, setRenaming] = useState<ProjectMeta | null>(null);
   const [deleting, setDeleting] = useState<ProjectMeta | null>(null);
@@ -233,6 +264,22 @@ export function ProjectsPage() {
     [projects.data, t],
   );
   usePageCommands(commands);
+
+  async function lifecycleAction(fn: () => Promise<unknown>, success: string, undo?: () => Promise<unknown>) {
+    try {
+      await fn();
+      toast.success(success, undo ? { action: { label: t("life.undo"), onClick: () => void undo().then(() => qc.invalidateQueries({ queryKey: ["projects"] })) } } : undefined);
+    } catch (e) {
+      const msg = (e as Error).message;
+      toast.error(msg.includes("project_limit_reached") ? t("projects.limitReached") : teamErrorMessage(t, e));
+    } finally {
+      await qc.invalidateQueries({ queryKey: ["projects"] });
+    }
+  }
+  const archive = (p: ProjectMeta) =>
+    lifecycleAction(() => lifecycle.archive(supabase!, p.id), t("life.archived"), () => lifecycle.unarchive(supabase!, p.id));
+  const duplicate = (p: ProjectMeta) =>
+    lifecycleAction(() => lifecycle.duplicate(supabase!, p.id, t("life.duplicateName", { name: p.name })), t("life.duplicated"));
 
   async function moveProject(p: ProjectMeta, w: MyWorkspace) {
     try {
@@ -292,7 +339,25 @@ export function ProjectsPage() {
           </div>
         </div>
 
-        <div className="mt-6">
+        {cloud && current && (
+          <div className="mt-6 flex gap-1 border-b" role="tablist">
+            {(["active", "archived", "trash"] as const).map((k) => (
+              <button
+                key={k}
+                role="tab"
+                aria-selected={tab === k}
+                onClick={() => setTab(k)}
+                className={`-mb-px border-b-2 px-3 py-1.5 text-sm ${tab === k ? "border-accent font-medium text-fg" : "border-transparent text-muted hover:text-fg"}`}
+                data-testid={`tab-${k}`}
+              >
+                {t(`life.tabs.${k}`)}
+              </button>
+            ))}
+          </div>
+        )}
+        {cloud && current && tab !== "active" && <ProjectShelves shelf={tab} workspaceId={current.id} role={role} />}
+
+        <div className={tab === "active" ? "mt-6" : "hidden"}>
           {projects.isLoading ? (
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {[0, 1, 2].map((i) => (
@@ -328,6 +393,8 @@ export function ProjectsPage() {
                   role={role}
                   moveTargets={moveTargets}
                   onMove={(w) => void moveProject(p, w)}
+                  onArchive={cloud ? () => void archive(p) : undefined}
+                  onDuplicate={cloud ? () => void duplicate(p) : undefined}
                   onRename={() => setRenaming(p)}
                   onDelete={() => setDeleting(p)}
                 />
@@ -341,11 +408,13 @@ export function ProjectsPage() {
         <ProjectFormDialog
           open
           showUnit
+          sources={projects.data ?? []}
           onOpenChange={setCreateOpen}
           title={t("projects.new")}
           submitLabel={t("common.create")}
-          onSubmit={async (v) => {
-            const p = await store!.createProject(v);
+          onSubmit={async ({ copyFrom, ...v }) => {
+            const settings = copyFrom ? (await store!.getProject(copyFrom)).settings : undefined;
+            const p = await store!.createProject(v, settings ? { settings } : undefined);
             await qc.invalidateQueries({ queryKey: ["projects"] });
             void navigate({ to: "/p/$projectId", params: { projectId: p.id } });
           }}
@@ -368,7 +437,9 @@ export function ProjectsPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{t("projects.deleteTitle")}</DialogTitle>
-            <DialogDescription>{t("projects.deleteBody", { name: deleting?.name })}</DialogDescription>
+            <DialogDescription>
+              {t("projects.deleteBody", { name: deleting?.name })} {cloud && t("life.trashHint")}
+            </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setDeleting(null)}>
@@ -378,13 +449,22 @@ export function ProjectsPage() {
               variant="destructive"
               onClick={async () => {
                 if (!deleting) return;
+                const target = deleting;
+                setDeleting(null);
+                if (cloud) {
+                  await lifecycleAction(
+                    () => store!.deleteProject(target.id),
+                    t("life.trashed", { days: TRASH_DAYS }),
+                    () => lifecycle.restore(supabase!, target.id),
+                  );
+                  return;
+                }
                 try {
-                  await store!.deleteProject(deleting.id);
+                  await store!.deleteProject(target.id);
                   await qc.invalidateQueries({ queryKey: ["projects"] });
                 } catch (e) {
                   toast.error((e as Error).message);
                 }
-                setDeleting(null);
               }}
             >
               <Trash2 /> {t("common.delete")}

@@ -925,6 +925,76 @@ select tests.ok(
   'role changes from a transfer are audited');
 commit;
 
+-- ================================================================ lifecycle (phase 4)
+-- B (free plan) has 2 active projects in the personal workspace
+begin;
+set local role authenticated;
+select tests.login('22222222-2222-2222-2222-222222222222');
+select set_config('tests.dup', public.duplicate_project('bbbbbbbb-0000-0000-0000-000000000001', 'B copy')::text, false);
+select tests.ok(
+  (select count(*) from public.control_points where project_id = current_setting('tests.dup')::uuid)
+    = (select count(*) from public.control_points where project_id = 'bbbbbbbb-0000-0000-0000-000000000001')
+  and (select count(*) from public.observations where project_id = current_setting('tests.dup')::uuid)
+    = (select count(*) from public.observations where project_id = 'bbbbbbbb-0000-0000-0000-000000000001')
+  and (select count(*) from public.setups where project_id = current_setting('tests.dup')::uuid) >= 1,
+  'duplicate copies points, setups and observations');
+select tests.ok(
+  (select count(*) from public.setups where project_id = current_setting('tests.dup')::uuid and raw_file_id is not null) = 0,
+  'duplicates do not reference the original raw files');
+select tests.throws(
+  $q$insert into public.projects (workspace_id, name) select workspace_id, 'B 4th' from public.projects where id = 'bbbbbbbb-0000-0000-0000-000000000001'$q$,
+  'duplicates count towards the free-plan limit', 'P0001');
+select public.trash_project(current_setting('tests.dup')::uuid);
+insert into public.projects (id, workspace_id, name)
+select 'bbbbbbbb-0000-0000-0000-0000000000d4', workspace_id, 'B 4th' from public.projects where id = 'bbbbbbbb-0000-0000-0000-000000000001';
+select tests.ok(true, 'trashed projects free their plan slot');
+select tests.throws(
+  format($q$insert into public.control_points (project_id, name, x, y) values (%L, 'T1', 1, 1)$q$, current_setting('tests.dup')),
+  'trashed projects are read-only', '42501');
+select tests.throws(
+  format($q$select public.restore_project(%L)$q$, current_setting('tests.dup')),
+  'restoring obeys the free-plan limit', 'P0001');
+delete from public.projects where id = 'bbbbbbbb-0000-0000-0000-0000000000d4';
+select public.restore_project(current_setting('tests.dup')::uuid);
+select tests.ok(
+  (select deleted_at is null from public.projects where id = current_setting('tests.dup')::uuid),
+  'owners restore projects from the trash');
+select tests.ok(
+  exists (select 1 from public.audit_events where action = 'project.trashed' and project_id = current_setting('tests.dup')::uuid)
+  and exists (select 1 from public.audit_events where action = 'project.untrashed' and project_id = current_setting('tests.dup')::uuid),
+  'trash and restore are audited');
+-- run labels: only the label is editable
+select set_config('tests.run', public.save_computation_run(current_setting('tests.dup')::uuid,
+  '{"engine_version":"1","input_hash":"h","points":[]}'::jsonb, '{}'::jsonb)::text, false);
+update public.computation_runs set label = 'Τελική λύση' where id = current_setting('tests.run')::uuid;
+select tests.ok(
+  (select label from public.computation_runs where id = current_setting('tests.run')::uuid) = 'Τελική λύση',
+  'runs can be labelled');
+select tests.throws(
+  format($q$update public.computation_runs set summary = '{}'::jsonb where id = %L$q$, current_setting('tests.run')),
+  'every other run column stays immutable', '42501');
+select tests.throws($q$select public.purge_trashed_projects()$q$, 'users cannot purge the trash', '42501');
+commit;
+
+begin;
+set local role authenticated;
+select tests.login_aal2('44444444-4444-4444-4444-444444444444');
+select tests.throws(
+  $q$select public.trash_project('cccccccc-0000-0000-0000-000000000201')$q$,
+  'members cannot trash team projects', '42501');
+select tests.ok(
+  tests.affected(format($q$update public.computation_runs set label = 'x' where id = %L$q$, current_setting('tests.run'))) = 0,
+  'outsiders cannot label runs');
+commit;
+
+update public.projects set deleted_at = now() - interval '31 days' where id = current_setting('tests.dup')::uuid;
+begin;
+set local role service_role;
+select tests.ok(public.purge_trashed_projects() >= 1, 'the janitor purges projects 30 days in the trash');
+commit;
+select tests.ok(not exists (select 1 from public.projects where id = current_setting('tests.dup')::uuid),
+  'purged project is gone');
+
 -- ---------------------------------------------------------------- RLS enabled everywhere
 select tests.ok(
   not exists (

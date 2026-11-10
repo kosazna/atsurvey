@@ -217,7 +217,19 @@ export class LocalStore implements ProjectStore {
       engine_version: r.engine_version,
       input_hash: r.input_hash,
       summary: r.result.summary ?? null,
+      label: r.label ?? null,
     }));
+  }
+
+  async deleteRun(id: string, runId: string) {
+    write(runsKey(id), this.runs(id).filter((r) => r.id !== runId));
+  }
+
+  async labelRun(id: string, runId: string, label: string | null) {
+    write(
+      runsKey(id),
+      this.runs(id).map((r) => (r.id === runId ? { ...r, label: label?.trim() || null } : r)),
+    );
   }
 
   async getRun(id: string, runId: string) {

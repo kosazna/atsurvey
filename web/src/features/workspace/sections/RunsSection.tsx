@@ -1,6 +1,6 @@
 // Saved computation runs: list, open read-only, compare two runs (or a run with the live result).
 import { useQuery } from "@tanstack/react-query";
-import { Eye, GitCompareArrows, History, Save } from "lucide-react";
+import { Eye, GitCompareArrows, History, Save, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useStore } from "@/data/session";
 import type { RunSummary, StoredRun } from "@/data/store";
+import { RunLabel } from "./RunLabel";
 import { diffRuns } from "@/lib/runDiff";
 import type { ProjectResult } from "@/lib/types";
 import { cn, fmtNum, fmtSigned, parseNum, relativeTime } from "@/lib/utils";
@@ -118,7 +119,15 @@ export default function RunsSection() {
                         </div>
                       </td>
                       <td className="px-3 py-1.5">
-                        <div className="font-medium">{relativeTime(r.created_at, i18n.language)}</div>
+                        <RunLabel
+                          label={r.label}
+                          readOnly={ws.readOnly}
+                          onSave={async (label) => {
+                            await store.labelRun(ws.projectId, r.id, label);
+                            await runs.refetch();
+                          }}
+                        />
+                        <div className={r.label ? "text-xs text-muted" : "font-medium"}>{relativeTime(r.created_at, i18n.language)}</div>
                         <div className="text-xs text-muted">{new Date(r.created_at).toLocaleString(i18n.language)}</div>
                       </td>
                       <td className="px-3 py-1.5 text-right tabular">{pts ?? "—"}</td>
@@ -135,6 +144,28 @@ export default function RunsSection() {
                         <Button size="sm" variant="ghost" onClick={() => void open(r)}>
                           <Eye /> {t("runs.open")}
                         </Button>
+                        {!ws.readOnly && (
+                          <Button
+                            size="icon-sm"
+                            variant="ghost"
+                            aria-label={t("life.runs.delete")}
+                            onClick={() =>
+                              toast(t("life.runs.delete"), {
+                                action: {
+                                  label: t("common.delete"),
+                                  onClick: () =>
+                                    void store
+                                      .deleteRun(ws.projectId, r.id)
+                                      .then(() => runs.refetch())
+                                      .then(() => toast.success(t("life.runs.deleted")))
+                                      .catch((e: Error) => toast.error(e.message)),
+                                },
+                              })
+                            }
+                          >
+                            <Trash2 />
+                          </Button>
+                        )}
                       </td>
                     </tr>
                   );

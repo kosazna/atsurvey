@@ -1,6 +1,7 @@
 // Supabase Edge Function: storage-janitor (service role only).
 //
-// Removes the stored files of deleted projects and workspaces (queue public.storage_deletions),
+// Purges projects 30 days in the trash, removes the stored files of deleted projects and
+// workspaces (queue public.storage_deletions),
 // objects that no raw_files row references, and workspaces nobody belongs to any more.
 // Scheduled every 15 minutes with pg_cron + pg_net on the hosted project (docs/supabase.md);
 // locally: curl -X POST $API_URL/functions/v1/storage-janitor -H "Authorization: Bearer $SERVICE_ROLE_KEY"
@@ -28,9 +29,11 @@ Deno.serve(async (req: Request) => {
   try {
     const purge = await admin.rpc("purge_memberless_workspaces");
     if (purge.error) throw new Error(`purge_memberless_workspaces: ${purge.error.message}`);
+    const trash = await admin.rpc("purge_trashed_projects"); // 30 days in the trash
+    if (trash.error) throw new Error(`purge_trashed_projects: ${trash.error.message}`);
     const queue = await drainDeletions(admin);
     const orphans = await sweepOrphans(admin);
-    const result = { workspaces_purged: purge.data ?? 0, ...queue, orphans_removed: orphans };
+    const result = { workspaces_purged: purge.data ?? 0, projects_purged: trash.data ?? 0, ...queue, orphans_removed: orphans };
     console.log("storage-janitor", JSON.stringify(result));
     return json(200, result);
   } catch (e) {

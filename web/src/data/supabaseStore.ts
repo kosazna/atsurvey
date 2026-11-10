@@ -99,6 +99,7 @@ export class SupabaseStore implements ProjectStore {
         .select("*, control_points(count), setups(count), traverses(count)")
         .eq("workspace_id", workspace_id)
         .is("archived_at", null)
+        .is("deleted_at", null)
         .order("updated_at", { ascending: false }),
     ) as unknown as (ProjectRow & {
       control_points: { count: number }[];
@@ -153,8 +154,9 @@ export class SupabaseStore implements ProjectStore {
     check(await this.sb.from("projects").update(patch).eq("id", id));
   }
 
+  /** Moves the project to the trash (30 days to restore; owner/admin). See data/lifecycle.ts. */
   async deleteProject(id: string) {
-    check(await this.sb.from("projects").delete().eq("id", id));
+    check(await this.sb.rpc("trash_project", { p_project_id: id }));
   }
 
   async getProject(id: string): Promise<ProjectData> {
@@ -380,11 +382,19 @@ export class SupabaseStore implements ProjectStore {
     return check(
       await this.sb
         .from("computation_runs")
-        .select("id, created_at, engine_version, input_hash, summary")
+        .select("id, created_at, engine_version, input_hash, summary, label")
         .eq("project_id", id)
         .order("created_at", { ascending: false })
         .limit(50),
     ) as RunSummary[];
+  }
+
+  async deleteRun(id: string, runId: string) {
+    check(await this.sb.from("computation_runs").delete().eq("project_id", id).eq("id", runId));
+  }
+
+  async labelRun(id: string, runId: string, label: string | null) {
+    check(await this.sb.from("computation_runs").update({ label: label?.trim() || null }).eq("project_id", id).eq("id", runId));
   }
 
   async getRun(id: string, runId: string): Promise<StoredRun | null> {
