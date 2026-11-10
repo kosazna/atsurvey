@@ -45,7 +45,9 @@ export function ContoursTool() {
             const req = request();
             setUsed(req);
             void r.run(() => surfacesApi.contours(req)).then((res) => {
-              if (res) setContourOverlay(ws.projectId, res.lines.map((l) => ({ z: l.z, index: l.index, points: l.points })));
+              if (!res) return;
+              setContourOverlay(ws.projectId, res.lines.map((l) => ({ z: l.z, index: l.index, points: l.points })));
+              if (res.lines.length > 0) ws.revealMap(); // contours are only visible on the map
             });
           }}
         >
@@ -74,7 +76,10 @@ export function ContoursTool() {
               <IssueList issues={r.result.issues} />
               {onMap && (
                 <label className="flex items-center gap-2 text-sm">
-                  <Switch checked={overlay.visible} onCheckedChange={(v) => setContourVisible(v)} data-testid="surf-contours-map" />
+                  <Switch checked={overlay.visible} onCheckedChange={(v) => {
+                      setContourVisible(v);
+                      if (v) ws.revealMap();
+                    }} data-testid="surf-contours-map" />
                   {t("surfaces.showOnMap")}
                 </label>
               )}

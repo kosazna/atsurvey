@@ -85,7 +85,7 @@ const check = (cond, msg) => {
     }
   });
   if (paths.includes("/v1/cogo/inverse")) {
-    await page.getByTestId("nav-tools").click();
+    await page.getByTestId("nav-cogo").click();
     await page.getByTestId("inv-a").fill("T1");
     await page.getByTestId("inv-b").fill("S2");
     await page.getByTestId("btn-inverse").click();

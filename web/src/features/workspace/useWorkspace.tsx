@@ -7,7 +7,7 @@ import { toProjectInput, type ProjectData, type StoredRun } from "@/data/store";
 import { api, ApiError } from "@/lib/api";
 import { apiErrorMessage } from "@/lib/apiErrors";
 import type { ProjectInput, ProjectResult } from "@/lib/types";
-import type { Section } from "./sections";
+import { mapVisibleFor, parseMapPrefs, type MapPrefs, type Section } from "./sections";
 
 export type ComputeStatus = "idle" | "computing" | "ok" | "error" | "offline";
 type Dialog = "import" | "export" | "settings" | null;
@@ -59,12 +59,19 @@ export interface Workspace {
   lastRun: StoredRun | null;
   selected: string | null;
   setSelected: (name: string | null) => void;
+  /** map shown on the current page (user choice per page, page default, or opened by a tool) */
   mapVisible: boolean;
+  /** the user's explicit show/hide for the current page (remembered per page) */
   setMapVisible: (v: boolean) => void;
+  /** a tool needs the map now (e.g. picking a point): open it until the page or tab changes */
+  revealMap: () => void;
   dialog: Dialog;
   setDialog: (d: Dialog) => void;
   section: Section;
-  goTo: (s: Section, opts?: { setup?: string | null; traverse?: string | null }) => void;
+  /** tab requested on a module page (validated by the page itself) */
+  tool: string | undefined;
+  setTool: (id: string) => void;
+  goTo: (s: Section, opts?: { setup?: string | null; traverse?: string | null; tool?: string }) => void;
   focus: { setup?: string | null; traverse?: string | null };
   /** live result, even while an older run is being viewed */
   liveResult: ProjectResult | null;
@@ -107,21 +114,20 @@ export function useProjectQuery(projectId: string) {
   });
 }
 
-export function WorkspaceProvider({
-  initial,
-  initialRun,
-  section,
-  onSection,
-  readOnly = false,
-  children,
-}: {
+export interface WorkspaceProviderProps {
   initial: ProjectData;
   initialRun: StoredRun | null;
   section: Section;
-  onSection: (s: Section) => void;
+  tool?: string;
+  onSection: (s: Section, tool?: string) => void;
+  onTool: (tool: string) => void;
   readOnly?: boolean;
   children: React.ReactNode;
-}) {
+}
+
+const MAP_PREFS_KEY = "ats-map-pages";
+
+export function WorkspaceProvider({ initial, initialRun, section, tool, onSection, onTool, readOnly = false, children }: WorkspaceProviderProps) {
   const store = useStore();
   const qc = useQueryClient();
   const { t } = useTranslation();
@@ -134,7 +140,18 @@ export function WorkspaceProvider({
   const [error, setError] = useState<string | null>(null);
   const [autoCompute, setAutoComputeState] = useState(() => readLS("ats-autocompute", "1") === "1");
   const [selected, setSelected] = useState<string | null>(null);
-  const [mapVisible, setMapVisibleState] = useState(() => readLS("ats-map", "1") === "1");
+  const [mapPrefs, setMapPrefs] = useState<MapPrefs>(() => parseMapPrefs(readLS(MAP_PREFS_KEY, "")));
+  // A tool may open the map for the current page+tab only. Changing page/tab clears it during render
+  // (no frame with a stale map), and a late reveal from a page already left is dropped.
+  const pageKey = `${section}|${tool ?? ""}`;
+  const pageKeyRef = useRef(pageKey);
+  pageKeyRef.current = pageKey;
+  const [mapForcedFor, setMapForcedFor] = useState<string | null>(null);
+  const [forcedPage, setForcedPage] = useState(pageKey);
+  if (forcedPage !== pageKey) {
+    setForcedPage(pageKey);
+    setMapForcedFor(null);
+  }
   const [dialog, setDialog] = useState<Dialog>(null);
   const [focus, setFocus] = useState<{ setup?: string | null; traverse?: string | null }>({});
   const [viewing, setViewing] = useState<StoredRun | null>(null);
@@ -321,19 +338,35 @@ export function WorkspaceProvider({
     }
   }, []);
 
-  const setMapVisible = useCallback((v: boolean) => {
-    setMapVisibleState(v);
-    try {
-      localStorage.setItem("ats-map", v ? "1" : "0");
-    } catch {
-      /* ignore */
-    }
-  }, []);
+  const setMapVisible = useCallback(
+    (v: boolean) => {
+      setMapForcedFor(null);
+      if (!v) setPick(null); // no map, nothing to pick on
+      setMapPrefs((prev) => {
+        const next = { ...prev, [section]: v };
+        try {
+          localStorage.setItem(MAP_PREFS_KEY, JSON.stringify(next));
+        } catch {
+          /* ignore */
+        }
+        return next;
+      });
+    },
+    [section, setPick],
+  );
+  const revealMap = useCallback(() => {
+    if (pageKeyRef.current === pageKey) setMapForcedFor(pageKey);
+  }, [pageKey]);
+
+  // a page or tab change ends whatever the previous tool was doing on the map
+  useEffect(() => {
+    setPick(null);
+  }, [pageKey, setPick]);
 
   const goTo = useCallback(
-    (s: Section, opts?: { setup?: string | null; traverse?: string | null }) => {
-      setFocus(opts ?? {});
-      onSection(s);
+    (s: Section, opts?: { setup?: string | null; traverse?: string | null; tool?: string }) => {
+      setFocus({ setup: opts?.setup, traverse: opts?.traverse });
+      onSection(s, opts?.tool);
     },
     [onSection],
   );
@@ -370,11 +403,14 @@ export function WorkspaceProvider({
     lastRun,
     selected,
     setSelected,
-    mapVisible,
+    mapVisible: mapVisibleFor(section, mapPrefs, mapForcedFor === pageKey),
     setMapVisible,
+    revealMap,
     dialog,
     setDialog,
     section,
+    tool,
+    setTool: onTool,
     goTo,
     focus,
   };

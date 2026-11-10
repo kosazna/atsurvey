@@ -3,7 +3,7 @@
 Code: [`engine/src/atsurvey/core/preanalysis.py`](../engine/src/atsurvey/core/preanalysis.py),
 contracts [`preanalysis_models.py`](../engine/src/atsurvey/core/preanalysis_models.py) ·
 API [`api/src/atsurvey_api/routers/analysis.py`](../api/src/atsurvey_api/routers/analysis.py) ·
-web: Tools → «Σχεδιασμός δικτύου» → «Προανάλυση»
+web: page «Σχεδιασμός δικτύου» (sidebar group Εργαλεία)
 ([`tools/analysis/`](../web/src/features/workspace/sections/tools/analysis/),
 [`lib/analysisApi.ts`](../web/src/lib/analysisApi.ts)) ·
 tests: [`test_preanalysis.py`](../engine/tests/test_preanalysis.py),

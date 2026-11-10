@@ -108,7 +108,7 @@ export function PointField({
   const resolved = resolvePoint(value, points);
   const picking = ws.pick !== null && ws.pick.name === `pick-${id}`;
   const startPick = () => {
-    if (!ws.mapVisible) ws.setMapVisible(true);
+    ws.revealMap();
     const fn = Object.defineProperty(
       (p: PickedPoint) => {
         onChange(p.name ?? `${p.x.toFixed(3)} ${p.y.toFixed(3)}`);

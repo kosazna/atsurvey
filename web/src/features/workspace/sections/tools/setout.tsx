@@ -3,7 +3,7 @@ import { CheckTool } from "./setout/CheckTool";
 import { PointsTool } from "./setout/PointsTool";
 import type { ToolEntry } from "./registry";
 
-/** Tool tabs of the setout feature (registered in ToolsSection): group «Χαράξεις». */
+/** Tool tabs of the setout feature (composed into a page in sections/modules): group «Χαράξεις». */
 export const SETOUT_TOOLS: ToolEntry[] = [
   { id: "setoutPoints", el: <PointsTool /> },
   { id: "setoutCheck", el: <CheckTool /> },

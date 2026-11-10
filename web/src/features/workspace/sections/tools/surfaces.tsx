@@ -4,7 +4,7 @@ import { ProfileTool } from "./surfaces/ProfileTool";
 import { VolumesTool } from "./surfaces/VolumesTool";
 import type { ToolEntry } from "./registry";
 
-/** Tool tabs of the surfaces feature ("Ανάγλυφο", registered in ToolsSection). */
+/** Tool tabs of the surfaces feature ("Ανάγλυφο", composed into a page in sections/modules). */
 export const SURFACES_TOOLS: ToolEntry[] = [
   { id: "surfContours", el: <ContoursTool /> },
   { id: "surfHeights", el: <HeightsTool /> },

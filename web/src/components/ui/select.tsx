@@ -32,7 +32,7 @@ export function Select<V extends string>({
         id={id}
         aria-label={ariaLabel}
         className={cn(
-          "flex h-8 w-full items-center justify-between gap-2 rounded-md border border-border-strong bg-surface px-2.5 text-sm focus-visible:border-focus focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-focus/25",
+          "flex h-8 w-full min-w-0 items-center justify-between gap-2 whitespace-nowrap rounded-md border border-border-strong bg-surface px-2.5 text-left text-sm [&>span:first-child]:truncate focus-visible:border-focus focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-focus/25",
           className,
         )}
       >

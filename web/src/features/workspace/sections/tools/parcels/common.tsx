@@ -23,7 +23,7 @@ export function useVertexList(pickId: string) {
   const picking = ws.pick !== null && ws.pick.name === pickId;
   const togglePick = useCallback(() => {
     if (picking) return ws.setPick(null);
-    if (!ws.mapVisible) ws.setMapVisible(true);
+    ws.revealMap();
     const fn = Object.defineProperty(
       (p: PickedPoint) => setText((cur) => (cur.trim() ? `${cur.trimEnd()}\n` : "") + (p.name ?? `${p.x.toFixed(3)} ${p.y.toFixed(3)}`)),
       "name",

@@ -111,17 +111,35 @@ All angles are stored and sent in **radians**; the UI converts to the project un
 
 * **Auth** — magic link, email/password, Google OAuth; "try without account" demo entry.
 * **Projects** — cards with counts, search, create (name, description, angle unit), rename, delete; "open example" seeds the demo dataset.
-* **Workspace** — top bar (status pill, import, compute + auto toggle, save run, export, settings, map toggle); sections:
-  overview, control points (Excel paste, CSV import, duplicate highlighting), observations (setups list + editable grid,
-  face I/II shown), traverses (route editor with autocomplete, kind/closure options, server suggestions),
-  coordinates (points / detail shots), computation sheets (misclosures vs tolerances, station and leg tables),
-  checks (translated issues with navigation). Resizable map panel on the right (stacks below on small screens).
+* **Workspace** — top bar (status pill, import, compute + auto toggle, save run, export, settings, map toggle) and a
+  sidebar in four groups (model: `features/workspace/sections.ts`, icons: `navigation.tsx`):
+  * **Δεδομένα**: control points (Excel paste, CSV import, duplicate highlighting), observations (setups list +
+    editable grid, face I/II), traverses (route editor, kind/closure options, server suggestions), levelling;
+  * **Υπολογισμοί**: coordinates, adjustment, lines, computation sheets, checks (issues with navigation), history;
+  * **Εφαρμογές**: Ιδιοκτησίες, Κτηματολόγιο (ΔΓΜ), Ανάγλυφο, Χαράξεις;
+  * **Εργαλεία**: Γεωμετρικοί υπολογισμοί (COGO), Συστήματα συντεταγμένων, Σχεδιασμός δικτύου, Έλεγχοι οργάνων.
+
+  Applications and tools are **module pages**: `MODULE_TOOLS` lists each page's tabs in order,
+  `sections/modules/index.tsx` loads each page's tabs lazily (one chunk per feature) and refuses a page whose tabs
+  drift from that list (`modules.test.ts` loads every page). The open tab is in the URL
+  (`/p/<id>?section=parcels&tool=parcelSubdivide`, validated in `app/router.tsx`; `?section=tools` is an alias of
+  `cogo`). `⌘K` offers every page and every tab. **Adding a tool**: export a `ToolEntry` from its feature folder,
+  add its id to `MODULE_TOOLS`, add `tools.tabs.<id>` / `tools.desc.<id>` in both languages (`navigation.test.ts`
+  fails otherwise).
+* **Map dock** (`map/MapDock.tsx`) — beside the page on wide screens, below it on narrow ones, resizable. Shown or
+  hidden **per page**: `MAP_DEFAULT` (on for data/results pages; off for applications, tools, levelling, sheets,
+  history), overridden by the user's toggle for that page (`localStorage["ats-map-pages"]`). Closed, a slim
+  «Χάρτης» rail reopens it, with a dot when the current tool has drawn geometry. A tool that needs the map calls
+  `ws.revealMap()` (point picking, contours, ellipse scale); that lasts until the page or tab changes and is not
+  remembered; a reveal from a page already left is ignored. Hiding the map cancels point picking. Once opened the
+  map stays mounted while hidden, so zoom and position survive page changes.
 * **Map** — points by kind, labels (name, optional Z) on a canvas overlay, traverse polylines, hover card,
   click-to-select, measure distance/azimuth between two points, EGSA87 cursor coordinates, adaptive EGSA87 grid
   (default) or OpenStreetMap / satellite basemaps, graceful message when WebGL is unavailable.
 * **Dialogs** — import (drag & drop, format detection, per-file preview and warnings), export (plan-aware formats;
   HTTP 402 → upgrade hint), settings (reductions, tolerances, angle unit).
-* **Command palette** — `⌘K`; shortcuts `⌘↵` compute, `⌘I` import, `⌘E` export, `⌘⇧M` toggle map.
+* **Command palette** — `⌘K` (every page and every tool tab); shortcuts `⌘↵` compute, `⌘I` import, `⌘E` export, `⌘⇧M`
+  toggle the map on the current page.
 
 ## Demo dataset
 
@@ -133,13 +151,13 @@ accuracy (< 15 mm).
 
 ## Feature sections (night 1)
 
-All lazily loaded (`WorkspacePage` → `React.lazy`), grouped in the sidebar as Δεδομένα / Αποτελέσματα / Εργαλεία.
+All lazily loaded (`WorkspacePage` → `React.lazy`). Sidebar groups: see *Workspace* above.
 
 | Section | What it does | API |
 |---|---|---|
 | Συνόρθωση (`adjustment`) | Turns on least squares (`settings.adjustment.method`), shows σ₀ and the χ² global test (low σ₀ is a neutral note, high is an error), observations with residual / w / redundancy (sortable by \|w\|), the suspect observation with one-click exclusion (sets `Observation.excluded`, undoable), point σX/σY/σZ and 95 % ellipse axes, and the map ellipse exaggeration (×1 … ×5000) | `/v1/compute` |
 | Γραμμές (`linework`) | Feature codes detected from detail points (chips with counts) → `settings.linework.line_codes`; start/close/end control words; per-code totals and the list of lines with length and closed area. Colours come from tokens via `lib/linePalette.ts` (stable alphabetical assignment) | `/v1/compute` |
-| Εργαλεία (`tools`) | Inverse, polar, intersections (angles / distances / lines), resection, area, Helmert/affine transformation, chainage/offset, stakeout. Point inputs accept a project point name (autocomplete), typed `X Y [Z]`, or a click on the map (crosshair button → `ws.setPick`). Inputs/results are drawn on the map (`ws.setOverlay`) and framed automatically; results can be added as control points with code `COGO` (undoable). Stakeout table downloads as CSV | `/v1/cogo/*` |
+| Γεωμετρικοί υπολογισμοί (`cogo`) | Inverse, polar, intersections (angles / distances / lines), resection, chainage/offset (quick area moved to Ιδιοκτησίες, Helmert/affine to Συστήματα συντεταγμένων, single-point stakeout to Χαράξεις). Point inputs accept a project point name (autocomplete), typed `X Y [Z]`, or a click on the map (crosshair button → `ws.revealMap()` + `ws.setPick`). Inputs/results are drawn on the map (`ws.setOverlay`) and framed automatically; results can be added as control points with code `COGO` (undoable). Stakeout table downloads as CSV | `/v1/cogo/*` |
 | Χωροστάθμηση (`leveling`) | Benchmarks + readings grids (BS/FS/IS, paste from Excel), tolerances and distribution, results with corrections, tolerance pill, CSV of heights, "update Z of control points". Stored in `projects.extras.leveling` | `/v1/leveling` |
 | Ιστορικό (`runs`) | Saved runs (`computation_runs` / LocalStore keeps the last 10), open a run read-only (banner + "back to current"), compare any two runs or a run with the live result: ΔX/ΔY/ΔZ/Δxy per point, threshold highlighting, max / RMS | — |
 

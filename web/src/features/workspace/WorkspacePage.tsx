@@ -2,32 +2,20 @@ import { Link, Navigate, useNavigate, useParams, useSearch } from "@tanstack/rea
 import {
   ArrowLeft,
   Calculator,
-  Crosshair,
   Eye,
   GitCompareArrows,
-  History,
-  Mountain,
   Redo2,
-  Sigma,
-  Spline,
   Undo2,
   Download,
-  FileText,
-  LayoutDashboard,
-  ListOrdered,
   Map as MapIcon,
   PanelRightClose,
   PanelRightOpen,
   Play,
-  Route as RouteIcon,
   Save,
-  ShieldCheck,
   SlidersHorizontal,
-  Telescope,
-  Triangle,
   Upload,
 } from "lucide-react";
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { usePageCommands, type Command } from "@/components/commands";
 import { Logo } from "@/components/Logo";
@@ -47,7 +35,9 @@ import { ShortcutsDialog } from "@/components/ShortcutsDialog";
 import { ExportDialog } from "./dialogs/ExportDialog";
 import { ImportDialog } from "./dialogs/ImportDialog";
 import { SettingsDialog } from "./dialogs/SettingsDialog";
-import type { Section } from "./sections";
+import { NAV, SECTION_ICONS } from "./navigation";
+import { isModule, MODULE_TOOLS, type ModuleId, type Section } from "./sections";
+import { MODULE_PAGES } from "./sections/modules";
 import { ControlSection } from "./sections/ControlSection";
 import { IssuesSection } from "./sections/IssuesSection";
 import { ObservationsSection } from "./sections/ObservationsSection";
@@ -55,31 +45,14 @@ import { OverviewSection } from "./sections/OverviewSection";
 import { ReportsSection } from "./sections/ReportsSection";
 import { ResultsSection } from "./sections/ResultsSection";
 import { TraversesSection } from "./sections/TraversesSection";
+import { MapDock } from "./map/MapDock";
 import { StatusPill } from "./StatusPill";
 import { useProjectQuery, useWorkspace, WorkspaceProvider } from "./useWorkspace";
 
-const MapPanel = lazy(() => import("./map/MapPanel"));
 const AdjustmentSection = lazy(() => import("./sections/AdjustmentSection"));
-const ToolsSection = lazy(() => import("./sections/ToolsSection"));
 const LevelingSection = lazy(() => import("./sections/LevelingSection"));
 const LineworkSection = lazy(() => import("./sections/LineworkSection"));
 const RunsSection = lazy(() => import("./sections/RunsSection"));
-
-type NavGroup = "data" | "results" | "tools" | null;
-const NAV: { id: Section; icon: React.ReactNode; group: NavGroup }[] = [
-  { id: "overview", icon: <LayoutDashboard />, group: null },
-  { id: "control", icon: <Triangle />, group: "data" },
-  { id: "observations", icon: <Telescope />, group: "data" },
-  { id: "traverses", icon: <RouteIcon />, group: "data" },
-  { id: "results", icon: <ListOrdered />, group: "results" },
-  { id: "adjustment", icon: <Sigma />, group: "results" },
-  { id: "reports", icon: <FileText />, group: "results" },
-  { id: "linework", icon: <Spline />, group: "results" },
-  { id: "issues", icon: <ShieldCheck />, group: "results" },
-  { id: "tools", icon: <Crosshair />, group: "tools" },
-  { id: "leveling", icon: <Mountain />, group: "tools" },
-  { id: "runs", icon: <History />, group: "tools" },
-];
 
 export function WorkspacePage() {
   const { mode } = useSession();
@@ -88,16 +61,28 @@ export function WorkspacePage() {
   const navigate = useNavigate();
   const section: Section = search.section ?? "overview";
   const onSection = useCallback(
-    (s: Section) => void navigate({ to: "/p/$projectId", params: { projectId }, search: { section: s } }),
+    (s: Section, tool?: string) => void navigate({ to: "/p/$projectId", params: { projectId }, search: tool ? { section: s, tool } : { section: s } }),
     [navigate, projectId],
+  );
+  const onTool = useCallback(
+    (tool: string) => void navigate({ to: "/p/$projectId", params: { projectId }, search: { section, tool }, replace: true }),
+    [navigate, projectId, section],
   );
 
   if (mode === "none") return <Navigate to="/" />;
   if (mode === "loading") return null;
-  return <WorkspaceLoader key={projectId} projectId={projectId} section={section} onSection={onSection} />;
+  return <WorkspaceLoader key={projectId} projectId={projectId} section={section} tool={search.tool} onSection={onSection} onTool={onTool} />;
 }
 
-function WorkspaceLoader({ projectId, section, onSection }: { projectId: string; section: Section; onSection: (s: Section) => void }) {
+interface WorkspaceLoaderProps {
+  projectId: string;
+  section: Section;
+  tool: string | undefined;
+  onSection: (s: Section, tool?: string) => void;
+  onTool: (tool: string) => void;
+}
+
+function WorkspaceLoader({ projectId, section, tool, onSection, onTool }: WorkspaceLoaderProps) {
   const { t } = useTranslation();
   const q = useProjectQuery(projectId);
   const workspaces = useMyWorkspaces();
@@ -111,7 +96,7 @@ function WorkspaceLoader({ projectId, section, onSection }: { projectId: string;
         </div>
         <div className="flex flex-1">
           <div className="hidden w-52 space-y-2 border-r p-3 md:block">
-            {NAV.map((n) => (
+            {NAV.slice(0, 12).map((n) => (
               <Skeleton key={n.id} className="h-7" />
             ))}
           </div>
@@ -140,7 +125,15 @@ function WorkspaceLoader({ projectId, section, onSection }: { projectId: string;
     );
   }
   return (
-    <WorkspaceProvider initial={q.data.data} initialRun={q.data.run} section={section} onSection={onSection} readOnly={role === "viewer"}>
+    <WorkspaceProvider
+      initial={q.data.data}
+      initialRun={q.data.run}
+      section={section}
+      tool={tool}
+      onSection={onSection}
+      onTool={onTool}
+      readOnly={role === "viewer"}
+    >
       <WorkspaceLayout />
     </WorkspaceProvider>
   );
@@ -152,40 +145,15 @@ function isTextField(t: EventTarget | null): boolean {
   return el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable;
 }
 
-function useMapWidth() {
-  const [width, setWidth] = useState(() => {
-    try {
-      return Number(localStorage.getItem("ats-map-width")) || 460;
-    } catch {
-      return 460;
-    }
-  });
-  const dragging = useRef(false);
-  const start = (e: React.PointerEvent) => {
-    dragging.current = true;
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
-  };
-  const move = (e: React.PointerEvent) => {
-    if (!dragging.current) return;
-    const w = Math.max(280, Math.min(window.innerWidth - 480, window.innerWidth - e.clientX));
-    setWidth(w);
-  };
-  const end = () => {
-    dragging.current = false;
-    try {
-      localStorage.setItem("ats-map-width", String(Math.round(width)));
-    } catch {
-      /* ignore */
-    }
-  };
-  return { width, handlers: { onPointerDown: start, onPointerMove: move, onPointerUp: end, onPointerCancel: end } };
-}
-
 function WorkspaceLayout() {
   const { t } = useTranslation();
   const ws = useWorkspace();
   const { mode } = useSession();
-  const { width, handlers } = useMapWidth();
+  const navRef = useRef<HTMLElement>(null);
+  // keep the current page in view in the sidebar (horizontal bar on phones, scrolling list on short screens)
+  useEffect(() => {
+    navRef.current?.querySelector(`[data-testid="nav-${ws.section}"]`)?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }, [ws.section]);
   const issueCount = ws.result?.issues.filter((i) => i.severity !== "info").length ?? 0;
   const errorCount = ws.result?.issues.filter((i) => i.severity === "error").length ?? 0;
 
@@ -228,6 +196,17 @@ function WorkspaceLayout() {
   const commands = useMemo<Command[]>(
     () => [
       ...NAV.map((n) => ({ id: `nav-${n.id}`, group: t("cmd.navigation"), label: t(`ws.sections.${n.id}`), icon: n.icon, run: () => ws.goTo(n.id) })),
+      ...(Object.keys(MODULE_TOOLS) as ModuleId[])
+        .filter((m) => MODULE_TOOLS[m].length > 1)
+        .flatMap((m) =>
+          MODULE_TOOLS[m].map((tool) => ({
+            id: `tool-${m}-${tool}`,
+            group: t("cmd.tools"),
+            label: `${t(`ws.sections.${m}`)} · ${t(`tools.tabs.${tool}`)}`,
+            icon: SECTION_ICONS[m],
+            run: () => ws.goTo(m, { tool }),
+          })),
+        ),
       { id: "compute", group: t("cmd.actions"), label: t("ws.compute"), icon: <Play />, shortcut: "⌘↵", run: ws.compute },
       { id: "import", group: t("cmd.actions"), label: t("imp.title"), icon: <Upload />, shortcut: "⌘I", run: () => ws.setDialog("import") },
       { id: "export", group: t("cmd.actions"), label: t("exp.title"), icon: <Download />, shortcut: "⌘E", run: () => ws.setDialog("export") },
@@ -245,6 +224,10 @@ function WorkspaceLayout() {
   usePageCommands(commands);
 
   const content = (() => {
+    if (isModule(ws.section)) {
+      const Page = MODULE_PAGES[ws.section];
+      return <Page />;
+    }
     switch (ws.section) {
       case "overview":
         return <OverviewSection />;
@@ -262,8 +245,6 @@ function WorkspaceLayout() {
         return <IssuesSection />;
       case "adjustment":
         return <AdjustmentSection />;
-      case "tools":
-        return <ToolsSection />;
       case "leveling":
         return <LevelingSection />;
       case "linework":
@@ -350,8 +331,15 @@ function WorkspaceLayout() {
               <SlidersHorizontal />
             </Button>
           </Tooltip>
-          <Tooltip content={ws.mapVisible ? t("ws.hideMap") : t("ws.showMap")}>
-            <Button variant="ghost" size="icon-sm" onClick={() => ws.setMapVisible(!ws.mapVisible)} aria-label={t("ws.map")} className="hidden md:inline-flex">
+          <Tooltip content={<span className="flex items-center gap-1.5">{ws.mapVisible ? t("ws.hideMap") : t("ws.showMap")} <Kbd className="border-bg bg-bg/10 text-bg">⌘⇧M</Kbd></span>}>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => ws.setMapVisible(!ws.mapVisible)}
+              aria-label={ws.mapVisible ? t("ws.hideMap") : t("ws.showMap")}
+              aria-pressed={ws.mapVisible}
+              data-testid="btn-map"
+            >
               {ws.mapVisible ? <PanelRightClose /> : <PanelRightOpen />}
             </Button>
           </Tooltip>
@@ -361,7 +349,7 @@ function WorkspaceLayout() {
 
       <div className="flex min-h-0 flex-1 flex-col md:flex-row">
         {/* sidebar */}
-        <nav className="flex shrink-0 gap-0.5 overflow-x-auto border-b bg-bg p-1.5 md:w-(--sidebar-width) md:flex-col md:overflow-visible md:border-b-0 md:border-r md:p-2" aria-label="Sections">
+        <nav ref={navRef} className="flex shrink-0 gap-0.5 overflow-x-auto border-b bg-bg p-1.5 md:w-(--sidebar-width) md:flex-col md:overflow-x-hidden md:overflow-y-auto md:border-b-0 md:border-r md:p-2" aria-label="Sections">
           {NAV.map((n, idx) => {
             const active = ws.section === n.id;
             const groupLabel = n.group && n.group !== NAV[idx - 1]?.group ? (
@@ -423,18 +411,7 @@ function WorkspaceLayout() {
             )}
             <Suspense fallback={<Skeleton className="m-4 h-64" />}>{content}</Suspense>
           </main>
-          {ws.mapVisible && (
-            <>
-              <div className="relative hidden w-px shrink-0 cursor-col-resize bg-border lg:block" {...handlers}>
-                <div className="absolute inset-y-0 -left-1.5 -right-1.5 hover:bg-accent-subtle" />
-              </div>
-              <aside className="h-80 shrink-0 border-t lg:h-auto lg:border-t-0 lg:[width:var(--map-w)]" style={{ "--map-w": `${width}px` } as React.CSSProperties}>
-                <Suspense fallback={<Skeleton className="h-full rounded-none" />}>
-                  <MapPanel />
-                </Suspense>
-              </aside>
-            </>
-          )}
+          <MapDock />
         </div>
       </div>
 

@@ -71,7 +71,10 @@ Chain gates with `&&` before `git commit` so a failure stops the commit.
   error; awaiting the owner's confirmation.
 * Surveying tools (parcels, ΔΓΜ, surfaces, setout, analysis, instruments, coords) are blocked on
   owner input listed as D1–D10 in docs/science-roadmap.md. HEPOS grids must NEVER be committed
-  (licence); they are mounted via `ATSURVEY_HEPOS_GRID_DIR`. New tool groups register in
-  web/src/features/workspace/sections/ToolsSection.tsx with strings in locales/<pkg>.{el,en}.ts.
+  (licence); they are mounted via `ATSURVEY_HEPOS_GRID_DIR`. A new tool tab is a `ToolEntry` +
+  its id in `MODULE_TOOLS` (web/src/features/workspace/sections.ts) + `tools.tabs/desc.<id>` in
+  locales/<pkg>.{el,en}.ts; navigation.test.ts / modules.test.ts fail if any piece is missing.
+* Map visibility is per page (`MAP_DEFAULT` in sections.ts + the user's toggle). Tools that need the
+  map call `ws.revealMap()`, never `setMapVisible` (that is the user's remembered choice).
 * Hosted Supabase (Frankfurt), custom SMTP, domain + Hetzner deploy (docs/deploy.md), Paddle.
 * Colour palette not chosen yet: change design/tokens.json only, never hard-code colours.

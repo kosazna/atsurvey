@@ -1,10 +1,12 @@
-import { ArrowRight, Check, Crosshair, FileDown, History, ListOrdered, Mountain, Route as RouteIcon, ShieldCheck, Sigma, Spline, Telescope, Triangle, Upload } from "lucide-react";
+import { ArrowRight, Check, FileDown, ListOrdered, Route as RouteIcon, ShieldCheck, Telescope, Triangle, Upload } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { formatMisclosure } from "@/lib/angles";
 import { fmtInt, relativeTime } from "@/lib/utils";
+import { SECTION_ICONS } from "../navigation";
+import { SECTION_GROUP, SECTIONS } from "../sections";
 import { RawFilesCard } from "./RawFilesCard";
 import { useWorkspace } from "../useWorkspace";
 import { TraverseStatusBadge } from "./ReportsSection";
@@ -114,33 +116,27 @@ export function OverviewSection() {
           </Card>
         </div>
 
-        <div>
-          <div className="mb-2 text-sm font-semibold">{t("overview.more")}</div>
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
-            {(
-              [
-                { id: "adjustment", icon: <Sigma /> },
-                { id: "linework", icon: <Spline /> },
-                { id: "tools", icon: <Crosshair /> },
-                { id: "leveling", icon: <Mountain /> },
-                { id: "runs", icon: <History /> },
-              ] as const
-            ).map((x) => (
-              <button
-                key={x.id}
-                onClick={() => ws.goTo(x.id)}
-                className="group flex cursor-pointer flex-col gap-1.5 rounded-xl border bg-surface p-3 text-left transition-colors hover:border-border-strong [&_svg]:size-4"
-                data-testid={`quick-${x.id}`}
-              >
-                <span className="flex items-center gap-2 text-sm font-medium text-fg">
-                  <span className="text-muted group-hover:text-accent">{x.icon}</span>
-                  {t(`ws.sections.${x.id}`)}
-                </span>
-                <span className="text-xs leading-snug text-muted">{t(`overview.moreHints.${x.id}`)}</span>
-              </button>
-            ))}
+        {(["apps", "utils"] as const).map((group) => (
+          <div key={group}>
+            <div className="mb-2 text-sm font-semibold">{t(`ws.groups.${group}`)}</div>
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+              {SECTIONS.filter((id) => SECTION_GROUP[id] === group).map((id) => (
+                <button
+                  key={id}
+                  onClick={() => ws.goTo(id)}
+                  className="group flex cursor-pointer flex-col gap-1.5 rounded-xl border bg-surface p-3 text-left transition-colors hover:border-border-strong [&_svg]:size-4"
+                  data-testid={`quick-${id}`}
+                >
+                  <span className="flex items-center gap-2 text-sm font-medium text-fg">
+                    <span className="text-muted group-hover:text-accent">{SECTION_ICONS[id]}</span>
+                    {t(`ws.sections.${id}`)}
+                  </span>
+                  <span className="text-xs leading-snug text-muted">{t(`overview.moreHints.${id}`)}</span>
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        ))}
 
         <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
           {r && <Badge variant="secondary">{t("overview.engine", { version: r.engine_version })}</Badge>}

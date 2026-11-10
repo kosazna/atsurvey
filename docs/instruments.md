@@ -8,7 +8,7 @@ API: [`routers/instruments.py`](../api/src/atsurvey_api/routers/instruments.py).
 Web: Levelling section → **Δίκτυο** mode
 ([`LevelNetPanel.tsx`](../web/src/features/workspace/sections/LevelNetPanel.tsx),
 [`LevelNetResults.tsx`](../web/src/features/workspace/sections/LevelNetResults.tsx));
-Tools → **Όργανα** group ([`tools/instruments/`](../web/src/features/workspace/sections/tools/instruments)).
+page **Έλεγχοι οργάνων** (sidebar group Εργαλεία) ([`tools/instruments/`](../web/src/features/workspace/sections/tools/instruments)).
 Client and types: [`lib/instrumentsApi.ts`](../web/src/lib/instrumentsApi.ts); reports:
 [`lib/instrumentsReport.ts`](../web/src/lib/instrumentsReport.ts).
 
@@ -90,7 +90,7 @@ lines with 1/n weights against the closed-form weighted mean, a ladder network w
 its three elementary meshes plus one connection; χ² quantiles against tables. Max-size request
 (1000 points, 3000 lines): ≈ 0.15 s.
 
-## 2. Instrument checks — Tools → Όργανα
+## 2. Instrument checks — page Έλεγχοι οργάνων
 
 Each check has instrument model, serial number, operator and date fields (kept in the browser
 only) and produces a **printable report** (new window → print / save as PDF; no scripts; user text

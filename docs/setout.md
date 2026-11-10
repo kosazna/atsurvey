@@ -5,8 +5,8 @@ check), [`core/alignment.py`](../engine/src/atsurvey/core/alignment.py) (horizon
 queries), [`core/alignment_profile.py`](../engine/src/atsurvey/core/alignment_profile.py)
 (vertical profile), contracts in
 [`core/alignment_models.py`](../engine/src/atsurvey/core/alignment_models.py). API router:
-[`routers/setout.py`](../api/src/atsurvey_api/routers/setout.py). Web: Tools → group
-**Χαράξεις** (`web/src/features/workspace/sections/tools/setout/`), client
+[`routers/setout.py`](../api/src/atsurvey_api/routers/setout.py). Web: page
+**Χαράξεις** (sidebar group Εφαρμογές; also holds the single-point stakeout tab) (`web/src/features/workspace/sections/tools/setout/`), client
 `web/src/lib/setoutApi.ts`.
 
 Conventions as everywhere: x = Easting, y = Northing (ΕΓΣΑ87 metres), angles in radians inside

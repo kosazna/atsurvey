@@ -24,7 +24,7 @@ submitted to the Cadastre's «Υποδοχέας».
 | API | [`routers/dgm.py`](../api/src/atsurvey_api/routers/dgm.py) |
 | Web | [`tools/dgm/`](../web/src/features/workspace/sections/tools/dgm), client [`lib/dgmApi.ts`](../web/src/lib/dgmApi.ts) |
 
-UI: **Εργαλεία → ΔΓΜ Κτηματολογίου** with the tabs *Σύνταξη ΔΓΜ* and *Έλεγχος DXF*.
+UI: page **Κτηματολόγιο (ΔΓΜ)** (sidebar group Εφαρμογές) with the tabs *Σύνταξη ΔΓΜ* and *Έλεγχος DXF*.
 
 ## Sources
 

@@ -317,7 +317,7 @@ export default function AdjustmentSection() {
                 aria-checked={ws.ellipseScale === s}
                 onClick={() => {
                   ws.setEllipseScale(s);
-                  if (!ws.mapVisible) ws.setMapVisible(true);
+                  ws.revealMap();
                 }}
                 className={cn("h-7 cursor-pointer rounded px-2 text-xs tabular", ws.ellipseScale === s ? "bg-accent-subtle font-medium text-accent" : "text-muted hover:text-fg")}
               >

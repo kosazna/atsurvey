@@ -13,7 +13,7 @@ Area and tables of a parcel, comparison with the deed and the Cadastre, subdivis
 | API | [`routers/parcels.py`](../api/src/atsurvey_api/routers/parcels.py) |
 | Web | [`tools/parcels/`](../web/src/features/workspace/sections/tools/parcels), client [`lib/parcelsApi.ts`](../web/src/lib/parcelsApi.ts) |
 
-UI: **Εργαλεία → Ιδιοκτησίες** with the tabs *Εμβαδόν & σύγκριση*, *Κατάτμηση*, *Συνένωση*.
+UI: page **Ιδιοκτησίες** (sidebar group Εφαρμογές) with the tabs *Εμβαδόν & σύγκριση*, *Κατάτμηση*, *Συνένωση* and *Γρήγορο εμβαδόν* (polygon drawn on the map).
 Vertices are typed or pasted one per line (`name X Y`), taken from project points by name, or
 picked on the map. Every result has an inline SVG sketch (north up), coordinate and side tables,
 areas in m² (2 decimals) and στρέμματα (1 στρέμμα = 1000 m²), and CSV downloads (`;`, UTF-8 BOM).

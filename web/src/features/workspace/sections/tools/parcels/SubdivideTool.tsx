@@ -146,7 +146,7 @@ export function SubdivideTool() {
             <Field label={t("parcels.sub.prefix")}>
               <Input value={prefix} onChange={(e) => setPrefix(e.target.value)} maxLength={16} />
             </Field>
-            <Field label={t("parcels.sub.frontageSide")}>
+            <Field label={t("parcels.sub.frontageSide")} className={frontSide === "none" ? "col-span-2" : undefined}>
               <Select<string> value={frontSide} onValueChange={setFrontSide} options={[{ value: "none", label: t("parcels.sub.noFrontage") }, ...sideOptions]} />
             </Field>
             {frontSide !== "none" && <NumberField label={t("parcels.sub.minFrontage")} value={minFront} onChange={setMinFront} />}
@@ -163,9 +163,9 @@ export function SubdivideTool() {
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, children, className }: { label: string; children: React.ReactNode; className?: string }) {
   return (
-    <div className="space-y-1.5">
+    <div className={cn("space-y-1.5", className)}>
       <Label>{label}</Label>
       {children}
     </div>

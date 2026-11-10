@@ -6,7 +6,7 @@ import { MfaChallenge } from "@/features/auth/MfaChallenge";
 import { ResetPasswordPage } from "@/features/auth/ResetPasswordPage";
 import { LandingPage } from "@/features/landing/LandingPage";
 import { ProjectsPage } from "@/features/projects/ProjectsPage";
-import { SECTIONS, type Section } from "@/features/workspace/sections";
+import { parseSection, parseTool, type Section } from "@/features/workspace/sections";
 
 /** Two-factor accounts signed in with a password only see the code prompt, on every route. */
 function RootLayout() {
@@ -44,9 +44,10 @@ const projectsRoute = createRoute({ getParentRoute: () => rootRoute, path: "/pro
 export const projectRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/p/$projectId",
-  validateSearch: (search: Record<string, unknown>): { section?: Section } => {
-    const s = search.section;
-    return typeof s === "string" && (SECTIONS as readonly string[]).includes(s) ? { section: s as Section } : {};
+  validateSearch: (search: Record<string, unknown>): { section?: Section; tool?: string } => {
+    const section = parseSection(search.section);
+    const tool = parseTool(search.tool);
+    return { ...(section ? { section } : {}), ...(tool ? { tool } : {}) };
   },
   component: lazyRouteComponent(() => import("@/features/workspace/WorkspacePage"), "WorkspacePage"),
 });

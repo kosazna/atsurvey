@@ -2,7 +2,7 @@
 
 Code: [`engine/src/atsurvey/core/surfaces/`](../engine/src/atsurvey/core/surfaces) ·
 API: [`api/src/atsurvey_api/routers/surfaces.py`](../api/src/atsurvey_api/routers/surfaces.py) ·
-Web: Tools → **Ανάγλυφο** ([`tools/surfaces/`](../web/src/features/workspace/sections/tools/surfaces),
+Web: page **Ανάγλυφο** (sidebar group Εφαρμογές) ([`tools/surfaces/`](../web/src/features/workspace/sections/tools/surfaces),
 client [`lib/surfacesApi.ts`](../web/src/lib/surfacesApi.ts), map layer
 [`map/contoursOverlay.ts`](../web/src/features/workspace/map/contoursOverlay.ts)).
 
