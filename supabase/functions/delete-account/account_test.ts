@@ -1,7 +1,7 @@
 // Account deletion and shared HTTP helper tests. Node >= 22.18: `node --test account_test.ts`.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { blockedOutcome, isConfirmed, isRecentSignIn, REAUTH_WINDOW_MS } from "./account.ts";
+import { blockedOutcome, isConfirmed, isRecentSignIn, needsTwoFactor, REAUTH_WINDOW_MS, tokenAal } from "./account.ts";
 import { bearer, constantTimeEqual, corsHeaders, DEFAULT_ORIGINS, parseOrigins } from "../_shared/http.ts";
 import { batches } from "../_shared/storage.ts";
 
@@ -62,4 +62,20 @@ test("CORS answers allowed origins only", () => {
 test("storage removals are batched", () => {
   assert.deepEqual(batches([1, 2, 3, 4, 5], 2), [[1, 2], [3, 4], [5]]);
   assert.deepEqual(batches([], 2), []);
+});
+
+const fakeJwt = (claims: Record<string, unknown>) =>
+  `h.${btoa(JSON.stringify(claims)).replace(/=+$/, "").replace(/\+/g, "-").replace(/\//g, "_")}.s`;
+
+test("the assurance level is read from the token", () => {
+  assert.equal(tokenAal(fakeJwt({ sub: "u", aal: "aal2" })), "aal2");
+  assert.equal(tokenAal(fakeJwt({ sub: "u" })), "aal1");
+  assert.equal(tokenAal("garbage"), "aal1");
+});
+
+test("two-factor users must delete from a two-factor session", () => {
+  assert.equal(needsTwoFactor([{ status: "verified" }], "aal1"), true);
+  assert.equal(needsTwoFactor([{ status: "verified" }], "aal2"), false);
+  assert.equal(needsTwoFactor([{ status: "unverified" }], "aal1"), false);
+  assert.equal(needsTwoFactor(undefined, "aal1"), false);
 });

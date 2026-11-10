@@ -1,7 +1,7 @@
 // Supabase Edge Function: delete-account (the signed-in user deletes their own account).
 //
 // POST {"confirm": true} with the user's access token. Requires a sign-in within the last
-// 10 minutes. Refuses (409) while the user alone owns a team workspace with other members.
+// 10 minutes, and a two-factor session when the user has an authenticator. Refuses (409) while the user alone owns a team workspace with other members.
 // Deletes every workspace the user is the only member of (personal included: projects, runs,
 // audit events), then their stored files, then the auth user (profile and memberships cascade).
 //
@@ -12,7 +12,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { bearer, corsHeaders, json, parseOrigins } from "../_shared/http.ts";
 import { drainDeletions } from "../_shared/storage.ts";
-import { blockedOutcome, isConfirmed, isRecentSignIn } from "./account.ts";
+import { blockedOutcome, isConfirmed, isRecentSignIn, needsTwoFactor, tokenAal } from "./account.ts";
 
 const MAX_BODY_BYTES = 1024;
 
@@ -49,6 +49,9 @@ Deno.serve(async (req: Request) => {
   if (fullErr || !full.user) return json(401, { error: "unauthorized" }, cors);
   if (!isRecentSignIn(full.user.last_sign_in_at, new Date())) {
     return json(401, { error: "reauth_required" }, cors);
+  }
+  if (needsTwoFactor(full.user.factors, tokenAal(token))) {
+    return json(401, { error: "mfa_required" }, cors);
   }
 
   const { data: blockers, error: blockErr } = await admin.rpc("account_deletion_blockers", { p_user: userId });

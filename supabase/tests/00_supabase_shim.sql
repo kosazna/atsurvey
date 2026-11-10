@@ -28,6 +28,13 @@ create table if not exists auth.users (
   created_at timestamptz not null default now()
 );
 
+create table if not exists auth.mfa_factors (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users (id) on delete cascade,
+  status text not null default 'unverified',
+  factor_type text not null default 'totp'
+);
+
 create or replace function auth.jwt() returns jsonb
 language sql stable as $$
   select coalesce(nullif(current_setting('request.jwt.claims', true), ''), '{}')::jsonb;

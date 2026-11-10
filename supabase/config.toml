@@ -48,7 +48,8 @@ additional_redirect_urls = [
 ]
 # Same as the hosted project (docs/supabase.md) and the sign-up form.
 minimum_password_length = 10
-jwt_expiry = 3600
+# 15 min: a token copied out of a browser stays usable briefly (the API caches none longer).
+jwt_expiry = 900
 enable_refresh_token_rotation = true
 refresh_token_reuse_interval = 10
 enable_signup = true
@@ -63,8 +64,22 @@ max_frequency = "1m0s"
 otp_length = 6
 otp_expiry = 3600
 
+# Two-factor sign-in (authenticator apps). Enforced by the database: see migration 20261111000005.
+[auth.mfa]
+max_enrolled_factors = 10
+
+[auth.mfa.totp]
+enroll_enabled = true
+verify_enabled = true
+
+# Bot protection (Cloudflare Turnstile) is configured on the hosted project only:
+# Dashboard → Authentication → Bot and Abuse Protection; the web app shows the widget when
+# VITE_TURNSTILE_SITE_KEY is set (docs/supabase.md).
+
+# Google sign-in: off by default (supabase/.env); on when supabase/.env.local (git-ignored) sets
+# GOOGLE_AUTH_ENABLED=true and the client id/secret. Steps: docs/supabase.md → Google sign-in.
 [auth.external.google]
-enabled = false
+enabled = "env(GOOGLE_AUTH_ENABLED)"
 client_id = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID)"
 secret = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET)"
 redirect_uri = ""

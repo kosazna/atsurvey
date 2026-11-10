@@ -60,6 +60,13 @@ language sql as $$
     json_build_object('sub', uid, 'role', 'authenticated')::text, true);
 $$;
 
+-- a session that passed two-factor authentication
+create function tests.login_aal2(uid uuid) returns void
+language sql as $$
+  select set_config('request.jwt.claims',
+    json_build_object('sub', uid, 'role', 'authenticated', 'aal', 'aal2')::text, true);
+$$;
+
 grant execute on all functions in schema tests to anon, authenticated, service_role;
 
 -- user A = 1111..., user B = 2222...
@@ -682,6 +689,80 @@ commit;
 select tests.ok(
   not exists (select 1 from public.workspaces where id = 'dddddddd-0000-0000-0000-000000000001'),
   'orphan workspace is gone');
+
+-- ================================================================ two-factor (DB-14)
+insert into auth.users (id, email) values ('66666666-6666-6666-6666-666666666666', 'm@example.test');
+insert into auth.mfa_factors (user_id, status) values ('66666666-6666-6666-6666-666666666666', 'verified');
+
+begin;
+set local role authenticated;
+select tests.login_aal2('66666666-6666-6666-6666-666666666666');
+insert into public.projects (id, workspace_id, name)
+values ('66666666-0000-0000-0000-000000000001', tests.ws_of('66666666-6666-6666-6666-666666666666'), 'M project');
+select tests.ok((select count(*) from public.projects) = 1, 'two-factor user works normally from an aal2 session');
+commit;
+
+begin;
+set local role authenticated;
+select tests.login('66666666-6666-6666-6666-666666666666');
+select tests.ok((select count(*) from public.projects) = 0,
+  'a password-only session of a two-factor user sees no projects');
+select tests.ok((select count(*) from public.workspaces) = 0,
+  'a password-only session of a two-factor user sees no workspaces');
+select tests.throws(
+  format($q$insert into public.projects (workspace_id, name) values (%L, 'stolen')$q$,
+    tests.ws_of('66666666-6666-6666-6666-666666666666')),
+  'a password-only session of a two-factor user cannot write', '42501');
+commit;
+
+-- team requires two-factor
+begin;
+set local role authenticated;
+select tests.login('11111111-1111-1111-1111-111111111111');
+select tests.throws(
+  $q$update public.workspaces set require_mfa = true where id = 'cccccccc-0000-0000-0000-000000000001'$q$,
+  'require_mfa cannot be switched on without a two-factor session', '42501');
+commit;
+
+begin;
+set local role authenticated;
+select tests.login_aal2('22222222-2222-2222-2222-222222222222');
+select tests.throws(
+  $q$update public.workspaces set require_mfa = true where id = 'cccccccc-0000-0000-0000-000000000001'$q$,
+  'an admin cannot switch require_mfa', '42501');
+commit;
+
+begin;
+set local role authenticated;
+select tests.login_aal2('11111111-1111-1111-1111-111111111111');
+update public.workspaces set require_mfa = true where id = 'cccccccc-0000-0000-0000-000000000001';
+insert into public.projects (id, workspace_id, name)
+values ('cccccccc-0000-0000-0000-000000000201', 'cccccccc-0000-0000-0000-000000000001', 'MFA team project');
+select tests.ok(
+  exists (select 1 from public.audit_events where action = 'workspace.mfa_required'
+          and workspace_id = 'cccccccc-0000-0000-0000-000000000001'),
+  'owner switches require_mfa on from an aal2 session (audited)');
+commit;
+
+begin;
+set local role authenticated;
+select tests.login('44444444-4444-4444-4444-444444444444');
+select tests.ok(
+  (select count(*) from public.projects where workspace_id = 'cccccccc-0000-0000-0000-000000000001') = 0,
+  'members without two-factor are locked out of a workspace that requires it');
+select tests.ok(
+  (select count(*) from public.projects where workspace_id = tests.ws_of('44444444-4444-4444-4444-444444444444')) >= 0
+  and (select count(*) from public.workspaces where id = tests.ws_of('44444444-4444-4444-4444-444444444444')) = 1,
+  'the same member still reaches their own personal workspace');
+commit;
+
+begin;
+set local role authenticated;
+select tests.login_aal2('44444444-4444-4444-4444-444444444444');
+select tests.ok(
+  (select count(*) from public.projects where workspace_id = 'cccccccc-0000-0000-0000-000000000001') = 1,
+  'with a two-factor session the member is back in');
+commit;
 
 -- ---------------------------------------------------------------- RLS enabled everywhere
 select tests.ok(

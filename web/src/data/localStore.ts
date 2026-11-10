@@ -48,6 +48,18 @@ export class LocalStore implements ProjectStore {
     return null;
   }
 
+  /** Removes every demo project and run from this browser (preferences such as language stay). */
+  clearAll(): void {
+    try {
+      const keys = Array.from({ length: localStorage.length }, (_, i) => localStorage.key(i)).filter(
+        (k): k is string => k !== null && k.startsWith("ats:"),
+      );
+      for (const k of keys) localStorage.removeItem(k);
+    } catch {
+      /* storage unavailable: nothing stored */
+    }
+  }
+
   private index(): ProjectMeta[] {
     return read<ProjectMeta[]>(INDEX_KEY, []);
   }

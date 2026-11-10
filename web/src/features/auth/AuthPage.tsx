@@ -1,13 +1,15 @@
 import { Navigate, useNavigate } from "@tanstack/react-router";
 import { ArrowRight, Calculator, FileDown, Map as MapIcon, Sparkles } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { Logo } from "@/components/Logo";
+import { captchaEnabled, Turnstile } from "@/components/Turnstile";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useSession } from "@/data/session";
+import { useAuthProviders } from "@/lib/authProviders";
 import { toggleLanguage } from "@/lib/i18n";
 import { supabase } from "@/lib/supabase";
 
@@ -26,12 +28,15 @@ export function AuthPage() {
   const { t, i18n } = useTranslation();
   const { mode, enterDemo } = useSession();
   const navigate = useNavigate();
+  const providers = useAuthProviders();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [usePassword, setUsePassword] = useState(false);
   const [signUp, setSignUp] = useState(false);
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const onCaptcha = useCallback((token: string | null) => setCaptchaToken(token), []);
 
   if (mode === "cloud" || mode === "demo") return <Navigate to="/projects" />;
 
@@ -41,17 +46,18 @@ export function AuthPage() {
     e.preventDefault();
     if (!supabase) return;
     setBusy(true);
+    const captcha = captchaToken ?? undefined;
     try {
       if (!usePassword) {
-        const { error } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: redirectTo } });
+        const { error } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: redirectTo, captchaToken: captcha } });
         if (error) throw error;
         setSent(true);
       } else if (signUp) {
-        const { error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: redirectTo } });
+        const { error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: redirectTo, captchaToken: captcha } });
         if (error) throw error;
         toast.success(t("auth.checkEmail"));
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { error } = await supabase.auth.signInWithPassword({ email, password, options: { captchaToken: captcha } });
         if (error) throw error;
       }
     } catch (err) {
@@ -59,6 +65,19 @@ export function AuthPage() {
     } finally {
       setBusy(false);
     }
+  }
+
+  async function forgot() {
+    if (!supabase || !email) return;
+    setBusy(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+      captchaToken: captchaToken ?? undefined,
+    });
+    setBusy(false);
+    // same message whether or not the account exists (no account enumeration)
+    if (error && error.status !== 400) toast.error(error.message);
+    else toast.success(t("sec.resetSent"));
   }
 
   async function google() {
@@ -141,14 +160,18 @@ export function AuthPage() {
 
             {supabase ? (
               <div className="mt-6 space-y-4">
-                <Button variant="outline" className="w-full" onClick={google}>
-                  <GoogleIcon /> {t("auth.google")}
-                </Button>
-                <div className="flex items-center gap-3 text-xs text-muted">
-                  <div className="h-px flex-1 bg-border" />
-                  {t("auth.or")}
-                  <div className="h-px flex-1 bg-border" />
-                </div>
+                {providers.google && (
+                  <>
+                    <Button variant="outline" className="w-full" onClick={google} data-testid="btn-google">
+                      <GoogleIcon /> {t("auth.google")}
+                    </Button>
+                    <div className="flex items-center gap-3 text-xs text-muted">
+                      <div className="h-px flex-1 bg-border" />
+                      {t("auth.or")}
+                      <div className="h-px flex-1 bg-border" />
+                    </div>
+                  </>
+                )}
                 {sent ? (
                   <div className="rounded-lg border bg-surface-sunken p-3 text-sm">{t("auth.magicSent", { email })}</div>
                 ) : (
@@ -171,13 +194,19 @@ export function AuthPage() {
                         />
                       </div>
                     )}
-                    <Button type="submit" className="w-full" disabled={busy}>
+                    <Turnstile onToken={onCaptcha} language={i18n.language} />
+                    <Button type="submit" className="w-full" disabled={busy || (captchaEnabled && !captchaToken)}>
                       {!usePassword ? t("auth.magicLink") : signUp ? t("auth.signUp") : t("auth.signIn")}
                     </Button>
                     <div className="flex items-center justify-between text-xs">
                       <button type="button" className="text-muted hover:text-fg" onClick={() => setUsePassword(!usePassword)}>
                         {usePassword ? t("auth.magicLink") : t("auth.withPassword")}
                       </button>
+                      {usePassword && !signUp && (
+                        <button type="button" className="text-muted hover:text-fg" onClick={() => void forgot()} disabled={!email} data-testid="btn-forgot">
+                          {t("sec.forgot")}
+                        </button>
+                      )}
                       {usePassword && (
                         <button type="button" className="text-accent hover:underline" onClick={() => setSignUp(!signUp)}>
                           {signUp ? t("auth.haveAccount") : t("auth.noAccount")}

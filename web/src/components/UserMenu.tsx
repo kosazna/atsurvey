@@ -1,4 +1,5 @@
-import { Check, CreditCard, Keyboard, Languages, LogOut, Moon, Settings2, Sun, UserRound } from "lucide-react";
+import { Check, CreditCard, Keyboard, Languages, LogOut, Moon, Settings2, Sun, Trash2, UserRound } from "lucide-react";
+import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "@tanstack/react-router";
 import { useSession } from "@/data/session";
@@ -9,7 +10,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 
 export function UserMenu() {
   const { t, i18n } = useTranslation();
-  const { mode, session, signOut } = useSession();
+  const { mode, session, signOut, clearDemoData } = useSession();
   const theme = useTheme();
   const navigate = useNavigate();
   const email = session?.user.email;
@@ -47,6 +48,24 @@ export function UserMenu() {
           <Languages /> English {i18n.language === "en" && <Check className="ml-auto" />}
         </DropdownMenuItem>
         <DropdownMenuSeparator />
+        {mode === "demo" && (
+          <DropdownMenuItem
+            onSelect={() =>
+              toast(t("sec.demoDataConfirm"), {
+                action: {
+                  label: t("sec.demoData"),
+                  onClick: () => {
+                    clearDemoData();
+                    toast.success(t("sec.demoDataDone"));
+                    window.location.assign("/projects");
+                  },
+                },
+              })
+            }
+          >
+            <Trash2 /> {t("sec.demoData")}
+          </DropdownMenuItem>
+        )}
         <DropdownMenuItem
           onSelect={async () => {
             await signOut();

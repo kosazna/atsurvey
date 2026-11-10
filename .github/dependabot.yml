@@ -1,0 +1,22 @@
+# Weekly dependency updates (security plan phase 2). Actions are pinned to commit SHAs;
+# Dependabot keeps the SHAs and their "# vX" comments current.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly }
+    groups:
+      actions: { patterns: ["*"] }
+  - package-ecosystem: npm
+    directory: /web
+    schedule: { interval: weekly }
+    open-pull-requests-limit: 5
+    groups:
+      web-minor: { update-types: [minor, patch] }
+  - package-ecosystem: uv
+    directory: /
+    schedule: { interval: weekly }
+    open-pull-requests-limit: 5
+  - package-ecosystem: docker
+    directory: /api
+    schedule: { interval: weekly }

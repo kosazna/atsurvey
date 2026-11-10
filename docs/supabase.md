@@ -38,10 +38,12 @@ supabase/
 * **Providers**
   * Email: enabled, confirm email on, minimum password length 10 (the sign-up form and local
     `config.toml` use the same value).
-  * Google: create an OAuth client in Google Cloud Console (type *Web*), authorised redirect URI
-    `https://<project-ref>.supabase.co/auth/v1/callback`, then paste client id/secret into the
-    Google provider. Locally: export `SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID` / `..._SECRET` and set
-    `enabled = true` in `config.toml`.
+  * Google: see **Google sign-in** below.
+* **Multi-factor**: TOTP enabled (enroll + verify), as in `config.toml`. The database enforces it
+  (migration `20261111000005`); the web app shows the code prompt after sign-in.
+* **Sessions**: JWT expiry **900 s** (same as `config.toml`), refresh-token rotation on.
+* **Bot protection**: Authentication → Bot and Abuse Protection → Cloudflare Turnstile with the
+  site's secret key; build the web app with `VITE_TURNSTILE_SITE_KEY` (the widget shows only then).
 * **Email templates**: translate *Confirm signup*, *Magic link* and *Reset password* to Greek; keep
   `{{ .ConfirmationURL }}`. Configure a custom SMTP sender (e.g. Postmark/Resend, EU region) — the
   built-in sender is rate-limited and not meant for production.
@@ -51,6 +53,29 @@ supabase/
 
 Sign-up metadata read by the `handle_new_user` trigger: `full_name` (or `name`) and `locale`
 (`el`/`en`) in `options.data` of `supabase.auth.signUp`.
+
+### Google sign-in
+
+One OAuth client serves local development and production.
+
+1. [Google Cloud Console](https://console.cloud.google.com/) → create (or pick) a project →
+   **APIs & Services → OAuth consent screen**: user type *External*, app name *ATSurvey*, support
+   e-mail, authorised domain `atsurvey.gr`, scopes `openid`, `email`, `profile` (no sensitive
+   scopes, so no Google review). While the app is in *Testing*, add your Google accounts as test
+   users; publish it before launch.
+2. **Credentials → Create credentials → OAuth client ID → Web application**:
+   * Authorised JavaScript origins: `http://localhost:5173`, `https://app.atsurvey.gr`
+   * Authorised redirect URIs: `http://127.0.0.1:54321/auth/v1/callback` (local) and
+     `https://<project-ref>.supabase.co/auth/v1/callback` (hosted)
+3. **Local:** `cp supabase/.env.example supabase/.env.local`, paste the client id and secret, set
+   `GOOGLE_AUTH_ENABLED=true`, then restart Supabase (`npx supabase stop && bash scripts/dev.sh`).
+   `supabase/.env.local` is git-ignored and overrides the committed defaults in `supabase/.env`
+   (Google off), so a fresh checkout starts without any credentials.
+4. **Hosted:** Dashboard → Authentication → Providers → Google: enable, paste id and secret.
+
+The sign-in page asks the auth server which providers are on (`/auth/v1/settings`) and shows
+"Continue with Google" only when Google is enabled. A Google account whose e-mail matches an
+existing (confirmed) account is linked to it; two-factor applies to Google sign-ins too.
 
 ### Edge Function: `paddle-webhook`
 

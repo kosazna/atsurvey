@@ -12,6 +12,8 @@ web/dist/
 .env
 .env.*
 !.env.example
+# committed defaults for supabase/config.toml env() values (no secrets; see the file)
+!supabase/.env
 supabase/.temp/
 supabase/.branches/
 .DS_Store

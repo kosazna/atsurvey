@@ -11,6 +11,10 @@ import { useSession } from "@/data/session";
 import { supabase } from "@/lib/supabase";
 import { setTheme, useTheme } from "@/lib/theme";
 import { PageShell } from "./PageShell";
+import { DataCard } from "./security/DataCard";
+import { EmailCard } from "./security/EmailCard";
+import { PasswordCard } from "./security/PasswordCard";
+import { TwoFactorCard } from "./security/TwoFactorCard";
 
 export function AccountPage() {
   const { t, i18n } = useTranslation();
@@ -97,6 +101,23 @@ export function AccountPage() {
           </div>
         </CardContent>
       </Card>
+
+      {cloud ? (
+        <section className="space-y-4" aria-labelledby="security-heading">
+          <div>
+            <h2 id="security-heading" className="text-base font-semibold">
+              {t("sec.title")}
+            </h2>
+            <p className="text-sm text-muted">{t("sec.subtitle")}</p>
+          </div>
+          <TwoFactorCard />
+          <PasswordCard />
+          <EmailCard current={session!.user.email ?? ""} />
+          <DataCard email={session!.user.email ?? ""} />
+        </section>
+      ) : (
+        <p className="text-sm text-muted">{t("sec.cloudOnly")}</p>
+      )}
     </PageShell>
   );
 }

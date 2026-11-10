@@ -50,7 +50,10 @@ credentials); Paddle ↔ edge function (HMAC signature); CI ↔ VM (SSH key, env
   workspaces. `delete-account` erases every workspace the user alone belongs to, their files and
   the auth user; it needs a sign-in within 10 minutes and refuses while the user is the only owner
   of a team that has other members.
-* Tests: `supabase/tests/run.sh` (CI) or `run_in_supabase.sh` (local), **123 checks**
+* Two-factor: users with a verified authenticator, and members of workspaces with
+  `require_mfa`, reach those workspaces only from an `aal2` session (`mfa_satisfied()` inside
+  every access helper). Only an owner in an `aal2` session can change `require_mfa` (audited).
+* Tests: `supabase/tests/run.sh` (CI) or `run_in_supabase.sh` (local), **133 checks**
   (cross-tenant isolation on every table and storage, roles, moves, audit immutability, erasure).
 
 **Engine API**
@@ -110,6 +113,7 @@ credentials); Paddle ↔ edge function (HMAC signature); CI ↔ VM (SSH key, env
 
 | ID | Severity | Finding | Status |
 |---|---|---|---|
+| DB-14 | High | No second factor: a leaked password opened every project | Fixed 2026-11-11 (TOTP; enforced in the database for two-factor users and for workspaces that require it) |
 | DB-8 | High | Any team member could delete a team project, or move it into their personal workspace and take the data with them | Fixed 2026-11-11 (owner/admin; move needs both sides) |
 | DB-11 | High | Deleting a project or workspace left its raw files in Storage forever | Fixed 2026-11-11 (queue + `storage-janitor`) |
 | DB-12 | High | Deleting an account left the personal workspace, projects and files behind (GDPR erasure) | Fixed 2026-11-11 (`delete-account`) |
@@ -154,6 +158,9 @@ Open items and accepted risks:
 - [ ] GitHub: branch protection on `master`, required CI, secret scanning and Dependabot alerts enabled
 - [ ] Review `pnpm audit` / `pip-audit` failures within a week; rerun `supabase/tests/run.sh` after every migration
 - [ ] Schedule `storage-janitor` every 15 min (pg_cron + pg_net, [supabase.md](supabase.md)); set `ALLOWED_ORIGINS` for `delete-account`
+- [ ] Turnstile: create a site in Cloudflare, enable Supabase *Bot and Abuse Protection* with its secret, set `VITE_TURNSTILE_SITE_KEY` for the web build
+- [ ] Create the `security@atsurvey.gr` mailbox named in `/.well-known/security.txt`; renew `Expires` yearly
+- [ ] Hosted Auth: TOTP MFA on, JWT expiry 900 s, Greek e-mail templates, Google provider (docs/supabase.md)
 - [ ] Keep the CSP in sync when adding third-party services (CI checks inline scripts only)
 
 ## Reporting a vulnerability

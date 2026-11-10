@@ -1,21 +1,30 @@
 import { createRootRoute, createRoute, createRouter, lazyRouteComponent, Outlet } from "@tanstack/react-router";
 import { CommandPalette } from "@/components/CommandPalette";
+import { useSession } from "@/data/session";
 import { AuthPage } from "@/features/auth/AuthPage";
+import { MfaChallenge } from "@/features/auth/MfaChallenge";
+import { ResetPasswordPage } from "@/features/auth/ResetPasswordPage";
 import { LandingPage } from "@/features/landing/LandingPage";
 import { ProjectsPage } from "@/features/projects/ProjectsPage";
 import { SECTIONS, type Section } from "@/features/workspace/sections";
 
-const rootRoute = createRootRoute({
-  component: () => (
+/** Two-factor accounts signed in with a password only see the code prompt, on every route. */
+function RootLayout() {
+  const { mode } = useSession();
+  if (mode === "mfa") return <MfaChallenge />;
+  return (
     <>
       <Outlet />
       <CommandPalette />
     </>
-  ),
-});
+  );
+}
+
+const rootRoute = createRootRoute({ component: RootLayout });
 
 const indexRoute = createRoute({ getParentRoute: () => rootRoute, path: "/", component: LandingPage });
 const loginRoute = createRoute({ getParentRoute: () => rootRoute, path: "/login", component: AuthPage });
+const resetRoute = createRoute({ getParentRoute: () => rootRoute, path: "/reset-password", component: ResetPasswordPage });
 const accountRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/account",
@@ -37,7 +46,7 @@ export const projectRoute = createRoute({
   component: lazyRouteComponent(() => import("@/features/workspace/WorkspacePage"), "WorkspacePage"),
 });
 
-const routeTree = rootRoute.addChildren([indexRoute, loginRoute, accountRoute, billingRoute, projectsRoute, projectRoute]);
+const routeTree = rootRoute.addChildren([indexRoute, loginRoute, resetRoute, accountRoute, billingRoute, projectsRoute, projectRoute]);
 
 export const router = createRouter({ routeTree, defaultPreload: "intent" });
 

@@ -13,6 +13,7 @@ need pnpm "enable it with: corepack enable"
 need uv "install it with: brew install uv"
 docker info >/dev/null 2>&1 || { echo "Docker is not running: open Docker Desktop first"; exit 1; }
 
+# Google sign-in (optional): supabase/.env.local, see supabase/.env.example (the CLI loads it)
 echo "▸ Supabase (first run downloads the images, a few minutes)"
 npx --yes supabase@2 start
 bash scripts/local-env.sh

@@ -16,9 +16,26 @@ export function isConfirmed(body: unknown): boolean {
   return typeof body === "object" && body !== null && (body as { confirm?: unknown }).confirm === true;
 }
 
+/** Assurance level claim of an access token already validated by auth.getUser(). */
+export function tokenAal(token: string): string {
+  try {
+    const part = token.split(".")[1] ?? "";
+    const b64 = part.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(part.length / 4) * 4, "=");
+    const claims = JSON.parse(atob(b64)) as { aal?: unknown };
+    return typeof claims.aal === "string" ? claims.aal : "aal1";
+  } catch {
+    return "aal1";
+  }
+}
+
+/** A user with a verified authenticator must be in a two-factor session to delete the account. */
+export function needsTwoFactor(factors: { status?: string }[] | undefined, aal: string): boolean {
+  return (factors ?? []).some((f) => f.status === "verified") && aal !== "aal2";
+}
+
 export type Outcome =
   | { status: 200; body: { deleted: true; workspaces: number } }
-  | { status: 401; body: { error: "reauth_required" } }
+  | { status: 401; body: { error: "reauth_required" | "mfa_required" } }
   | { status: 409; body: { error: "sole_owner"; workspaces: { id: string; name: string }[] } };
 
 export function blockedOutcome(blockers: { workspace_id: string; name: string }[]): Outcome | null {

@@ -11,12 +11,18 @@ screen yet) · 📋 planned (see [PLAN.md](PLAN.md))
 
 | Feature | What it offers | Where | Status | Docs |
 |---|---|---|---|---|
-| Sign up / sign in | E-mail + password (10+ characters), magic link, Google (when configured); e-mail confirmation required | `/login` | ✅ | [supabase.md](supabase.md) |
+| Sign up / sign in | E-mail + password (10+ characters), magic link; e-mail confirmation required | `/login` | ✅ | [supabase.md](supabase.md) |
+| Google sign-in | "Continue with Google"; the button appears only when Google is switched on in Supabase; same e-mail links to the existing account | `/login` | ✅ (needs the owner's Google OAuth client) | [supabase.md](supabase.md#google-sign-in) |
+| Forgot password | E-mail link to `/reset-password`; same answer whether or not the account exists | `/login` → "Ξεχάσατε τον κωδικό;" | ✅ | [supabase.md](supabase.md) |
+| Bot protection | Cloudflare Turnstile on sign-up, sign-in and reset, when configured | `/login` | ✅ (hosted setting) | [supabase.md](supabase.md) |
 | Profile | Name, language (Ελληνικά / English), light/dark theme | `/account` | ✅ | [web.md](web.md) |
 | Demo mode | Try everything without an account; data stays in the browser | `/login` → "Δοκιμή χωρίς λογαριασμό" | ✅ | [web.md](web.md) |
-| Delete my account | Erases the personal workspace, its projects, runs, files and audit history, then the account. Needs a sign-in within the last 10 minutes; blocked while the user alone owns a team that has other members (they must hand it over first) | API ready (`delete-account`); button 📋 Phase 2 | 🛠 | [supabase.md](supabase.md#edge-function-delete-account) |
-| Password reset / change, e-mail change, sign out everywhere, export my data | Self-service account security | Account → Security | 📋 Phase 2 | — |
-| Two-factor sign-in (TOTP) | Optional for everyone; a team owner can require it for their team (enforced by the database) | Account → Security | 📋 Phase 2 | — |
+| Two-factor sign-in (TOTP) | Authenticator app codes (Google/Microsoft Authenticator, 1Password…). Once on, a password alone opens nothing: the database refuses every workspace to a session without the code. A team owner can require it for the whole team | Account → Security; code prompt after sign-in | ✅ | [security.md](security.md) |
+| Change password / e-mail | Password change asks for an e-mailed code when the last sign-in is old; e-mail change is confirmed from both addresses | Account → Security | ✅ | [supabase.md](supabase.md) |
+| Sign out everywhere | Ends every session on every device | Account → Security | ✅ | — |
+| Export my data | One zip: every project as JSON (with saved runs) plus the original instrument files, built in the browser | Account → Security | ✅ | [security.md](security.md) |
+| Delete my account | Erases the personal workspace, its projects, runs, files and audit history, then the account. Typed e-mail confirmation; needs a sign-in within 10 minutes (and the code, with two-factor on); blocked while the user alone owns a team that has other members | Account → Security | ✅ | [supabase.md](supabase.md#edge-function-delete-account) |
+| Delete demo data | Removes all demo projects from this browser (shared computers) | user menu in demo mode | ✅ | — |
 
 ## 2. Workspaces, teams and roles
 
@@ -96,6 +102,16 @@ are recorded in the workspace activity log. Payments (Paddle) are built but park
   tokens verified on every request, no data in logs. Details: [security.md](security.md).
 
 ## Changelog (for developers and agents)
+
+* **2026-11-11: account security (security plan, phase 2).** Migration `20261111000005_mfa.sql`
+  (`require_mfa`, `mfa_satisfied()` inside every access helper, owner+aal2 guard). Web:
+  `features/account/security/*` (two-factor, password, e-mail, sessions, data export, delete),
+  `features/auth/MfaChallenge.tsx` (root gate, session mode `mfa`), `ResetPasswordPage.tsx`,
+  `components/Turnstile.tsx`, `lib/authProviders.ts` (Google button only when enabled),
+  `lib/exportData.ts` (fflate), `lib/functions.ts`, locales `security.*.ts`. `delete-account`
+  requires aal2 for two-factor users. Config: TOTP on, `jwt_expiry` 900, Google via
+  `supabase/.env` (defaults) + `.env.local` (credentials). Chores: `marked` removed, Actions pinned
+  to SHAs, `.github/dependabot.yml`, `/.well-known/security.txt`. Tests: 133 DB checks.
 
 * **2026-11-11: isolation and data removal (security plan, phase 1).** Migrations
   `20261111000001…4`: viewer role; write/delete/move rules; storage access by project, MIME
