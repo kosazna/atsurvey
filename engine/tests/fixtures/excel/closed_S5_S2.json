@@ -1,0 +1,173 @@
+{
+ "source": "ΣΤΟΙΧΕΙΑ ΚΛΕΙΣΤΗΣ ΠΛΗΡΩΣ ΕΞΑΡΤΗΜΕΝΗΣ ΟΔΕΥΣΗΣ — wb2.xlsx",
+ "kind": "traverse",
+ "input": {
+  "control_points": [
+   {
+    "name": "S5",
+    "x": 469363.568,
+    "y": 4198544.256,
+    "z": 19.13
+   },
+   {
+    "name": "S2",
+    "x": 469393.358,
+    "y": 4198559.6,
+    "z": 20.708
+   }
+  ],
+  "setups": [
+   {
+    "station": "S2",
+    "instrument_height": 1.587,
+    "observations": [
+     {
+      "target": "S5",
+      "hz": 0.0
+     },
+     {
+      "target": "S4",
+      "hz": 1.6859608302901912,
+      "v": 1.5063418411175216,
+      "sd": 35.798,
+      "target_height": 1.505
+     }
+    ]
+   },
+   {
+    "station": "S4",
+    "instrument_height": 1.584,
+    "observations": [
+     {
+      "target": "S2",
+      "hz": 0.0,
+      "v": 1.6400904359551267,
+      "sd": 35.81,
+      "target_height": 1.505
+     },
+     {
+      "target": "S3",
+      "hz": 4.559000719073168,
+      "v": 1.51383139800368,
+      "sd": 48.336,
+      "target_height": 1.505
+     }
+    ]
+   },
+   {
+    "station": "S3",
+    "instrument_height": 1.523,
+    "observations": [
+     {
+      "target": "S4",
+      "hz": 0.0,
+      "v": 1.6299587996472997,
+      "sd": 48.348,
+      "target_height": 1.505
+     },
+     {
+      "target": "S1",
+      "hz": 4.762646608860493,
+      "v": 1.6270402600721148,
+      "sd": 47.108,
+      "target_height": 1.505
+     }
+    ]
+   },
+   {
+    "station": "S1",
+    "instrument_height": 1.577,
+    "observations": [
+     {
+      "target": "S3",
+      "hz": 0.0,
+      "v": 1.5166211322800676,
+      "sd": 47.104,
+      "target_height": 1.505
+     },
+     {
+      "target": "S2",
+      "hz": 4.8854404701150305,
+      "v": 1.6217074065426462,
+      "sd": 52.731,
+      "target_height": 1.505
+     }
+    ]
+   },
+   {
+    "station": "S2",
+    "instrument_height": 1.587,
+    "observations": [
+     {
+      "target": "S1",
+      "hz": 0.0,
+      "v": 1.5230331228860443,
+      "sd": 52.729,
+      "target_height": 1.505
+     },
+     {
+      "target": "S5",
+      "hz": 2.9565371383300865
+     }
+    ]
+   }
+  ],
+  "traverses": [
+   {
+    "route": [
+     "S5",
+     "S2",
+     "S4",
+     "S3",
+     "S1",
+     "S2",
+     "S5"
+    ],
+    "name": "closed_S5_S2"
+   }
+  ],
+  "settings": {
+   "reduction": {
+    "scale_mode": "fixed",
+    "fixed_scale": 0.9996,
+    "elevation_mode": "traverse",
+    "curvature_refraction": false,
+    "earth_radius": 6371000.0
+   },
+   "compute_detail": false
+  }
+ },
+ "expected": {
+  "points": {
+   "S4": [
+    469380.7622182157,
+    4198593.015904318,
+    23.102467467925457
+   ],
+   "S3": [
+    469422.7723407277,
+    4198616.730790512,
+    25.93882002790699
+   ],
+   "S1": [
+    469443.7963243427,
+    4198574.680407506,
+    23.31293487792693
+   ]
+  },
+  "traverses": {
+   "closed_S5_S2": {
+    "angular_cc": -19.0,
+    "wx": -0.002180330329757396,
+    "wy": 0.007718312912636804,
+    "wz": 0.001938004076397437
+   }
+  }
+ },
+ "tolerance": {
+  "xy_m": 0.0005,
+  "z_m": 0.0005,
+  "angular_cc": 0.5,
+  "misclosure_m": 0.0005
+ }
+}

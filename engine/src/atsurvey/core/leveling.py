@@ -11,6 +11,7 @@ interpolated between the backsight and the foresight of that setup.
 
 from __future__ import annotations
 
+import itertools
 import math
 
 from .cogo_models import (
@@ -19,6 +20,8 @@ from .cogo_models import (
     LevelingRequest,
     LevelingResult,
     LevelingRow,
+    LevelingSection,
+    LevelingSetup,
 )
 
 
@@ -31,6 +34,8 @@ def _split(i: int, readings: list[LevelingReading]):
 
 
 def level(req: LevelingRequest) -> LevelingResult:
+    if req.return_setups:
+        return level_double(req)
     bench = {b.name: b.h for b in req.benchmarks}
     parsed = [_split(i, s.readings) for i, s in enumerate(req.setups)]
     for i in range(len(parsed) - 1):
@@ -176,4 +181,160 @@ def level(req: LevelingRequest) -> LevelingResult:
         length_km=length_km,
         n_setups=n,
         message=message,
+    )
+
+
+# ------------------------------------------------------------------- double-run levelling
+
+
+def _run_profile(setups: list[LevelingSetup], label: str):
+    """Cumulative raw height difference and sight length at every point of one run."""
+    parsed = [_split(i, s.readings) for i, s in enumerate(setups)]
+    for i in range(len(parsed) - 1):
+        if parsed[i][1].point != parsed[i + 1][0].point:
+            raise ValueError(
+                f"{label} run: setup {i + 2} must start on the foresight point of setup {i + 1} "
+                f"({parsed[i][1].point}), not {parsed[i + 1][0].point}"
+            )
+    order = [parsed[0][0].point]
+    cum = {parsed[0][0].point: 0.0}
+    dist = {parsed[0][0].point: 0.0}
+    has_dist = True
+    h = d = 0.0
+    for bs, fs, _ in parsed:
+        h += bs.reading - fs.reading
+        if bs.distance is None or fs.distance is None:
+            has_dist = False
+        else:
+            d += bs.distance + fs.distance
+        if fs.point not in cum:
+            order.append(fs.point)
+            cum[fs.point] = h
+            dist[fs.point] = d
+    return order, cum, (dist if has_dist else None), parsed
+
+
+def level_double(req: LevelingRequest) -> LevelingResult:
+    """Forward and return runs: compare sections, adjust the line on the section means."""
+    assert req.return_setups is not None
+    bench = {b.name: b.h for b in req.benchmarks}
+    f_order, f_cum, f_dist, f_parsed = _run_profile(req.setups, "Forward")
+    r_order, r_cum, r_dist, _ = _run_profile(req.return_setups, "Return")
+    start, end = f_order[0], f_order[-1]
+    if start not in bench:
+        raise ValueError(f"The line must start on a benchmark ({start} has no known height)")
+    if r_order[0] != end or r_order[-1] != start:
+        raise ValueError(
+            f"The return run must go from {end} back to {start} "
+            f"(it goes from {r_order[0]} to {r_order[-1]})"
+        )
+
+    common = set(f_order) & set(r_order)
+    wanted = set(req.section_points) if req.section_points else common | set(bench)
+    missing = [p for p in wanted if p not in common and p in set(f_order)]
+    if req.section_points and missing:
+        raise ValueError(f"Section points not measured in both runs: {', '.join(sorted(missing))}")
+    marks = [p for p in f_order if p in common and (p in wanted or p in (start, end))]
+
+    sections: list[LevelingSection] = []
+    for a, b in itertools.pairwise(marks):
+        dh_f = f_cum[b] - f_cum[a]
+        dh_r = r_cum[a] - r_cum[b]  # return run measured b → a
+        length = None
+        if f_dist is not None and r_dist is not None:
+            length = ((f_dist[b] - f_dist[a]) + (r_dist[a] - r_dist[b])) / 2.0
+        tol = within = None
+        if length is not None:
+            tol = (
+                req.tolerance_base_mm + req.tolerance_mm_per_sqrt_km * math.sqrt(length / 1000.0)
+            ) / 1000.0
+            within = abs(dh_f + dh_r) <= tol
+        sections.append(
+            LevelingSection(
+                frm=a,
+                to=b,
+                dh_forward=dh_f,
+                dh_return=dh_r,
+                discrepancy=dh_f + dh_r,
+                dh_mean=(dh_f - dh_r) / 2.0,
+                length=length,
+                tolerance=tol,
+                within_tolerance=within,
+            )
+        )
+
+    # carry the mean differences from the start benchmark; close on a benchmark at the end
+    raw = {start: bench[start]}
+    for sec in sections:
+        raw[sec.to] = raw[sec.frm] + sec.dh_mean
+    misclosure = bench[end] - raw[end] if end in bench and end != start else None
+    lengths = [sec.length for sec in sections]
+    all_len = all(ln is not None for ln in lengths) and sections
+    total = math.fsum(ln or 0.0 for ln in lengths) if all_len else None
+    mode = req.distribute
+    message = None
+    if misclosure is not None and mode == "distance" and not total:
+        mode = "setups"
+        message = "Sight distances are missing; the misclosure was distributed equally per section"
+    corr = {start: 0.0}
+    acc = 0.0
+    for sec in sections:
+        share = (
+            ((sec.length or 0.0) / total) if (mode == "distance" and total) else 1 / len(sections)
+        )
+        acc += share
+        corr[sec.to] = (misclosure or 0.0) * acc
+    tolerance = within = None
+    if misclosure is not None and total is not None:
+        tolerance = (
+            req.tolerance_base_mm + req.tolerance_mm_per_sqrt_km * math.sqrt(total / 1000.0)
+        ) / 1000.0
+        within = abs(misclosure) <= tolerance
+    if misclosure is None:
+        message = message or (
+            f"{end} is not a benchmark: heights come from the section means without a closure check"
+        )
+    bad = [s for s in sections if s.within_tolerance is False]
+    if bad:
+        worst = max(bad, key=lambda s: abs(s.discrepancy))
+        note = (
+            f"{len(bad)} section(s) exceed the forward/return tolerance; worst {worst.frm}→"
+            f"{worst.to}: {worst.discrepancy * 1000:+.1f} mm"
+        )
+        message = f"{message} · {note}" if message else note
+
+    points = [
+        LevelingPoint(
+            name=m,
+            h=bench[m] if m in bench else raw[m] + corr[m],
+            h_unadjusted=raw[m],
+            correction=0.0 if m == start else corr[m],
+            kind="benchmark" if m in bench else "turning",
+        )
+        for m in marks
+    ]
+    rows = [
+        LevelingRow(
+            setup=i + 1,
+            backsight=bs.point,
+            foresight=fs.point,
+            dh=bs.reading - fs.reading,
+            length=(bs.distance + fs.distance)
+            if bs.distance is not None and fs.distance is not None
+            else None,
+        )
+        for i, (bs, fs, _) in enumerate(f_parsed)
+    ]
+    return LevelingResult(
+        points=points,
+        rows=rows,
+        start=start,
+        end=end,
+        misclosure=misclosure,
+        tolerance=tolerance,
+        within_tolerance=within,
+        length_km=total / 1000.0 if total else None,
+        n_setups=len(req.setups) + len(req.return_setups),
+        message=message,
+        sections=sections,
     )

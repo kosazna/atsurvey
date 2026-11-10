@@ -194,3 +194,13 @@ def test_stakeout_route(client):
     assert abs(row["angle"] - math.pi / 2) < 1e-12 and abs(row["distance"] - 100.0) < 1e-12
     bad = client.post("/v1/cogo/stakeout", json={**body, "backsight": None})
     assert bad.status_code == 422
+
+
+def test_tolerance_presets_route(client):
+    r = client.get("/v1/presets/tolerances")
+    assert r.status_code == 200
+    presets = {p["id"]: p for p in r.json()}
+    p = presets["gr:flat:primary:1/500"]
+    assert p["tolerances"]["linear_per_sqrt_m_m"] == 0.005
+    assert p["tolerances"]["angular_per_sqrt_n_cc"] == 200.0
+    assert p["label_el"] == "Πρωτεύουσα · Ομαλό · 1/500"

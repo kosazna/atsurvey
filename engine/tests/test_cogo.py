@@ -460,3 +460,48 @@ def test_stakeout_validation():
         stakeout(StakeoutRequest(station=st, backsight=XY(x=0, y=0), points=[XY(x=1, y=1)]))
     with pytest.raises(ValueError):
         stakeout(StakeoutRequest(station=st, backsight_azimuth=0, points=[XY(x=0, y=0)]))
+
+
+# ---------------------------------------------- reference workbooks (user's Excel sheets)
+
+
+def test_resection_matches_reference_workbook():
+    """ΕΝΤΥΠΟ ΟΠΙΣΘΟΤΟΜΙΑΣ: NTUA campus trig points, Delambre/Collins three-point solution."""
+    from atsurvey.core.cogo import resection
+    from atsurvey.core.cogo_models import XY, ResectionObservation, ResectionRequest
+    from atsurvey.core.units import to_rad
+
+    a = XY(x=480757.34, y=4203004.48, name="ΦΥΣΙΚΗ")
+    g = XY(x=483165.87, y=4204474.09, name="ΛΙΘΑΡΙ")
+    b = XY(x=480713.82, y=4202614.87, name="ΑΛΕΞΙΚΕΡΑΥΝΟ ΕΣΤΙΑΣ")
+    alpha, beta = 9.8038, 100.8192  # grad, clockwise A→Γ and Γ→B
+    r = resection(
+        ResectionRequest(
+            observations=[
+                ResectionObservation(point=a, direction=0.0),
+                ResectionObservation(point=g, direction=to_rad(alpha, "gon")),
+                ResectionObservation(point=b, direction=to_rad(alpha + beta, "gon")),
+            ]
+        )
+    )
+    # workbook result: XM = 480573.42806700774, YM = 4202844.763165016
+    assert r.station.x == pytest.approx(480573.42806700774, abs=1e-6)
+    assert r.station.y == pytest.approx(4202844.763165016, abs=1e-6)
+    assert not r.danger_circle
+
+
+def test_stakeout_matches_reference_workbook():
+    """Setting-out sheet: angle TN10–TN11–1 and ground distance TN11→1."""
+    from atsurvey.core.cogo import stakeout
+    from atsurvey.core.cogo_models import XY, StakeoutRequest
+    from atsurvey.core.models import ReductionSettings
+    from atsurvey.core.units import from_rad
+
+    st = XY(x=487049.841, y=4226460.392, z=276.648, name="TN11")
+    bs = XY(x=486934.074, y=4226505.561, name="TN10")
+    p1 = XY(x=487082.886, y=4226445.47, z=284.24, name="1")
+    rs = ReductionSettings(scale_mode="leg_mean", curvature_refraction=False)
+    row = stakeout(StakeoutRequest(station=st, backsight=bs, points=[p1], reduction=rs)).rows[0]
+    assert from_rad(row.angle, "gon") == pytest.approx(203.32000041568227, abs=1e-9)
+    # the workbook rounds the mean height to 280 m; the engine uses 280.444 m (2 µm effect)
+    assert row.distance_ground == pytest.approx(36.27396695592281, abs=5e-6)

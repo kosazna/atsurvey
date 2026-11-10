@@ -151,3 +151,15 @@ backsight**, grid distance, and — with `reduction` — the **ground horizontal
 instrument will display (grid ÷ k ÷ R/(R+H)). With heights: Δz, zenith angle and slope
 distance for the given instrument and target heights. Setting out the returned angle and
 distance with the polar tool reproduces each design point exactly (tested).
+
+
+## Double-run levelling (μετάβαση – επιστροφή) — `POST /v1/leveling` with `return_setups`
+
+Give the forward run in `setups` and the return run (from the forward end back to the start) in
+`return_setups`. Sections are delimited by `section_points` (default: benchmarks plus every point
+measured in both runs; list the fixed points explicitly when turning points reuse names such as
+Κ1, Κ2 in both runs). For every section the engine reports ΔH forward, ΔH return, their
+**discrepancy** (with a tolerance when sight distances are given) and the mean; the line is then
+carried on the section means and, if it ends on a benchmark, the misclosure is distributed by
+section length (or equally). Averaging signed values per section — not |ΔH| with the forward
+sign — is what lets a misread or a wrong sign show up instead of being absorbed.

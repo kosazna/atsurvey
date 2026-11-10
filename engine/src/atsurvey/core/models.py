@@ -109,6 +109,10 @@ class Tolerances(_Model):
     angular_per_sqrt_n_cc: float = 40.0
     linear_base_m: float = 0.02
     linear_per_sqrt_km_m: float = 0.05
+    linear_per_sqrt_m_m: float = Field(
+        default=0.0, description="Coefficient of √L with L in metres (Greek specification form)"
+    )
+    preset: str | None = Field(default=None, description="Id of the preset these values came from")
     min_relative_precision: float = Field(
         default=5000.0, description="Fail if L / w < this (1:N). 0 disables."
     )

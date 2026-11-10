@@ -65,7 +65,9 @@ k_line = (k(E₁) + 4 · k((E₁+E₂)/2) + k(E₂)) / 6            line scale f
 | `fixed` | `fixed_scale` |
 
 `elevation_mode`: `leg` uses each leg's mean height (from the trigonometric heights of the
-traverse); `traverse` uses one mean height (start and end station), as the legacy workbooks do.
+traverse); `traverse` uses one mean height (start and end station; for an open traverse, start
+station and orientation point, the same pair as the single scale factor), as the reference
+workbooks do.
 
 ## Traverses
 
@@ -104,6 +106,12 @@ specification:
 | Linear | `linear_base_m + linear_per_sqrt_km_m · √L(km)` | 2 cm + 5 cm·√km |
 | Relative precision | `L / w ≥ min_relative_precision` | 1:5000 |
 | Height | `height_base_m + height_per_sqrt_km_m · √L(km)` | 2 cm + 5 cm·√km |
+
+**Specification presets** (`core/specs.py`, `GET /v1/presets/tolerances`, the "Specification"
+selector in the app's settings): the Greek table from the reference workbooks, scale (1/200 …
+1/10000) × class (primary/secondary) × terrain (flat/sloped):
+w ≤ a·√L(m) + b and wβ ≤ k·√n c (1 c = 100 cc). Presets set `linear_per_sqrt_m_m`, the angular
+coefficient and disable the 1:N check (not part of that specification).
 
 A traverse that passes through an already known point keeps the known coordinates and reports the
 difference (`TRAVERSE_KNOWN_POINT_MID`). A point determined twice keeps the first value

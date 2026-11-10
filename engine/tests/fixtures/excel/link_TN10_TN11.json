@@ -1,0 +1,281 @@
+{
+ "source": "ΣΤΟΙΧΕΙΑ ΑΝΟΙΧΤΗΣ ΠΛΗΡΩΣ ΕΞΑΡΤΗΜΕΝΗΣ ΟΔΕΥΣΗΣ — wb3.xlsx",
+ "kind": "traverse",
+ "input": {
+  "control_points": [
+   {
+    "name": "TN10",
+    "x": 486934.074,
+    "y": 4226505.561,
+    "z": 284.24
+   },
+   {
+    "name": "TN11",
+    "x": 487049.841,
+    "y": 4226460.392,
+    "z": 276.648
+   }
+  ],
+  "setups": [
+   {
+    "station": "TN11",
+    "instrument_height": 1.667,
+    "observations": [
+     {
+      "target": "TN10",
+      "hz": 0.0
+     },
+     {
+      "target": "S1",
+      "hz": 3.1938137774740896,
+      "v": 1.597568979388789,
+      "sd": 36.288,
+      "target_height": 1.48
+     }
+    ]
+   },
+   {
+    "station": "S1",
+    "instrument_height": 1.659,
+    "observations": [
+     {
+      "target": "TN11",
+      "hz": 0.0,
+      "v": 1.554229137936191,
+      "sd": 36.283,
+      "target_height": 1.48
+     },
+     {
+      "target": "S2",
+      "hz": 4.487796521579556,
+      "v": 1.5817510603779643,
+      "sd": 57.333999999999996,
+      "target_height": 1.48
+     }
+    ]
+   },
+   {
+    "station": "S2",
+    "instrument_height": 1.656,
+    "observations": [
+     {
+      "target": "S1",
+      "hz": 0.0,
+      "v": 1.566032101535728,
+      "sd": 57.336,
+      "target_height": 1.48
+     },
+     {
+      "target": "S3",
+      "hz": 3.600211773938792,
+      "v": 1.545252036928558,
+      "sd": 119.088,
+      "target_height": 1.48
+     }
+    ]
+   },
+   {
+    "station": "S3",
+    "instrument_height": 1.618,
+    "observations": [
+     {
+      "target": "S2",
+      "hz": 0.0,
+      "v": 1.59897012971229,
+      "sd": 119.103,
+      "target_height": 1.48
+     },
+     {
+      "target": "S4",
+      "hz": 4.294335675175169,
+      "v": 1.505115049186295,
+      "sd": 78.03699999999999,
+      "target_height": 1.48
+     }
+    ]
+   },
+   {
+    "station": "S4",
+    "instrument_height": 1.574,
+    "observations": [
+     {
+      "target": "S3",
+      "hz": 0.0,
+      "v": 1.6395045289252324,
+      "sd": 78.04599999999999,
+      "target_height": 1.48
+     },
+     {
+      "target": "S5",
+      "hz": 3.67833847084459,
+      "v": 1.6721378226143961,
+      "sd": 33.472,
+      "target_height": 1.48
+     }
+    ]
+   },
+   {
+    "station": "S5",
+    "instrument_height": 1.451,
+    "observations": [
+     {
+      "target": "S4",
+      "hz": 0.0,
+      "v": 1.47132564940061,
+      "sd": 33.476,
+      "target_height": 1.48
+     },
+     {
+      "target": "S6",
+      "hz": 3.7420766733969466,
+      "v": 1.5393442719434824,
+      "sd": 145.442,
+      "target_height": 1.48
+     }
+    ]
+   },
+   {
+    "station": "S6",
+    "instrument_height": 1.633,
+    "observations": [
+     {
+      "target": "S5",
+      "hz": 0.0,
+      "v": 1.6032301293505578,
+      "sd": 145.448,
+      "target_height": 1.48
+     },
+     {
+      "target": "S7",
+      "hz": 3.5803836119056602,
+      "v": 1.5449598688117743,
+      "sd": 29.840999999999998,
+      "target_height": 1.48
+     }
+    ]
+   },
+   {
+    "station": "S7",
+    "instrument_height": 1.57,
+    "observations": [
+     {
+      "target": "S6",
+      "hz": 0.0,
+      "v": 1.6049407265504374,
+      "sd": 29.851,
+      "target_height": 1.48
+     },
+     {
+      "target": "TN10",
+      "hz": 4.521926784168155,
+      "v": 1.6055816114517698,
+      "sd": 55.507,
+      "target_height": 1.48
+     }
+    ]
+   },
+   {
+    "station": "TN10",
+    "instrument_height": 1.547,
+    "observations": [
+     {
+      "target": "S7",
+      "hz": 0.0,
+      "v": 1.6055847530444232,
+      "sd": 55.498,
+      "target_height": 1.48
+     },
+     {
+      "target": "TN11",
+      "hz": 3.458491387742703
+     }
+    ]
+   }
+  ],
+  "traverses": [
+   {
+    "route": [
+     "TN10",
+     "TN11",
+     "S1",
+     "S2",
+     "S3",
+     "S4",
+     "S5",
+     "S6",
+     "S7",
+     "TN10",
+     "TN11"
+    ],
+    "name": "link_TN10_TN11"
+   }
+  ],
+  "settings": {
+   "reduction": {
+    "scale_mode": "fixed",
+    "fixed_scale": 0.9996020831340879,
+    "elevation_mode": "traverse",
+    "curvature_refraction": false,
+    "earth_radius": 6371000.0
+   },
+   "compute_detail": false
+  }
+ },
+ "expected": {
+  "points": {
+   "S1": [
+    487082.8861249548,
+    4226445.470084024,
+    275.8663439538211
+   ],
+   "S2": [
+    487071.51821558416,
+    4226389.3073152015,
+    275.4181612255515
+   ],
+   "S3": [
+    486998.71430672455,
+    4226295.187660376,
+    278.63750775097435
+   ],
+   "S4": [
+    486923.117177759,
+    4226313.71677984,
+    283.90080543045764
+   ],
+   "S5": [
+    486899.3800307489,
+    4226337.062598367,
+    280.60750042870814
+   ],
+   "S6": [
+    486871.4674714376,
+    4226479.679733092,
+    285.16401023104163
+   ],
+   "S7": [
+    486878.71507263416,
+    4226508.60779296,
+    286.090967677297
+   ]
+  },
+  "traverses": {
+   "link_TN10_TN11": {
+    "angular_cc": 92.0,
+    "wx": -0.013666224549524486,
+    "wy": 0.06106672529131174
+   }
+  }
+ },
+ "tolerance": {
+  "xy_m": 0.0005,
+  "z_m": 0.0005,
+  "angular_cc": 0.5,
+  "misclosure_m": 0.0005
+ },
+ "check_z": false,
+ "expect_issues": [
+  "LEG_HEIGHT_FB"
+ ],
+ "notes": "Heights are not comparable: in the workbook, row 19 (TN10→S7, ΥΟ 1.547) carries the zenith and distance of the opposite shot (102.2147 g, 55.498 m — the S7→TN10 values). The same leg in the open-traverse workbook reads 97.9751 g / 55.499 m. The workbook averages |ΔH| with the forward sign and hides the contradiction; the engine averages signed values and reports LEG_HEIGHT_FB (forward/backward differ by 3.70 m). X/Y and all misclosures agree exactly."
+}

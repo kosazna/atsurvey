@@ -31,6 +31,7 @@ from atsurvey.core.cogo_models import (
     TransformResult,
 )
 from atsurvey.core.leveling import level
+from atsurvey.core.specs import TolerancePreset, tolerance_presets
 
 from ..auth import Caller, require_compute
 
@@ -102,3 +103,9 @@ def leveling(req: LevelingRequest, caller: ComputeCaller) -> LevelingResult:
 @router.post("/cogo/stakeout", response_model=StakeoutResult)
 def stakeout(req: StakeoutRequest, caller: ComputeCaller) -> StakeoutResult:
     return _run(cogo.stakeout, req)
+
+
+@router.get("/presets/tolerances", response_model=list[TolerancePreset])
+def tolerance_presets_route() -> list[TolerancePreset]:
+    """Tolerance presets (Greek specification: scale × class × terrain)."""
+    return tolerance_presets()

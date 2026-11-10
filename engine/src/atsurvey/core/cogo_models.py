@@ -234,6 +234,19 @@ class LevelingRequest(_M):
     tolerance_base_mm: float = 0.0
     tolerance_mm_per_sqrt_km: float = 12.0
     distribute: Literal["distance", "setups"] = "distance"
+    return_setups: list[LevelingSetup] | None = Field(
+        default=None,
+        description=(
+            "Double-run levelling (μετάβαση–επιστροφή): the return run, measured from the end of "
+            "the forward run back to its start. Sections between points common to both runs are "
+            "compared and their mean height differences are adjusted."
+        ),
+    )
+    section_points: list[str] | None = Field(
+        default=None,
+        description="Points that delimit sections in double-run levelling (default: benchmarks "
+        "plus every point that appears in both runs)",
+    )
 
 
 class LevelingPoint(_M):
@@ -252,6 +265,18 @@ class LevelingRow(_M):
     length: float | None
 
 
+class LevelingSection(_M):
+    frm: str
+    to: str
+    dh_forward: float
+    dh_return: float = Field(description="Return-run height difference to → frm")
+    discrepancy: float = Field(description="dh_forward + dh_return (0 for perfect data)")
+    dh_mean: float
+    length: float | None = Field(default=None, description="Mean of the two runs' lengths, m")
+    tolerance: float | None = None
+    within_tolerance: bool | None = None
+
+
 class LevelingResult(_M):
     points: list[LevelingPoint]
     rows: list[LevelingRow]
@@ -263,6 +288,7 @@ class LevelingResult(_M):
     length_km: float | None
     n_setups: int
     message: str | None = None
+    sections: list[LevelingSection] = Field(default_factory=list)
 
 
 # ----------------------------------------------------------------------------- stakeout

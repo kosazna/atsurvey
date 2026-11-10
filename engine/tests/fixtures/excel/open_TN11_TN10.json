@@ -1,0 +1,191 @@
+{
+ "source": "ΣΤΟΙΧΕΙΑ ΑΝΟΙΧΤΗΣ ΠΛΗΡΩΣ ΕΞΑΡΤΗΜΕΝΗΣ ΟΔΕΥΣΗΣ — wb5.xlsx",
+ "kind": "traverse",
+ "input": {
+  "control_points": [
+   {
+    "name": "TN11",
+    "x": 487049.841,
+    "y": 4226460.392,
+    "z": 276.648
+   },
+   {
+    "name": "TN10",
+    "x": 486934.074,
+    "y": 4226505.561,
+    "z": 284.24
+   }
+  ],
+  "setups": [
+   {
+    "station": "TN10",
+    "instrument_height": 1.547,
+    "observations": [
+     {
+      "target": "TN11",
+      "hz": 0.0
+     },
+     {
+      "target": "S7",
+      "hz": 2.824693919436884,
+      "v": 1.538989271973627,
+      "sd": 55.499,
+      "target_height": 1.48
+     }
+    ]
+   },
+   {
+    "station": "S7",
+    "instrument_height": 1.57,
+    "observations": [
+     {
+      "target": "TN10",
+      "hz": 0.0,
+      "v": 1.6055847530444232,
+      "sd": 55.498,
+      "target_height": 1.48
+     },
+     {
+      "target": "S8",
+      "hz": 2.935433489679597,
+      "v": 1.5632298008887255,
+      "sd": 125.847,
+      "target_height": 1.48
+     }
+    ]
+   },
+   {
+    "station": "S8",
+    "instrument_height": 1.581,
+    "observations": [
+     {
+      "target": "S7",
+      "hz": 0.0,
+      "v": 1.5799682065470522,
+      "sd": 125.851,
+      "target_height": 1.48
+     },
+     {
+      "target": "S9",
+      "hz": 3.524799413085696,
+      "v": 1.5829825646981717,
+      "sd": 127.759,
+      "target_height": 1.48
+     }
+    ]
+   },
+   {
+    "station": "S9",
+    "instrument_height": 1.575,
+    "observations": [
+     {
+      "target": "S8",
+      "hz": 0.0,
+      "v": 1.560217013533933,
+      "sd": 127.768,
+      "target_height": 1.48
+     },
+     {
+      "target": "S9A",
+      "hz": 0.38358532141066015,
+      "v": 1.5774596448131606,
+      "sd": 60.189,
+      "target_height": 1.48
+     }
+    ]
+   },
+   {
+    "station": "S9A",
+    "instrument_height": 1.569,
+    "observations": [
+     {
+      "target": "S9",
+      "hz": 0.0,
+      "v": 1.5672447563000134,
+      "sd": 60.186,
+      "target_height": 1.48
+     },
+     {
+      "target": "S9B",
+      "hz": 3.404814135663468,
+      "v": 1.582511325800133,
+      "sd": 111.622,
+      "target_height": 1.48
+     }
+    ]
+   },
+   {
+    "station": "S9B",
+    "instrument_height": 1.605,
+    "observations": [
+     {
+      "target": "S9A",
+      "hz": 0.0,
+      "v": 1.5610699559393826,
+      "sd": 111.627,
+      "target_height": 1.48
+     }
+    ]
+   }
+  ],
+  "traverses": [
+   {
+    "route": [
+     "TN11",
+     "TN10",
+     "S7",
+     "S8",
+     "S9",
+     "S9A",
+     "S9B"
+    ],
+    "name": "open_TN11_TN10"
+   }
+  ],
+  "settings": {
+   "reduction": {
+    "scale_mode": "fixed",
+    "fixed_scale": 0.9996,
+    "elevation_mode": "traverse",
+    "curvature_refraction": false,
+    "earth_radius": 6371000.0
+   },
+   "compute_detail": false
+  }
+ },
+ "expected": {
+  "points": {
+   "S7": [
+    486878.7151149788,
+    4226508.614735947,
+    286.0761303871621
+   ],
+   "S8": [
+    486754.3587622494,
+    4226489.686217025,
+    287.1238751644224
+   ],
+   "S9": [
+    486630.0860687949,
+    4226519.066380586,
+    285.67260740597453
+   ],
+   "S9A": [
+    486679.1974088676,
+    4226484.320270512,
+    285.3682024795635
+   ],
+   "S9B": [
+    486750.3726872792,
+    4226398.404010889,
+    284.15353738484555
+   ]
+  }
+ },
+ "tolerance": {
+  "xy_m": 0.0005,
+  "z_m": 0.0005,
+  "angular_cc": 0.5,
+  "misclosure_m": 0.0005
+ }
+}

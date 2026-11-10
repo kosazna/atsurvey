@@ -27,7 +27,11 @@ def test_matches_workbook(path: Path) -> None:
             continue
         if abs(p.x - x) > tol["xy_m"] or abs(p.y - y) > tol["xy_m"]:
             failures.append(f"{name}: dX={p.x - x:+.4f} dY={p.y - y:+.4f}")
-        if z is not None and (p.z is None or abs(p.z - z) > tol["z_m"]):
+        if (
+            case.get("check_z", True)
+            and z is not None
+            and (p.z is None or abs(p.z - z) > tol["z_m"])
+        ):
             failures.append(f"{name}: dZ={(p.z or 0) - z:+.4f}")
     trs = {t.name: t for t in result.traverses}
     for name, exp in case["expected"].get("traverses", {}).items():
@@ -43,4 +47,28 @@ def test_matches_workbook(path: Path) -> None:
             got = getattr(t, key)
             if key in exp and got is not None and abs(got - exp[key]) > tol["misclosure_m"]:
                 failures.append(f"{name}: {key} {got:+.4f} vs {exp[key]:+.4f}")
+    codes = {i.code for i in result.issues}
+    for code in case.get("expect_issues", []):
+        if code not in codes:
+            failures.append(f"expected issue {code} not reported")
     assert not failures, "\n".join(failures)
+
+
+def test_greek_tolerance_preset_matches_workbook():
+    """Link workbook: primary, flat, 1/500 → linear 0.1677 m, angular 6 c (n = 9)."""
+    import json
+
+    from atsurvey.core.specs import greek_tolerances, tolerance_presets
+
+    case = json.loads(
+        (Path(__file__).parent / "fixtures" / "excel" / "link_TN10_TN11.json").read_text()
+    )
+    inp = ProjectInput.model_validate(case["input"])
+    inp.settings.tolerances = greek_tolerances("1/500", "primary", "flat")
+    t = compute_project(inp).traverses[0]
+    assert t.linear_tolerance == pytest.approx(0.16771359048377657, abs=1e-12)
+    assert rad_to_cc(t.angular_tolerance) == pytest.approx(600.0, abs=1e-9)  # 6 c
+    assert t.n_angles == 9
+    # with the specification's limits the traverse is within tolerance horizontally
+    assert t.linear_misclosure < t.linear_tolerance
+    assert len(tolerance_presets()) == 24

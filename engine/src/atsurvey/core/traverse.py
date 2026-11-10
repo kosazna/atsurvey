@@ -271,7 +271,10 @@ def compute_traverse(
         )
 
     def traverse_mean_height() -> float:
-        zs = [p.z for p in (start, end_known) if p is not None and p.z is not None]
+        # same pair of points as the single scale factor below: start and end station, or
+        # for an open traverse the start station and its orientation point
+        other = end_known if end_known is not None else orient
+        zs = [p.z for p in (start, other) if p is not None and p.z is not None]
         if zs:
             return math.fsum(zs) / len(zs)
         return rs.default_elevation
@@ -353,7 +356,11 @@ def compute_traverse(
             )
     if wx is not None and wy is not None:
         w_lin = math.hypot(wx, wy)
-        linear_tol = tol.linear_base_m + tol.linear_per_sqrt_km_m * math.sqrt(length / 1000.0)
+        linear_tol = (
+            tol.linear_base_m
+            + tol.linear_per_sqrt_km_m * math.sqrt(length / 1000.0)
+            + tol.linear_per_sqrt_m_m * math.sqrt(length)
+        )
         ok = w_lin <= linear_tol
         checks.append(ok)
         if not ok:
