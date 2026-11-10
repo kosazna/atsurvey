@@ -1,5 +1,6 @@
 // Least-squares adjustment: global test, observation residuals with Baarda w-test,
-// suspect observation with one-click exclusion, point precision and ellipse display scale.
+// suspect observation with one-click exclusion, point precision and ellipse display scale,
+// and the robust-estimation (IRLS) option with its down-weighted observations.
 import { AlertTriangle, ArrowDownWideNarrow, CheckCircle2, Info, Sigma, XCircle } from "lucide-react";
 import { Suspense, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -8,11 +9,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatAngle, radToCc } from "@/lib/angles";
-import type { AdjustedObservation, AdjustmentResult, ResultPoint } from "@/lib/types";
-import { cn, fmtNum } from "@/lib/utils";
+import type { AdjustedObservation, AdjustmentResult, AdjustmentSettings, ResultPoint, RobustMethod } from "@/lib/types";
+import { cn, fmtNum, parseNum } from "@/lib/utils";
 import type { Col } from "../grid/DataGrid";
 import { DataGrid } from "../grid/LazyDataGrid";
 import { issueText } from "../issues";
@@ -47,6 +50,63 @@ function Metric({ label, value, hint, tone }: { label: string; value: React.Reac
   );
 }
 
+const ROBUST_METHODS: RobustMethod[] = ["off", "huber", "danish"];
+
+/** A number input that commits on blur / Enter (each commit recomputes the project). */
+function CommitNumber({ label, value, onCommit, min, max, integer }: { label: string; value: number; onCommit: (v: number) => void; min: number; max: number; integer?: boolean }) {
+  const [text, setText] = useState(String(value));
+  const commit = () => {
+    const v = parseNum(text);
+    if (v === null || v < min || v > max || (integer && !Number.isInteger(v))) {
+      setText(String(value));
+      return;
+    }
+    if (v !== value) onCommit(v);
+  };
+  return (
+    <label className="flex items-center gap-1.5 text-xs text-muted">
+      {label}
+      <Input value={text} onChange={(e) => setText(e.target.value)} onBlur={commit} onKeyDown={(e) => e.key === "Enter" && commit()} inputMode="decimal" className="h-7 w-16 tabular" />
+    </label>
+  );
+}
+
+/** Robust estimation option (settings.adjustment.robust*) and the outcome of the last run. */
+function RobustCard({ a }: { a: AdjustmentResult | null }) {
+  const { t } = useTranslation();
+  const ws = useWorkspace();
+  const adj = ws.data.settings.adjustment;
+  const set = (patch: Partial<AdjustmentSettings>) => ws.update({ settings: { ...ws.data.settings, adjustment: { ...adj, ...patch } } });
+  const rb = a?.robust ?? null;
+  return (
+    <Card className="flex flex-wrap items-center gap-3 p-3.5" data-testid="robust-card">
+      <div className="min-w-0 flex-1 basis-64">
+        <div className="text-sm font-medium">{t("analysis.robust.title")}</div>
+        <div className="text-xs text-muted">{t("analysis.robust.hint")}</div>
+        {rb && (
+          <div className={cn("mt-1 text-xs tabular", rb.converged ? "text-muted" : "text-warning")} data-testid="robust-summary">
+            {t("analysis.robust.summary", { method: t(`analysis.robust.method.${rb.method}`), n: rb.downweighted, it: rb.iterations })}
+            {!rb.converged && ` · ${t("analysis.robust.notConverged")}`}
+          </div>
+        )}
+      </div>
+      <Select<RobustMethod>
+        className="w-44"
+        aria-label={t("analysis.robust.title")}
+        value={adj.robust ?? "off"}
+        onValueChange={(robust) => set({ robust })}
+        options={ROBUST_METHODS.map((m) => ({ value: m, label: t(`analysis.robust.method.${m}`) }))}
+      />
+      {adj.robust && adj.robust !== "off" && (
+        <>
+          <CommitNumber key={`k${adj.robust_threshold}`} label={t("analysis.robust.threshold")} value={adj.robust_threshold} min={1} max={10} onCommit={(robust_threshold) => set({ robust_threshold })} />
+          <CommitNumber key={`n${adj.robust_max_iterations}`} label={t("analysis.robust.maxIter")} value={adj.robust_max_iterations} min={1} max={100} integer onCommit={(robust_max_iterations) => set({ robust_max_iterations })} />
+        </>
+      )}
+    </Card>
+  );
+}
+
 export default function AdjustmentSection() {
   const { t } = useTranslation();
   const ws = useWorkspace();
@@ -66,6 +126,7 @@ export default function AdjustmentSection() {
     return list;
   }, [a, sortByW]);
 
+  const robustOn = !!a?.robust;
   const precise = useMemo(() => (ws.result?.points ?? []).filter((p) => p.sx !== null && p.sx !== undefined), [ws.result]);
   const adjIssues = (ws.result?.issues ?? []).filter((i) => i.code.startsWith("ADJUSTMENT"));
 
@@ -91,8 +152,11 @@ export default function AdjustmentSection() {
         kind: "number",
         get: (o) => (o.kind === "direction" ? `${radToCc(o.sigma).toFixed(1)} cc` : `${(o.sigma * 1000).toFixed(1)} mm`),
       },
+      ...(robustOn
+        ? [{ id: "wt", title: t("analysis.robust.weight"), width: 80, kind: "number" as const, get: (o: AdjustedObservation) => (o.weight ?? 1).toFixed(3), invalid: (o: AdjustedObservation) => (o.weight ?? 1) < 0.99 }]
+        : []),
     ],
-    [t, unit],
+    [t, unit, robustOn],
   );
 
   const ptCols = useMemo<Col<ResultPoint>[]>(
@@ -194,6 +258,8 @@ export default function AdjustmentSection() {
           <Metric label={t("adj.maxW")} value={a.max_w === null ? "—" : a.max_w.toFixed(2)} tone={a.suspect ? "bad" : "ok"} hint={t("adj.wCrit", { w: a.w_critical.toFixed(2) })} />
           <Metric label={t("adj.flagged")} value={a.observations.filter((o) => o.flagged).length} tone={a.observations.some((o) => o.flagged) ? "warn" : "ok"} hint={t("adj.ofTotal", { n: a.observations.length })} />
         </div>
+
+        <RobustCard a={a} />
 
         <Card
           className={cn(

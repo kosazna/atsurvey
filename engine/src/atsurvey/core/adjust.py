@@ -19,12 +19,18 @@ Model
 * Datum: control points are fixed (minimum constraints are not used).
 * Statistics: σ0, global χ² test, redundancy numbers, Baarda w-test (data snooping), point
   standard deviations and standard error ellipses.
-See docs/adjustment.md.
+* Optional robust estimation (``settings.robust``): iteratively re-weighted least squares on the
+  standardised residuals with the Huber or the Danish weight function (off by default; with it
+  off the computation is exactly the plain least-squares adjustment).
+The design-matrix code (``_hz_linearise``, ``_h_design``) and the normal-equation helpers are
+shared with the pre-analysis (core/preanalysis.py), so both use the identical functional model.
+See docs/adjustment.md and docs/analysis.md.
 """
 
 from __future__ import annotations
 
 import math
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from statistics import NormalDist
 
@@ -45,6 +51,8 @@ from .models import (
     GlobalTest,
     ObservationKind,
     ReductionSettings,
+    RobustMethod,
+    RobustSummary,
 )
 from .reduce import ObservationIndex, ReducedSetup
 from .traverse import KnownPoint
@@ -54,6 +62,9 @@ MAX_UNKNOWNS = 4000
 CONVERGENCE_M = 5e-5  # 0.05 mm
 MIN_REDUNDANCY = 0.01
 K95_2D = 2.4477
+ROBUST_TOLERANCE = 1e-3  # IRLS stops when no weight factor changes by more than this
+ROBUST_MIN_WEIGHT = 1e-4  # floor of the weight factor (σ inflated at most 100×)
+DOWNWEIGHTED = 0.99  # weight factors below this are reported as down-weighted
 
 
 @dataclass(slots=True)
@@ -70,6 +81,7 @@ class _Obs:
     redundancy: float = 0.0
     w: float | None = None
     flagged: bool = False
+    weight: float = 1.0  # robust weight factor (multiplies 1/σ²)
 
 
 @dataclass(slots=True)
@@ -207,17 +219,73 @@ def _prune(unknown: set[str], obs: list[_Obs]) -> tuple[set[str], list[_Obs], li
 # ------------------------------------------------------------------------------ horizontal
 
 
+def _hz_linearise(
+    obs: list[_Obs],
+    coords: dict[str, list[float]],
+    omega: dict[int, float],
+    point_cols: dict[str, int],
+    ori_cols: dict[int, int],
+    n: int,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Linearised horizontal model at ``coords``: design rows, misclosures and model values.
+
+    Each row has at most 5 non-zero coefficients (x, y of target and station, orientation),
+    stored as column indices ``idx`` (pad = n) and values ``coef``. Direction (Ghilani 2017,
+    §16.4): ``∂r/∂x_t = Δy/D²``, ``∂r/∂y_t = −Δx/D²``, ``∂r/∂ω = −1``; distance (§16.3):
+    ``∂D/∂x_t = Δx/D``, ``∂D/∂y_t = Δy/D``; the station takes the opposite signs.
+    ``rhs`` = observed − model (directions wrapped to (−π, π]).
+    """
+    m = len(obs)
+    idx = np.full((m, 5), n, dtype=np.int64)
+    coef = np.zeros((m, 5))
+    model = np.zeros(m)
+    for r, o in enumerate(obs):
+        xs, ys = coords[o.station]
+        xt, yt = coords[o.target]
+        dx, dy = xt - xs, yt - ys
+        d2 = dx * dx + dy * dy
+        d = math.sqrt(d2)
+        k = 0
+        if o.kind == "direction":
+            model[r] = wrap_2pi(grid_azimuth(xs, ys, xt, yt) - omega[o.setup])
+            parts = ((o.target, dy / d2, -dx / d2), (o.station, -dy / d2, dx / d2))
+            idx[r, 4] = ori_cols[o.setup]
+            coef[r, 4] = -1.0
+        else:
+            model[r] = d
+            parts = ((o.target, dx / d, dy / d), (o.station, -dx / d, -dy / d))
+        for name, cx, cy in parts:
+            col = point_cols.get(name)
+            if col is not None:
+                idx[r, k], coef[r, k] = col, cx
+                idx[r, k + 1], coef[r, k + 1] = col + 1, cy
+            k += 2
+    obs_v = np.array([o.value for o in obs])
+    rhs = obs_v - model
+    dirs = np.array([o.kind == "direction" for o in obs])
+    rhs[dirs] = (rhs[dirs] + math.pi) % (2 * math.pi) - math.pi
+    return idx, coef, rhs, model
+
+
+def _hz_columns(
+    obs: list[_Obs], unknown: list[str]
+) -> tuple[dict[str, int], dict[int, int], int, int]:
+    """Unknown layout: (x, y) per free point, then one orientation per setup with directions."""
+    point_cols = {p: 2 * i for i, p in enumerate(unknown)}
+    setups = sorted({o.setup for o in obs if o.kind == "direction"})
+    n_pts = 2 * len(unknown)
+    ori_cols = {s: n_pts + j for j, s in enumerate(setups)}
+    return point_cols, ori_cols, n_pts, n_pts + len(setups)
+
+
 def _horizontal(
     obs: list[_Obs],
     unknown: list[str],
     coords: dict[str, list[float]],
     settings: AdjustmentSettings,
+    weights: np.ndarray | None = None,
 ) -> _Solution:
-    point_cols = {p: 2 * i for i, p in enumerate(unknown)}
-    setups = sorted({o.setup for o in obs if o.kind == "direction"})
-    n_pts = 2 * len(unknown)
-    ori_cols = {s: n_pts + j for j, s in enumerate(setups)}
-    n = n_pts + len(setups)
+    point_cols, ori_cols, n_pts, n = _hz_columns(obs, unknown)
 
     # initial orientation unknowns
     omega: dict[int, float] = {}
@@ -232,39 +300,12 @@ def _horizontal(
     for s, vals in by_setup.items():
         omega[s] = circular_mean(vals)
 
-    m = len(obs)
     p = np.array([1.0 / (o.sigma * o.sigma) for o in obs])
+    if weights is not None:
+        p = p * weights
 
     def linearise() -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-        idx = np.full((m, 5), n, dtype=np.int64)
-        coef = np.zeros((m, 5))
-        model = np.zeros(m)
-        for r, o in enumerate(obs):
-            xs, ys = coords[o.station]
-            xt, yt = coords[o.target]
-            dx, dy = xt - xs, yt - ys
-            d2 = dx * dx + dy * dy
-            d = math.sqrt(d2)
-            k = 0
-            if o.kind == "direction":
-                model[r] = wrap_2pi(grid_azimuth(xs, ys, xt, yt) - omega[o.setup])
-                parts = ((o.target, dy / d2, -dx / d2), (o.station, -dy / d2, dx / d2))
-                idx[r, 4] = ori_cols[o.setup]
-                coef[r, 4] = -1.0
-            else:
-                model[r] = d
-                parts = ((o.target, dx / d, dy / d), (o.station, -dx / d, -dy / d))
-            for name, cx, cy in parts:
-                col = point_cols.get(name)
-                if col is not None:
-                    idx[r, k], coef[r, k] = col, cx
-                    idx[r, k + 1], coef[r, k + 1] = col + 1, cy
-                k += 2
-        obs_v = np.array([o.value for o in obs])
-        rhs = obs_v - model
-        dirs = np.array([o.kind == "direction" for o in obs])
-        rhs[dirs] = (rhs[dirs] + math.pi) % (2 * math.pi) - math.pi
-        return idx, coef, rhs, model
+        return _hz_linearise(obs, coords, omega, point_cols, ori_cols, n)
 
     converged = False
     iterations = 0
@@ -314,25 +355,39 @@ def _horizontal(
 # ---------------------------------------------------------------------------------- heights
 
 
-def _heights(
-    obs: list[_Obs], unknown: list[str], fixed_h: dict[str, float], approx: dict[str, float]
-) -> _Solution:
-    cols = {name: i for i, name in enumerate(unknown)}
-    n = len(unknown)
+def _h_design(obs: list[_Obs], cols: dict[str, int], n: int) -> tuple[np.ndarray, np.ndarray]:
+    """Design rows of ``h_j − h_i = Δh``: +1 for the target, −1 for the station (pad = n)."""
     m = len(obs)
     idx = np.full((m, 2), n, dtype=np.int64)
     coef = np.zeros((m, 2))
-    rhs = np.zeros(m)
-    p = np.array([1.0 / (o.sigma * o.sigma) for o in obs])
-
-    def h0(name: str) -> float:
-        return fixed_h[name] if name in fixed_h else approx.get(name, 0.0)
-
     for r, o in enumerate(obs):
         if o.target in cols:
             idx[r, 0], coef[r, 0] = cols[o.target], 1.0
         if o.station in cols:
             idx[r, 1], coef[r, 1] = cols[o.station], -1.0
+    return idx, coef
+
+
+def _heights(
+    obs: list[_Obs],
+    unknown: list[str],
+    fixed_h: dict[str, float],
+    approx: dict[str, float],
+    weights: np.ndarray | None = None,
+) -> _Solution:
+    cols = {name: i for i, name in enumerate(unknown)}
+    n = len(unknown)
+    m = len(obs)
+    rhs = np.zeros(m)
+    p = np.array([1.0 / (o.sigma * o.sigma) for o in obs])
+    if weights is not None:
+        p = p * weights
+
+    def h0(name: str) -> float:
+        return fixed_h[name] if name in fixed_h else approx.get(name, 0.0)
+
+    idx, coef = _h_design(obs, cols, n)
+    for r, o in enumerate(obs):
         rhs[r] = o.value - (h0(o.target) - h0(o.station))
     nmat, u = _assemble(n, idx, coef, p, rhs)
     delta, q = _solve(nmat, u, want_inverse=True)
@@ -353,6 +408,74 @@ def _heights(
     sol = _Solution(obs=obs, n_unknowns=n, vtpv=float(np.sum(p * v * v)), q=q, point_cols=cols)
     sol.values = {name: (h[name],) for name in unknown}
     return sol
+
+
+# ---------------------------------------------------------------------- robust estimation
+
+
+def robust_weight(u: float, method: RobustMethod, c: float) -> float:
+    """Weight factor for a standardised residual ``u`` (IRLS, Huber 1964 / Danish method).
+
+    * Huber: ``1`` for ``|u| ≤ c``, ``c/|u|`` beyond (Huber 1964; Koch 1999, §3.8).
+    * Danish (Krarup, Juhl & Kubik 1980), smooth exponential form:
+      ``1`` for ``|u| ≤ c``, ``exp(1 − (|u|/c)²)`` beyond (continuous at ``c``).
+    Floored at ``ROBUST_MIN_WEIGHT`` so the normal matrix stays regular.
+    """
+    a = abs(u)
+    if method == "off" or a <= c:
+        return 1.0
+    w = c / a if method == "huber" else math.exp(1.0 - (a / c) ** 2)
+    return max(w, ROBUST_MIN_WEIGHT)
+
+
+def _standardised(obs: list[_Obs]) -> list[float]:
+    """``ū_i = v_i / (σ_i √r_i)`` with the a priori σ and the current redundancy numbers;
+    observations without control (r < MIN_REDUNDANCY) get 0 (they cannot be judged)."""
+    return [
+        o.residual / (o.sigma * math.sqrt(o.redundancy)) if o.redundancy >= MIN_REDUNDANCY else 0.0
+        for o in obs
+    ]
+
+
+def _irls(
+    solve: Callable[[np.ndarray | None], _Solution], obs: list[_Obs], settings: AdjustmentSettings
+) -> tuple[_Solution, int, bool]:
+    """Iteratively re-weighted least squares. With ``robust = "off"`` this is exactly one plain
+    solve. Otherwise: solve, compute standardised residuals, new weight factors
+    ``w_i = ψ(ū_i)``, re-solve with ``p_i·w_i``; stop when no factor changes by more than
+    ``ROBUST_TOLERANCE`` or after ``robust_max_iterations`` re-weightings.
+
+    The Danish weight function is redescending, so it needs a robust start: a gross error
+    smeared by the first least-squares solution would otherwise also switch off the good
+    observations around it. It therefore starts from the converged Huber weights (Huber is
+    convex, its solution unique) and continues with the Danish function (Koch 1999, §3.8.3;
+    Wicki 1998). Returns the solution (weights stored on the observations), the number of
+    re-weightings and whether the weights converged."""
+    if settings.robust == "off":
+        return solve(None), 0, True
+    wts = np.ones(len(obs))
+    sol = solve(wts)
+    phase: RobustMethod = "huber"
+    converged = False
+    rounds = 0
+    while rounds < settings.robust_max_iterations:
+        rounds += 1
+        u = _standardised(obs)
+        new = np.array([robust_weight(x, phase, settings.robust_threshold) for x in u])
+        if float(np.max(np.abs(new - wts), initial=0.0)) < ROBUST_TOLERANCE:
+            if phase == settings.robust:
+                converged = True
+                break
+            phase = settings.robust  # Huber settled: switch to the Danish function
+            new = np.array([robust_weight(x, phase, settings.robust_threshold) for x in u])
+        try:
+            nxt = solve(new)
+        except _Singular:
+            break  # keep the last regular solution and its weights
+        sol, wts = nxt, new
+    for o, w in zip(obs, wts, strict=True):
+        o.weight = float(w)
+    return sol, rounds, converged
 
 
 def _components(edges: list[tuple[str, str]]) -> dict[str, str]:
@@ -441,6 +564,7 @@ def adjust_network(
         o.target for o in hz_obs if o.target in fixed
     }
     hz_sol: _Solution | None = None
+    robust_runs: list[tuple[int, bool]] = []
     if free_h:
         if len(fixed_in_hz) < 2:
             sink.error(
@@ -462,7 +586,11 @@ def adjust_network(
             return None
         coords = {name: [known[name].x, known[name].y] for name in net}
         try:
-            hz_sol = _horizontal(hz_obs, sorted(free_h), coords, settings)
+            free_list = sorted(free_h)
+            hz_sol, hz_rw, hz_rconv = _irls(
+                lambda w: _horizontal(hz_obs, free_list, coords, settings, w), hz_obs, settings
+            )
+            robust_runs.append((hz_rw, hz_rconv))
         except _Singular:
             sink.error(
                 "ADJUSTMENT_DATUM",
@@ -502,7 +630,12 @@ def adjust_network(
         if free_z:
             approx = {n: known[n].z for n in free_z if known[n].z is not None}
             try:
-                h_sol = _heights(h_obs, free_z, fixed_h, approx)  # type: ignore[arg-type]
+                h_sol, h_rw, h_rconv = _irls(
+                    lambda w: _heights(h_obs, free_z, fixed_h, approx, w),  # type: ignore[arg-type]
+                    h_obs,
+                    settings,
+                )
+                robust_runs.append((h_rw, h_rconv))
             except _Singular:
                 sink.warning(
                     "ADJUSTMENT_DATUM",
@@ -577,6 +710,8 @@ def adjust_network(
             critical=round(w_crit, 2),
         )
 
+    robust = _robust_summary(all_obs, robust_runs, settings, sink)
+
     # a posteriori variance only when the global test accepts it, otherwise a priori (σ0 = 1)
     s2 = sigma0 * sigma0 if global_test is not None and global_test.passed else 1.0
 
@@ -611,6 +746,7 @@ def adjust_network(
             redundancy=o.redundancy,
             w=o.w,
             flagged=o.flagged,
+            weight=o.weight,
         )
 
     return AdjustmentResult(
@@ -625,7 +761,42 @@ def adjust_network(
         max_w=max_w,
         suspect=out(suspect_obs) if suspect_obs is not None else None,
         observations=[out(o) for o in all_obs],
+        robust=robust,
     )
 
 
-__all__ = ["adjust_network", "wrap_pi"]
+def _robust_summary(
+    all_obs: list[_Obs],
+    runs: list[tuple[int, bool]],
+    settings: AdjustmentSettings,
+    sink: IssueSink,
+) -> RobustSummary | None:
+    if settings.robust == "off":
+        return None
+    iterations = max((r[0] for r in runs), default=0)
+    converged = all(r[1] for r in runs)
+    down = sorted((o for o in all_obs if o.weight < DOWNWEIGHTED), key=lambda o: o.weight)
+    if not converged:
+        sink.warning(
+            "ROBUST_NOT_CONVERGED",
+            f"Robust estimation: the weights did not settle in {iterations} re-weightings",
+            iterations=iterations,
+        )
+    if down:
+        listed = ", ".join(f"{o.kind} {o.station}→{o.target}" for o in down[:5])
+        sink.warning(
+            "ROBUST_DOWNWEIGHTED",
+            f"Robust estimation down-weighted {len(down)} observation(s): {listed}",
+            count=len(down),
+            observations=listed,
+        )
+    return RobustSummary(
+        method=settings.robust,
+        threshold=settings.robust_threshold,
+        iterations=iterations,
+        converged=converged,
+        downweighted=len(down),
+    )
+
+
+__all__ = ["adjust_network", "robust_weight", "wrap_pi"]

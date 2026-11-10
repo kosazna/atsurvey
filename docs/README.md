@@ -10,6 +10,14 @@
 | [numerics.md](numerics.md) | float64 vs Decimal, measured precision, rounding policy |
 | [adjustment.md](adjustment.md) | least-squares network adjustment, statistics, blunder detection |
 | [cogo.md](cogo.md) | COGO tools (inverse, polar, intersections, resection, area, transformation, chainage) and levelling |
+| [science-roadmap.md](science-roadmap.md) | surveying tools for Greek practice: what is built, what is blocked (⛔ dependencies) |
+| [parcels.md](parcels.md) | parcel area, Cadastre tolerance, subdivision, merge, coverage |
+| [dgm.md](dgm.md) | Διάγραμμα Γεωμετρικών Μεταβολών: Cadastre spec, builder, pre-submission validator |
+| [surfaces.md](surfaces.md) | TIN, breaklines, contours, volumes, profiles |
+| [setout.md](setout.md) | batch setting out, as-staked check, road axis (clothoids), vertical profile |
+| [analysis.md](analysis.md) | network pre-analysis (precision, reliability) |
+| [instruments.md](instruments.md) | levelling network adjustment, instrument checks |
+| [coords.md](coords.md) | coordinate systems: ΕΓΣΑ87, UTM, TM3, Hatt, HEPOS |
 | [formats.md](formats.md) | supported instrument files and how to export them |
 | [validation.md](validation.md) | validating against the reference Excel workbooks |
 | [api.md](api.md) | engine API endpoints, auth, plans, configuration |

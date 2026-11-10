@@ -95,6 +95,8 @@ export interface TolerancePreset {
 }
 
 export type AdjustmentMethod = "bowditch" | "least_squares";
+/** Robust estimation (IRLS) of the least-squares adjustment; "off" = plain least squares. */
+export type RobustMethod = "off" | "huber" | "danish";
 
 export interface AdjustmentSettings {
   method: AdjustmentMethod;
@@ -106,6 +108,10 @@ export interface AdjustmentSettings {
   alpha_global: number;
   alpha_w: number;
   max_iterations: number;
+  robust: RobustMethod;
+  /** |w| above which an observation is down-weighted. */
+  robust_threshold: number;
+  robust_max_iterations: number;
 }
 
 export interface LineworkSettings {
@@ -171,6 +177,9 @@ export const DEFAULT_ADJUSTMENT: AdjustmentSettings = {
   alpha_global: 0.05,
   alpha_w: 0.001,
   max_iterations: 10,
+  robust: "off",
+  robust_threshold: 2.5,
+  robust_max_iterations: 20,
 };
 
 export const DEFAULT_LINEWORK: LineworkSettings = {
@@ -253,6 +262,16 @@ export interface AdjustedObservation {
   redundancy: number;
   w: number | null;
   flagged: boolean;
+  /** Robust weight factor on 1/σ² (1 = full weight); absent in results computed before it existed. */
+  weight?: number;
+}
+
+export interface RobustSummary {
+  method: RobustMethod;
+  threshold: number;
+  iterations: number;
+  converged: boolean;
+  downweighted: number;
 }
 
 export interface GlobalTest {
@@ -275,6 +294,7 @@ export interface AdjustmentResult {
   max_w: number | null;
   suspect: AdjustedObservation | null;
   observations: AdjustedObservation[];
+  robust?: RobustSummary | null;
 }
 
 export interface Polyline {

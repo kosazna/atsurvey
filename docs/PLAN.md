@@ -49,7 +49,11 @@ all docs: [`README.md`](README.md).
 
 ## Roadmap after launch
 
-1. Official HEPOS→ΕΓΣΑ87 and Hatt transformations, Ktimatologio deliverable templates
-2. Team workspaces UI (schema and role guards are in place), DWG export
+Surveying tools (parcels, ΔΓΜ, terrain, setting out, pre-analysis, levelling networks, instrument
+checks, coordinate systems) were built in November 2026; what remains is blocked on the owner or
+third parties, listed as D1–D10 in [science-roadmap.md](science-roadmap.md).
+
+1. Official HEPOS grids in production, geoid, Hatt sheet table (science-roadmap D1–D3)
+2. Τοπογραφικό διάγραμμα template and official map layers (D7, D8), DWG export
 3. More instrument formats (Topcon GTS-7, Sokkia SDR33, South) once real samples exist
-4. Parcel subdivision (κατάτμηση), curves/alignments, volumes from surfaces
+4. Deformation monitoring, GNSS + total station adjustment (science-roadmap wave 3)

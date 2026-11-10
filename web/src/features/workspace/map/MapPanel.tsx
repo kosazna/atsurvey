@@ -23,6 +23,7 @@ import { type ResolvedTokens, useTokens } from "@/lib/tokens";
 import type { PointKind } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useWorkspace } from "../useWorkspace";
+import { setContourVisible, useContourOverlay } from "./contoursOverlay";
 
 maplibregl.setWorkerUrl(workerUrl);
 
@@ -52,6 +53,8 @@ interface MapColors {
   accent: string;
   accentSubtle: string;
   ellipse: string;
+  contour: string;
+  contourIndex: string;
 }
 
 function mapColors(t: ResolvedTokens): MapColors {
@@ -70,6 +73,8 @@ function mapColors(t: ResolvedTokens): MapColors {
     accent: t.accent,
     accentSubtle: t.accentSubtle,
     ellipse: t.danger,
+    contour: t.textSubtle,
+    contourIndex: t.textMuted,
   };
 }
 
@@ -137,6 +142,45 @@ function triangleImage(color: string, halo: string): ImageData {
   ctx.fillStyle = halo;
   ctx.fill();
   return ctx.getImageData(0, 0, s, s);
+}
+
+/** Height labels on index contours (one per line, at its middle vertex, kept upright). */
+function drawContourLabels(
+  ctx: CanvasRenderingContext2D,
+  map: MLMap,
+  lines: { z: number; index: boolean; points: [number, number][] }[],
+  c: MapColors,
+  tokens: ResolvedTokens,
+  w: number,
+  h: number,
+) {
+  const labelled = lines.filter((l) => l.index && l.points.length >= 2);
+  if (labelled.length === 0 || labelled.length > 600) return;
+  ctx.font = `${tokens.weightMedium} ${tokens.textXs - 1}px ${tokens.fontSans}`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.lineJoin = "round";
+  for (const l of labelled) {
+    const i = Math.floor((l.points.length - 1) / 2);
+    const a = map.project(egsaToLngLat(...l.points[i]));
+    const b = map.project(egsaToLngLat(...l.points[i + 1]));
+    const mx = (a.x + b.x) / 2;
+    const my = (a.y + b.y) / 2;
+    if (mx < 0 || my < 0 || mx > w || my > h || Math.hypot(b.x - a.x, b.y - a.y) < 0.5) continue;
+    let ang = Math.atan2(b.y - a.y, b.x - a.x);
+    if (ang > Math.PI / 2) ang -= Math.PI;
+    else if (ang < -Math.PI / 2) ang += Math.PI;
+    const text = Number.isInteger(l.z) ? l.z.toFixed(0) : l.z.toFixed(2);
+    ctx.save();
+    ctx.translate(mx, my);
+    ctx.rotate(ang);
+    ctx.strokeStyle = c.halo;
+    ctx.lineWidth = 3;
+    ctx.strokeText(text, 0, 0);
+    ctx.fillStyle = c.labelMuted;
+    ctx.fillText(text, 0, 0);
+    ctx.restore();
+  }
 }
 
 export default function MapPanel() {
@@ -214,6 +258,22 @@ export default function MapPanel() {
         }),
     }),
     [ws.result, ws.ellipseScale],
+  );
+
+  // terrain contours from the surface tools (own store: they persist across tool tabs)
+  const contourState = useContourOverlay();
+  const contourLines = contourState.projectId === ws.projectId ? contourState.lines : [];
+  const showContours = contourState.visible && contourLines.length > 0;
+  const contoursGeo = useMemo(
+    () => ({
+      type: "FeatureCollection" as const,
+      features: (showContours ? contourLines : []).map((l) => ({
+        type: "Feature" as const,
+        geometry: { type: "LineString" as const, coordinates: l.points.map(([x, y]) => egsaToLngLat(x, y)) },
+        properties: { index: l.index ? 1 : 0 },
+      })),
+    }),
+    [contourLines, showContours],
   );
 
   const overlayGeo = useMemo(() => {
@@ -294,11 +354,13 @@ export default function MapPanel() {
     const ensureSource = (id: string) => {
       if (!map.getSource(id)) map.addSource(id, { type: "geojson", data: { type: "FeatureCollection", features: [] } });
     };
-    ["grid", "lines", "points", "measure", "linework", "ellipses", "overlay"].forEach(ensureSource);
-    for (const id of ["grid-l", "lines-l", "linework-l", "ellipses-f", "ellipses-l", "overlay-f", "overlay-l", "overlay-p", "measure-l", "pts-detail", "pts-trav", "pts-sel", "pts-control"]) {
+    ["grid", "contours", "lines", "points", "measure", "linework", "ellipses", "overlay"].forEach(ensureSource);
+    for (const id of ["grid-l", "contours-l", "contours-idx", "lines-l", "linework-l", "ellipses-f", "ellipses-l", "overlay-f", "overlay-l", "overlay-p", "measure-l", "pts-detail", "pts-trav", "pts-sel", "pts-control"]) {
       if (map.getLayer(id)) map.removeLayer(id);
     }
     map.addLayer({ id: "grid-l", type: "line", source: "grid", paint: { "line-color": c.grid, "line-width": 1 } });
+    map.addLayer({ id: "contours-l", type: "line", source: "contours", filter: ["==", ["get", "index"], 0], paint: { "line-color": c.contour, "line-width": 0.8 } });
+    map.addLayer({ id: "contours-idx", type: "line", source: "contours", filter: ["==", ["get", "index"], 1], paint: { "line-color": c.contourIndex, "line-width": 1.6 } });
     map.addLayer({ id: "linework-l", type: "line", source: "linework", paint: { "line-color": ["get", "color"], "line-width": 1.8 }, layout: { "line-join": "round", "line-cap": "round" } });
     map.addLayer({ id: "lines-l", type: "line", source: "lines", paint: { "line-color": c.line, "line-width": 1.6, "line-opacity": 0.85 } });
     map.addLayer({ id: "ellipses-f", type: "fill", source: "ellipses", paint: { "fill-color": c.ellipse, "fill-opacity": 0.08 } });
@@ -361,8 +423,9 @@ export default function MapPanel() {
     (map.getSource("linework") as GeoJSONSource | undefined)?.setData(lineworkGeo);
     (map.getSource("ellipses") as GeoJSONSource | undefined)?.setData(ellipsesGeo);
     (map.getSource("overlay") as GeoJSONSource | undefined)?.setData(overlayGeo);
+    (map.getSource("contours") as GeoJSONSource | undefined)?.setData(contoursGeo);
     map.triggerRepaint();
-  }, [lineworkGeo, ellipsesGeo, overlayGeo, loaded, colors]);
+  }, [lineworkGeo, ellipsesGeo, overlayGeo, contoursGeo, loaded, colors]);
 
   // basemap
   useEffect(() => {
@@ -567,6 +630,8 @@ export default function MapPanel() {
       }
     }
 
+    if (showContours) drawContourLabels(ctx, map, contourLines, c, tokens, w, h);
+
     if (!labels) return;
     const occupied = new Set<string>();
     const cell = 14;
@@ -623,7 +688,7 @@ export default function MapPanel() {
   }, [loaded]);
   useEffect(() => {
     mapRef.current?.triggerRepaint();
-  }, [labels, heights, codes, basemap, points, ws.selected, colors, ws.overlay]);
+  }, [labels, heights, codes, basemap, points, ws.selected, colors, ws.overlay, contoursGeo]);
 
   // ------------------------------------------------------------ actions
   const flyTo = (name: string) => {
@@ -788,6 +853,18 @@ export default function MapPanel() {
                   {t(`map.base.${b}`)}
                 </DropdownMenuItem>
               ))}
+              {contourLines.length > 0 && (
+                <DropdownMenuItem
+                  onSelect={(e) => {
+                    e.preventDefault();
+                    setContourVisible(!contourState.visible);
+                  }}
+                  data-testid="map-contours"
+                >
+                  <span className={cn("size-2 rounded-full", contourState.visible ? "bg-accent" : "bg-border")} />
+                  {t("map.contours")}
+                </DropdownMenuItem>
+              )}
               <DropdownMenuSeparator />
               <DropdownMenuItem onSelect={exportPng}>
                 <ImageDown /> {t("map.exportPng")}

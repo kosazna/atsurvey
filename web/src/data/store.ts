@@ -11,6 +11,7 @@ import type {
   TraverseSpec,
 } from "@/lib/types";
 import type { ReadingKind } from "@/lib/cogoTypes";
+import type { LevelNetData } from "@/lib/leveling";
 
 export interface ProjectCounts {
   control: number;
@@ -74,6 +75,8 @@ export interface LevelingData {
   tolerance_base_mm: number;
   tolerance_mm_per_sqrt_km: number;
   distribute: "distance" | "setups";
+  /** Levelling network (συνόρθωση δικτύου): lines between benchmarks/nodes; shares the benchmarks */
+  network?: LevelNetData;
 }
 
 /** Free-form per-project data stored in projects.extras (jsonb). */

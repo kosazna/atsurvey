@@ -268,6 +268,7 @@ const extraEn: typeof extraEl = {
     groups: {
       basic: "Basic",
       parcels: "Parcels",
+      dgm: "Cadastre ΔΓΜ",
       surfaces: "Terrain",
       setout: "Setting out",
       coords: "Coordinate systems",

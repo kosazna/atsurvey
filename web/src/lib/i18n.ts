@@ -22,6 +22,8 @@ import analysisEl from "@/locales/analysis.el";
 import analysisEn from "@/locales/analysis.en";
 import instrumentsEl from "@/locales/instruments.el";
 import instrumentsEn from "@/locales/instruments.en";
+import dgmEl from "@/locales/dgm.el";
+import dgmEn from "@/locales/dgm.en";
 
 type Tree = { [k: string]: unknown };
 function deepMerge<A extends Tree, B extends Tree>(a: A, b: B): A & B {
@@ -48,8 +50,8 @@ function initialLang(): "el" | "en" {
 
 void i18n.use(initReactI18next).init({
   resources: {
-    el: { translation: [extraEl, securityEl, teamsEl, lifecycleEl, parcelsEl, surfacesEl, setoutEl, coordsEl, analysisEl, instrumentsEl].reduce<Tree>((acc, m) => deepMerge(acc, m), el) },
-    en: { translation: [extraEn, securityEn, teamsEn, lifecycleEn, parcelsEn, surfacesEn, setoutEn, coordsEn, analysisEn, instrumentsEn].reduce<Tree>((acc, m) => deepMerge(acc, m), en) },
+    el: { translation: [extraEl, securityEl, teamsEl, lifecycleEl, parcelsEl, surfacesEl, setoutEl, coordsEl, analysisEl, instrumentsEl, dgmEl].reduce<Tree>((acc, m) => deepMerge(acc, m), el) },
+    en: { translation: [extraEn, securityEn, teamsEn, lifecycleEn, parcelsEn, surfacesEn, setoutEn, coordsEn, analysisEn, instrumentsEn, dgmEn].reduce<Tree>((acc, m) => deepMerge(acc, m), en) },
   },
   lng: initialLang(),
   fallbackLng: "el",

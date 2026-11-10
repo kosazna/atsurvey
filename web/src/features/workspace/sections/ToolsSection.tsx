@@ -8,6 +8,7 @@ import { AreaTool, ResectionTool, StakeoutTool, TransformTool } from "./tools/ad
 import { ANALYSIS_TOOLS } from "./tools/analysis";
 import { IntersectionTool, InverseTool, OffsetTool, PolarTool } from "./tools/basic";
 import { COORDS_TOOLS } from "./tools/coords";
+import { DGM_TOOLS } from "./tools/dgm";
 import { INSTRUMENTS_TOOLS } from "./tools/instruments";
 import { PARCELS_TOOLS } from "./tools/parcels";
 import type { ToolGroup } from "./tools/registry";
@@ -29,6 +30,7 @@ const GROUPS: ToolGroup[] = [
     ],
   },
   { id: "parcels", tools: PARCELS_TOOLS },
+  { id: "dgm", tools: DGM_TOOLS },
   { id: "surfaces", tools: SURFACES_TOOLS },
   { id: "setout", tools: SETOUT_TOOLS },
   { id: "coords", tools: COORDS_TOOLS },

@@ -67,3 +67,22 @@ Add the Pages domain to `CORS_ORIGINS` on the API and to Supabase Auth → URL c
 - [ ] Terms of service, privacy policy (GDPR), disclaimer about professional responsibility
 - [ ] Sentry DSN (optional) for API and web
 - [ ] Backups: Supabase Pro daily backups / PITR enabled
+
+## Optional: official HEPOS transformation grids
+
+The coordinate converter can apply the official HTRS07 → ΕΓΣΑ87 transformation (Helmert + 2 km
+correction grids) only when the grid files are installed on the API server. They are **not** in
+the repository: the hepos.gr terms forbid redistribution, so install them only after Κτηματολόγιο
+grants permission ([science-roadmap.md](science-roadmap.md), D1).
+
+1. Put the two `.grd` files from the official HEPOS transformation package in a folder on the VM,
+   e.g. `/opt/atsurvey/hepos`.
+2. Mount it read-only into the `api` service and set the variable:
+   ```yaml
+   volumes:
+     - /opt/atsurvey/hepos:/opt/hepos:ro
+   environment:
+     ATSURVEY_HEPOS_GRID_DIR: /opt/hepos
+   ```
+3. Without it, requests for the official method return `COORD_HEPOS_UNAVAILABLE` and the UI offers
+   only the clearly labelled approximate shift. Details: [coords.md](coords.md).

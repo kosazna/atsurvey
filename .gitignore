@@ -20,3 +20,4 @@ supabase/.branches/
 coverage/
 playwright-report/
 test-results/
+.playwright-mcp/

@@ -1,4 +1,11 @@
+import { AlignmentTool } from "./setout/AlignmentTool";
+import { CheckTool } from "./setout/CheckTool";
+import { PointsTool } from "./setout/PointsTool";
 import type { ToolEntry } from "./registry";
 
-/** Tool tabs of the setout feature (registered in ToolsSection). */
-export const SETOUT_TOOLS: ToolEntry[] = [];
+/** Tool tabs of the setout feature (registered in ToolsSection): group «Χαράξεις». */
+export const SETOUT_TOOLS: ToolEntry[] = [
+  { id: "setoutPoints", el: <PointsTool /> },
+  { id: "setoutCheck", el: <CheckTool /> },
+  { id: "setoutAlignment", el: <AlignmentTool /> },
+];

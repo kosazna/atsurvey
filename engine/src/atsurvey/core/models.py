@@ -127,6 +127,7 @@ class Tolerances(_Model):
 
 
 AdjustmentMethod = Literal["bowditch", "least_squares"]
+RobustMethod = Literal["off", "huber", "danish"]
 
 
 class AdjustmentSettings(_Model):
@@ -144,6 +145,14 @@ class AdjustmentSettings(_Model):
     alpha_global: float = Field(default=0.05, gt=0, lt=1, description="Global χ² test")
     alpha_w: float = Field(default=0.001, gt=0, lt=1, description="Baarda w-test per observation")
     max_iterations: int = Field(default=10, ge=1, le=50)
+    robust: RobustMethod = Field(
+        default="off",
+        description="Robust estimation (IRLS on standardised residuals); off = plain least squares",
+    )
+    robust_threshold: float = Field(
+        default=2.5, ge=1.0, le=10.0, description="|w| above which an observation is down-weighted"
+    )
+    robust_max_iterations: int = Field(default=20, ge=1, le=100, description="IRLS re-weightings")
 
 
 class LineworkSettings(_Model):
@@ -308,6 +317,9 @@ class AdjustedObservation(_Model):
     redundancy: float = Field(description="Redundancy number r_i in [0, 1]")
     w: float | None = Field(default=None, description="Baarda standardised residual")
     flagged: bool = False
+    weight: float = Field(
+        default=1.0, description="Robust weight factor applied to 1/σ² (1 = full weight)"
+    )
 
 
 class GlobalTest(_Model):
@@ -315,6 +327,16 @@ class GlobalTest(_Model):
     lower: float
     upper: float
     passed: bool
+
+
+class RobustSummary(_Model):
+    """Outcome of the robust (IRLS) re-weighting; see docs/adjustment.md."""
+
+    method: RobustMethod
+    threshold: float
+    iterations: int
+    converged: bool
+    downweighted: int = Field(description="Observations with weight factor below 0.99")
 
 
 class AdjustmentResult(_Model):
@@ -332,6 +354,9 @@ class AdjustmentResult(_Model):
         default=None, description="Observation with the largest |w| above the critical value"
     )
     observations: list[AdjustedObservation]
+    robust: RobustSummary | None = Field(
+        default=None, description="Present only when robust estimation was used"
+    )
 
 
 class Polyline(_Model):

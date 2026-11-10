@@ -1,4 +1,9 @@
+import { ConvertTool } from "./coords/ConvertTool";
+import { PointInfoTool } from "./coords/PointInfoTool";
 import type { ToolEntry } from "./registry";
 
-/** Tool tabs of the coords feature (registered in ToolsSection). */
-export const COORDS_TOOLS: ToolEntry[] = [];
+/** Tool tabs of the coords feature, group "Συστήματα" (registered in ToolsSection). */
+export const COORDS_TOOLS: ToolEntry[] = [
+  { id: "coordsConvert", el: <ConvertTool /> },
+  { id: "coordsInfo", el: <PointInfoTool /> },
+];

@@ -153,6 +153,13 @@ distance for the given instrument and target heights. Setting out the returned a
 distance with the polar tool reproduces each design point exactly (tested).
 
 
+## Levelling networks (συνόρθωση δικτύου)
+
+The Levelling section also has a **Δίκτυο** mode: least-squares adjustment of a network of
+levelling lines with σ per point, χ² and w-tests and loop misclosures (`POST
+/v1/leveling/network`). Its lines can be built from this section's readings. See
+[instruments.md](instruments.md).
+
 ## Double-run levelling (μετάβαση – επιστροφή) — `POST /v1/leveling` with `return_setups`
 
 Give the forward run in `setups` and the return run (from the forward end back to the start) in

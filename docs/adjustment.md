@@ -89,6 +89,57 @@ cofactor matrix Qxx, scaled by:
 Ellipse: `a`, `b` semi-axes in metres, `theta` the azimuth of the major axis in [0, π). Multiply
 the axes by `k95 = 2.4477` for a 95 % confidence ellipse.
 
+## Robust estimation
+
+Optional, **off by default** (`settings.adjustment.robust = "off"`; with it off the computation
+is exactly the plain least-squares adjustment — verified bit-identical against the code before
+the option existed, `engine/tests/test_robust.py` + `fixtures/adjust_golden.json`). Toggle in the
+Adjustment section («Εύρωστη εκτίμηση»).
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `robust` | `off` | `huber` or `danish` |
+| `robust_threshold` | 2.5 | c: \|ū\| above which an observation is down-weighted (1–10) |
+| `robust_max_iterations` | 20 | maximum re-weightings (1–100) |
+
+**Method** — iteratively re-weighted least squares (IRLS) on the standardised residuals
+`ū_i = v_i / (σ_i √r_i)` (a priori σ, redundancy of the current solution; observations with
+r < 0.01 keep full weight because they cannot be judged). Each re-weighting solves the horizontal
+(Gauss–Newton, warm start) and the height network with `p_i · w_i`:
+
+* Huber (1964): `w = 1` for |ū| ≤ c, `c/|ū|` beyond.
+* Danish method (Krarup, Juhl & Kubik 1980), smooth form: `w = 1` for |ū| ≤ c,
+  `exp(1 − (|ū|/c)²)` beyond. It is redescending, so it **starts from the converged Huber
+  weights** (a gross error smeared by the first least-squares solution would otherwise switch
+  off good observations around it) and then continues with the Danish function.
+* Weights are floored at 10⁻⁴ (σ inflated at most 100×) so the normal matrix stays regular; if a
+  re-weighting makes it singular anyway, the last regular solution is kept.
+* Convergence: no weight factor changes by more than 10⁻³. Otherwise `ROBUST_NOT_CONVERGED`.
+
+**Reported statistics after re-weighting** (they are those of the final weighted least-squares
+solution, so they are internally consistent):
+
+* Coordinates, Qxx, σx/σy/σz, ellipses and redundancy numbers: from the final weights `p_i w_i`.
+* σ0 and the global test: `vᵀ(PW)v / (n − u)`. A down-weighted observation contributes
+  `w_i ū_i²`; the degrees of freedom are not reduced (conservative: σ0 slightly low). The rule
+  for scaling the precision (σ0² if the test passes, otherwise 1) is unchanged.
+* w-test: `w_i = v_i / (σ_i √r_i)` with the **a priori** σ, i.e. the standardised residual
+  against the robust solution. Gross errors therefore stay flagged and named as `suspect` /
+  `ADJUSTMENT_BLUNDER`, even though they no longer distort the coordinates. Fix or exclude them.
+* Per observation `weight` (1 = full weight); in the result `robust = {method, threshold,
+  iterations, converged, downweighted}` (count of factors < 0.99) and the warning
+  `ROBUST_DOWNWEIGHTED` listing the most down-weighted observations.
+
+Evidence (`test_robust.py`): in a 5×5 network with noise matching the a priori model, one, two
+or three injected gross errors (150 cc direction, 6 cm distance, ≈ 10 cm height difference) get
+weight < 0.35 (Danish: 10⁻⁴), remain flagged, and the robust coordinates match the clean solution
+within 1.5 mm horizontally / 1 mm in height, while the plain adjustment is pulled > 3× further.
+On clean data fewer than 6 % of observations lose any weight and coordinates change < 1 mm.
+
+Caveats: robust estimation assumes the a priori σ are realistic (too optimistic σ make many good
+observations look suspicious); it cannot help with observations that have no redundancy; with
+several gross errors in one weak part of a network it can still be misled (masking).
+
 ## Reading the results
 
 1. **Global test passed and no suspect.** The network is consistent; the ellipses are the
@@ -105,7 +156,10 @@ the axes by `k95 = 2.4477` for a 95 % confidence ellipse.
 * Only directions, horizontal distances and trigonometric height differences; no GNSS baselines
   or levelling lines in the network yet.
 * Fixed datum only (no weighted control points, no free-network adjustment).
-* Single-blunder data snooping; there is no iterative automatic rejection.
+* Single-blunder data snooping; no automatic rejection (robust estimation down-weights instead).
+* Centring: one value c enters directions as `2c²/D²` but distances as `c²` (the pre-analysis
+  uses instrument and target centring on both; see [analysis.md](analysis.md)). Kept for
+  backward-compatible results; awaiting the owner's decision.
 * Vertical deflection and geoid variation over the network are ignored (one `geoid_undulation`).
 * The scale factor is not estimated (EGSA87 k is applied in the reduction).
 

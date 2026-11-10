@@ -267,6 +267,7 @@ const extraEl = {
     groups: {
       basic: "Βασικά",
       parcels: "Ιδιοκτησίες",
+      dgm: "ΔΓΜ Κτηματολογίου",
       surfaces: "Ανάγλυφο",
       setout: "Χαράξεις",
       coords: "Συστήματα",

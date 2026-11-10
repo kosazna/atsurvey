@@ -20,6 +20,7 @@ import { cn, downloadBlob, fmtNum, fmtSigned, parseNum, uid } from "@/lib/utils"
 import type { Col } from "../grid/DataGrid";
 import { DataGrid } from "../grid/LazyDataGrid";
 import { useWorkspace } from "../useWorkspace";
+import { LevelNetPanel } from "./LevelNetPanel";
 import { SectionFrame, SectionHeader } from "./SectionLayout";
 
 type Bm = LevelingData["benchmarks"][number];
@@ -33,6 +34,7 @@ export default function LevelingSection() {
   const [res, setRes] = useState<LevelingResult | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [run, setRun] = useState<"forward" | "return">("forward");
+  const [mode, setMode] = useState<"line" | "network">(() => ((lv.network?.lines.length ?? 0) > 0 && lv.rows.length === 0 ? "network" : "line"));
   const runRows = run === "forward" ? lv.rows : (lv.return_rows ?? []);
   const saveRun = (rows: LevelRow[]) => save(run === "forward" ? { rows } : { return_rows: rows });
 
@@ -148,6 +150,27 @@ export default function LevelingSection() {
   };
 
   const empty = lv.rows.length === 0 && lv.benchmarks.length === 0;
+  const bmCard = (
+    <Card className="overflow-hidden">
+      <div className="flex items-center justify-between border-b px-3 py-2">
+        <span className="text-sm font-medium">{t("lev.benchmarks")}</span>
+        {empty && (
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => save({ benchmarks: [{ id: uid(), name: "", h: null }], rows: [makeRow()] })}
+          >
+            {t("lev.start")}
+          </Button>
+        )}
+      </div>
+      <div className="h-36">
+        <Suspense fallback={<Skeleton className="m-3 h-24" />}>
+          <DataGrid rows={lv.benchmarks} columns={bmCols} onChange={(benchmarks) => save({ benchmarks })} makeRow={() => ({ id: uid(), name: "", h: null })} appendLabel={t("lev.addBm")} />
+        </Suspense>
+      </div>
+    </Card>
+  );
 
   return (
     <SectionFrame className="overflow-y-auto">
@@ -155,213 +178,218 @@ export default function LevelingSection() {
         title={t("lev.title")}
         description={t("lev.subtitle")}
         actions={
-          <Button size="sm" onClick={() => void compute()} disabled={busy || problems.some((p) => p.key === "noBenchmark" || p.key === "noSetups")} data-testid="btn-level">
-            {busy ? <RefreshCw className="animate-spin" /> : <Mountain />} {t("lev.compute")}
-          </Button>
+          <div className="flex items-center gap-2">
+            <div className="inline-flex rounded-md border p-0.5 text-xs" role="tablist" aria-label={t("lev.title")}>
+              {(["line", "network"] as const).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  role="tab"
+                  aria-selected={mode === m}
+                  data-testid={`lev-mode-${m}`}
+                  onClick={() => setMode(m)}
+                  className={cn("rounded px-2 py-1", mode === m ? "bg-surface-sunken font-medium" : "text-muted")}
+                >
+                  {t(`instruments.levnet.modes.${m}`)}
+                </button>
+              ))}
+            </div>
+            {mode === "line" && (
+              <Button size="sm" onClick={() => void compute()} disabled={busy || problems.some((p) => p.key === "noBenchmark" || p.key === "noSetups")} data-testid="btn-level">
+                {busy ? <RefreshCw className="animate-spin" /> : <Mountain />} {t("lev.compute")}
+              </Button>
+            )}
+          </div>
         }
       />
-      <div className="grid gap-4 p-4 xl:grid-cols-[1fr_1.1fr]">
-        <div className="space-y-4">
-          <Card className="overflow-hidden">
-            <div className="flex items-center justify-between border-b px-3 py-2">
-              <span className="text-sm font-medium">{t("lev.benchmarks")}</span>
-              {empty && (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => save({ benchmarks: [{ id: uid(), name: "", h: null }], rows: [makeRow()] })}
-                >
-                  {t("lev.start")}
-                </Button>
-              )}
-            </div>
-            <div className="h-36">
-              <Suspense fallback={<Skeleton className="m-3 h-24" />}>
-                <DataGrid rows={lv.benchmarks} columns={bmCols} onChange={(benchmarks) => save({ benchmarks })} makeRow={() => ({ id: uid(), name: "", h: null })} appendLabel={t("lev.addBm")} />
-              </Suspense>
-            </div>
-          </Card>
-          <Card className="overflow-hidden">
-            <div className="flex flex-wrap items-center gap-2 border-b px-3 py-2">
-              <span className="text-sm font-medium">{t("lev.readings")}</span>
-              <div className="ml-auto inline-flex rounded-md border p-0.5 text-xs" role="tablist">
-                {(["forward", "return"] as const).map((r) => (
-                  <button
-                    key={r}
-                    type="button"
-                    role="tab"
-                    aria-selected={run === r}
-                    data-testid={`lev-run-${r}`}
-                    onClick={() => setRun(r)}
-                    className={cn("rounded px-2 py-1", run === r ? "bg-surface-sunken font-medium" : "text-muted")}
-                  >
-                    {t(`lev.run.${r}`)}
-                    {r === "return" && (lv.return_rows?.length ?? 0) > 0 && <span className="ml-1 text-subtle">{lv.return_rows?.length}</span>}
-                  </button>
-                ))}
-              </div>
-              <span className="w-full text-xs text-muted">{run === "forward" ? t("lev.readingsHint") : t("lev.returnHint")}</span>
-            </div>
-            <div className="h-80" data-testid="grid-leveling">
-              <Suspense fallback={<Skeleton className="m-3 h-64" />}>
-                <DataGrid key={run} rows={runRows} columns={rowCols} onChange={saveRun} makeRow={makeRow} appendLabel={t("lev.addReading")} />
-              </Suspense>
-            </div>
-            {(lv.return_rows?.length ?? 0) > 0 && (
-              <div className="space-y-1.5 border-t px-3 py-2">
-                <Label htmlFor="lv-sections">{t("lev.sectionPoints")}</Label>
-                <Input
-                  id="lv-sections"
-                  placeholder={t("lev.sectionPointsPlaceholder")}
-                  value={lv.section_points ?? ""}
-                  onChange={(e) => save({ section_points: e.target.value })}
-                />
-                <p className="text-xs text-muted">{t("lev.sectionPointsHint")}</p>
-              </div>
-            )}
-          </Card>
-          <Card className="grid gap-3 p-3 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label htmlFor="lv-tb">{t("lev.tolBase")}</Label>
-              <Input id="lv-tb" className="tabular" inputMode="decimal" value={lv.tolerance_base_mm} onChange={(e) => save({ tolerance_base_mm: parseNum(e.target.value) ?? 0 })} />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="lv-tk">{t("lev.tolKm")}</Label>
-              <Input id="lv-tk" className="tabular" inputMode="decimal" value={lv.tolerance_mm_per_sqrt_km} onChange={(e) => save({ tolerance_mm_per_sqrt_km: parseNum(e.target.value) ?? 12 })} />
-            </div>
-            <div className="space-y-1.5 sm:col-span-2">
-              <Label>{t("lev.distribute")}</Label>
-              <Select<"distance" | "setups">
-                value={lv.distribute}
-                onValueChange={(v) => save({ distribute: v })}
-                options={[
-                  { value: "distance", label: t("lev.byDistance") },
-                  { value: "setups", label: t("lev.bySetups") },
-                ]}
-              />
-            </div>
-          </Card>
-          {problems.length > 0 && !empty && (
-            <ul className="space-y-1 text-xs text-warning">
-              {[...new Map(problems.map((p) => [`${p.key}${p.setup}`, p])).values()].slice(0, 5).map((p) => (
-                <li key={`${p.key}${p.setup}`}>• {t(`lev.problems.${p.key}`, { setup: p.setup })}</li>
-              ))}
-            </ul>
-          )}
-        </div>
-
-        <div className="space-y-4" data-testid="leveling-result">
-          {err && <div className="rounded-lg border border-danger bg-danger-subtle px-3 py-2 text-sm text-danger">{err}</div>}
-          {!res && !err && (
-            <Card className="flex flex-col items-center gap-2 p-8 text-center text-sm text-muted">
-              <Mountain className="size-5" />
-              {t("lev.emptyResult")}
-            </Card>
-          )}
-          {res && (
-            <>
-              <div className="grid grid-cols-2 gap-3 2xl:grid-cols-4">
-                {[
-                  { k: t("lev.misclosure"), v: res.misclosure === null ? "—" : `${fmtSigned(res.misclosure * 1000, 1)} mm` },
-                  { k: t("lev.tolerance"), v: res.tolerance === null ? "—" : `±${(res.tolerance * 1000).toFixed(1)} mm` },
-                  { k: t("lev.length"), v: res.length_km === null ? "—" : `${res.length_km.toFixed(3)} km` },
-                  { k: t("lev.setups"), v: res.n_setups },
-                ].map((m) => (
-                  <div key={m.k} className="rounded-xl border bg-surface p-3">
-                    <div className="text-xs text-muted">{m.k}</div>
-                    <div className="mt-1 whitespace-nowrap text-lg font-semibold tabular">{m.v}</div>
-                  </div>
-                ))}
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                {res.within_tolerance === null ? (
-                  <Badge variant="secondary">{t("lev.open")}</Badge>
-                ) : res.within_tolerance ? (
-                  <Badge variant="success" data-testid="lev-status">
-                    <CheckCircle2 /> {t("lev.within")}
-                  </Badge>
-                ) : (
-                  <Badge variant="destructive" data-testid="lev-status">
-                    <XCircle /> {t("lev.outside")}
-                  </Badge>
-                )}
-                <span className="text-xs text-muted">
-                  {res.start} <ArrowRight className="inline size-3" /> {res.end}
-                </span>
-                {res.message && <span className="text-xs text-muted">· {res.message}</span>}
-                <div className="ml-auto flex gap-1.5">
-                  <Button size="sm" variant="outline" onClick={applyHeights}>
-                    {t("lev.apply")}
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => downloadBlob(new Blob([heightsCsv(res.points)], { type: "text/csv;charset=utf-8" }), `${ws.data.meta.name}-heights.csv`)}>
-                    <Download /> CSV
-                  </Button>
+      {mode === "network" ? (
+        <LevelNetPanel lv={lv} save={save} benchmarks={bmCard} />
+      ) : (
+        <div className="grid gap-4 p-4 xl:grid-cols-[1fr_1.1fr]">
+          <div className="space-y-4">
+            {bmCard}
+            <Card className="overflow-hidden">
+              <div className="flex flex-wrap items-center gap-2 border-b px-3 py-2">
+                <span className="text-sm font-medium">{t("lev.readings")}</span>
+                <div className="ml-auto inline-flex rounded-md border p-0.5 text-xs" role="tablist">
+                  {(["forward", "return"] as const).map((r) => (
+                    <button
+                      key={r}
+                      type="button"
+                      role="tab"
+                      aria-selected={run === r}
+                      data-testid={`lev-run-${r}`}
+                      onClick={() => setRun(r)}
+                      className={cn("rounded px-2 py-1", run === r ? "bg-surface-sunken font-medium" : "text-muted")}
+                    >
+                      {t(`lev.run.${r}`)}
+                      {r === "return" && (lv.return_rows?.length ?? 0) > 0 && <span className="ml-1 text-subtle">{lv.return_rows?.length}</span>}
+                    </button>
+                  ))}
                 </div>
+                <span className="w-full text-xs text-muted">{run === "forward" ? t("lev.readingsHint") : t("lev.returnHint")}</span>
               </div>
-              {(res.sections?.length ?? 0) > 0 && (
-                <Card className="overflow-hidden" data-testid="lev-sections">
-                  <div className="border-b px-3 py-2 text-sm font-medium">{t("lev.sections")}</div>
+              <div className="h-80" data-testid="grid-leveling">
+                <Suspense fallback={<Skeleton className="m-3 h-64" />}>
+                  <DataGrid key={run} rows={runRows} columns={rowCols} onChange={saveRun} makeRow={makeRow} appendLabel={t("lev.addReading")} />
+                </Suspense>
+              </div>
+              {(lv.return_rows?.length ?? 0) > 0 && (
+                <div className="space-y-1.5 border-t px-3 py-2">
+                  <Label htmlFor="lv-sections">{t("lev.sectionPoints")}</Label>
+                  <Input
+                    id="lv-sections"
+                    placeholder={t("lev.sectionPointsPlaceholder")}
+                    value={lv.section_points ?? ""}
+                    onChange={(e) => save({ section_points: e.target.value })}
+                  />
+                  <p className="text-xs text-muted">{t("lev.sectionPointsHint")}</p>
+                </div>
+              )}
+            </Card>
+            <Card className="grid gap-3 p-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="lv-tb">{t("lev.tolBase")}</Label>
+                <Input id="lv-tb" className="tabular" inputMode="decimal" value={lv.tolerance_base_mm} onChange={(e) => save({ tolerance_base_mm: parseNum(e.target.value) ?? 0 })} />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="lv-tk">{t("lev.tolKm")}</Label>
+                <Input id="lv-tk" className="tabular" inputMode="decimal" value={lv.tolerance_mm_per_sqrt_km} onChange={(e) => save({ tolerance_mm_per_sqrt_km: parseNum(e.target.value) ?? 12 })} />
+              </div>
+              <div className="space-y-1.5 sm:col-span-2">
+                <Label>{t("lev.distribute")}</Label>
+                <Select<"distance" | "setups">
+                  value={lv.distribute}
+                  onValueChange={(v) => save({ distribute: v })}
+                  options={[
+                    { value: "distance", label: t("lev.byDistance") },
+                    { value: "setups", label: t("lev.bySetups") },
+                  ]}
+                />
+              </div>
+            </Card>
+            {problems.length > 0 && !empty && (
+              <ul className="space-y-1 text-xs text-warning">
+                {[...new Map(problems.map((p) => [`${p.key}${p.setup}`, p])).values()].slice(0, 5).map((p) => (
+                  <li key={`${p.key}${p.setup}`}>• {t(`lev.problems.${p.key}`, { setup: p.setup })}</li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          <div className="space-y-4" data-testid="leveling-result">
+            {err && <div className="rounded-lg border border-danger bg-danger-subtle px-3 py-2 text-sm text-danger">{err}</div>}
+            {!res && !err && (
+              <Card className="flex flex-col items-center gap-2 p-8 text-center text-sm text-muted">
+                <Mountain className="size-5" />
+                {t("lev.emptyResult")}
+              </Card>
+            )}
+            {res && (
+              <>
+                <div className="grid grid-cols-2 gap-3 2xl:grid-cols-4">
+                  {[
+                    { k: t("lev.misclosure"), v: res.misclosure === null ? "—" : `${fmtSigned(res.misclosure * 1000, 1)} mm` },
+                    { k: t("lev.tolerance"), v: res.tolerance === null ? "—" : `±${(res.tolerance * 1000).toFixed(1)} mm` },
+                    { k: t("lev.length"), v: res.length_km === null ? "—" : `${res.length_km.toFixed(3)} km` },
+                    { k: t("lev.setups"), v: res.n_setups },
+                  ].map((m) => (
+                    <div key={m.k} className="rounded-xl border bg-surface p-3">
+                      <div className="text-xs text-muted">{m.k}</div>
+                      <div className="mt-1 whitespace-nowrap text-lg font-semibold tabular">{m.v}</div>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  {res.within_tolerance === null ? (
+                    <Badge variant="secondary">{t("lev.open")}</Badge>
+                  ) : res.within_tolerance ? (
+                    <Badge variant="success" data-testid="lev-status">
+                      <CheckCircle2 /> {t("lev.within")}
+                    </Badge>
+                  ) : (
+                    <Badge variant="destructive" data-testid="lev-status">
+                      <XCircle /> {t("lev.outside")}
+                    </Badge>
+                  )}
+                  <span className="text-xs text-muted">
+                    {res.start} <ArrowRight className="inline size-3" /> {res.end}
+                  </span>
+                  {res.message && <span className="text-xs text-muted">· {res.message}</span>}
+                  <div className="ml-auto flex gap-1.5">
+                    <Button size="sm" variant="outline" onClick={applyHeights}>
+                      {t("lev.apply")}
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => downloadBlob(new Blob([heightsCsv(res.points)], { type: "text/csv;charset=utf-8" }), `${ws.data.meta.name}-heights.csv`)}>
+                      <Download /> CSV
+                    </Button>
+                  </div>
+                </div>
+                {(res.sections?.length ?? 0) > 0 && (
+                  <Card className="overflow-hidden" data-testid="lev-sections">
+                    <div className="border-b px-3 py-2 text-sm font-medium">{t("lev.sections")}</div>
+                    <table className="w-full text-sm tabular">
+                      <thead>
+                        <tr className="border-b bg-surface-sunken text-xs text-muted">
+                          <th className="px-3 py-2 text-left font-medium">{t("lev.section")}</th>
+                          <th className="px-3 py-2 text-right font-medium">{t("lev.dhForward")}</th>
+                          <th className="px-3 py-2 text-right font-medium">{t("lev.dhReturn")}</th>
+                          <th className="px-3 py-2 text-right font-medium">{t("lev.discrepancy")}</th>
+                          <th className="px-3 py-2 text-right font-medium">{t("lev.dhMean")}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {res.sections!.map((sec) => {
+                          const bad = sec.within_tolerance === false || (sec.tolerance === null && Math.abs(sec.discrepancy) > 0.01);
+                          return (
+                            <tr key={`${sec.frm}-${sec.to}`} className={cn("border-b last:border-0", bad && "bg-danger-subtle")}>
+                              <td className="whitespace-nowrap px-3 py-1.5 font-medium">
+                                {sec.frm} <ArrowRight className="inline size-3 text-subtle" /> {sec.to}
+                              </td>
+                              <td className="px-3 py-1.5 text-right">{fmtSigned(sec.dh_forward, 4)}</td>
+                              <td className="px-3 py-1.5 text-right">{fmtSigned(sec.dh_return, 4)}</td>
+                              <td className={cn("whitespace-nowrap px-3 py-1.5 text-right", bad ? "font-semibold text-danger" : "text-muted")}>
+                                {fmtSigned(sec.discrepancy * 1000, 1)} mm
+                                {sec.tolerance !== null && <span className="ml-1 text-xs text-subtle">/ ±{(sec.tolerance * 1000).toFixed(1)}</span>}
+                              </td>
+                              <td className="px-3 py-1.5 text-right font-semibold">{fmtSigned(sec.dh_mean, 4)}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </Card>
+                )}
+                <Card className="overflow-hidden">
                   <table className="w-full text-sm tabular">
                     <thead>
                       <tr className="border-b bg-surface-sunken text-xs text-muted">
-                        <th className="px-3 py-2 text-left font-medium">{t("lev.section")}</th>
-                        <th className="px-3 py-2 text-right font-medium">{t("lev.dhForward")}</th>
-                        <th className="px-3 py-2 text-right font-medium">{t("lev.dhReturn")}</th>
-                        <th className="px-3 py-2 text-right font-medium">{t("lev.discrepancy")}</th>
-                        <th className="px-3 py-2 text-right font-medium">{t("lev.dhMean")}</th>
+                        <th className="px-3 py-2 text-left font-medium">{t("lev.point")}</th>
+                        <th className="px-3 py-2 text-left font-medium">{t("lev.pointKind")}</th>
+                        <th className="px-3 py-2 text-right font-medium">{t("lev.hRaw")}</th>
+                        <th className="px-3 py-2 text-right font-medium">δH mm</th>
+                        <th className="px-3 py-2 text-right font-medium">H</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {res.sections!.map((sec) => {
-                        const bad = sec.within_tolerance === false || (sec.tolerance === null && Math.abs(sec.discrepancy) > 0.01);
-                        return (
-                          <tr key={`${sec.frm}-${sec.to}`} className={cn("border-b last:border-0", bad && "bg-danger-subtle")}>
-                            <td className="whitespace-nowrap px-3 py-1.5 font-medium">
-                              {sec.frm} <ArrowRight className="inline size-3 text-subtle" /> {sec.to}
-                            </td>
-                            <td className="px-3 py-1.5 text-right">{fmtSigned(sec.dh_forward, 4)}</td>
-                            <td className="px-3 py-1.5 text-right">{fmtSigned(sec.dh_return, 4)}</td>
-                            <td className={cn("whitespace-nowrap px-3 py-1.5 text-right", bad ? "font-semibold text-danger" : "text-muted")}>
-                              {fmtSigned(sec.discrepancy * 1000, 1)} mm
-                              {sec.tolerance !== null && <span className="ml-1 text-xs text-subtle">/ ±{(sec.tolerance * 1000).toFixed(1)}</span>}
-                            </td>
-                            <td className="px-3 py-1.5 text-right font-semibold">{fmtSigned(sec.dh_mean, 4)}</td>
-                          </tr>
-                        );
-                      })}
+                      {res.points.map((p) => (
+                        <tr key={p.name} className={cn("border-b last:border-0", p.kind === "benchmark" && "text-muted")}>
+                          <td className="px-3 py-1.5 font-medium">{p.name}</td>
+                          <td className="px-3 py-1.5 text-xs">{t(`lev.pointKinds.${p.kind}`)}</td>
+                          <td className="px-3 py-1.5 text-right">{fmtNum(p.h_unadjusted, 4)}</td>
+                          <td className="px-3 py-1.5 text-right">{fmtSigned(p.correction * 1000, 1)}</td>
+                          <td className="px-3 py-1.5 text-right font-semibold">{fmtNum(p.h, 4)}</td>
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 </Card>
-              )}
-              <Card className="overflow-hidden">
-                <table className="w-full text-sm tabular">
-                  <thead>
-                    <tr className="border-b bg-surface-sunken text-xs text-muted">
-                      <th className="px-3 py-2 text-left font-medium">{t("lev.point")}</th>
-                      <th className="px-3 py-2 text-left font-medium">{t("lev.pointKind")}</th>
-                      <th className="px-3 py-2 text-right font-medium">{t("lev.hRaw")}</th>
-                      <th className="px-3 py-2 text-right font-medium">δH mm</th>
-                      <th className="px-3 py-2 text-right font-medium">H</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {res.points.map((p) => (
-                      <tr key={p.name} className={cn("border-b last:border-0", p.kind === "benchmark" && "text-muted")}>
-                        <td className="px-3 py-1.5 font-medium">{p.name}</td>
-                        <td className="px-3 py-1.5 text-xs">{t(`lev.pointKinds.${p.kind}`)}</td>
-                        <td className="px-3 py-1.5 text-right">{fmtNum(p.h_unadjusted, 4)}</td>
-                        <td className="px-3 py-1.5 text-right">{fmtSigned(p.correction * 1000, 1)}</td>
-                        <td className="px-3 py-1.5 text-right font-semibold">{fmtNum(p.h, 4)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </Card>
-            </>
-          )}
-          <p className="text-xs text-muted">{t("lev.kindsHelp")}</p>
+              </>
+            )}
+            <p className="text-xs text-muted">{t("lev.kindsHelp")}</p>
+          </div>
         </div>
-      </div>
+      )}
     </SectionFrame>
   );
 }
