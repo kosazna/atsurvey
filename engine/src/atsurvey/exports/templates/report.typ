@@ -65,6 +65,8 @@
     (c("success"), c("success-subtle"), t.within)
   } else if kind == "bad" {
     (c("danger"), c("danger-subtle"), t.exceeded)
+  } else if kind == "low" {
+    (c("info"), c("info-subtle"), t.sigma_low)
   } else if kind == "failed" {
     (c("danger"), c("danger-subtle"), t.failed)
   } else {

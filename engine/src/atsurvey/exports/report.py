@@ -74,6 +74,7 @@ REPORT_LABELS = {
         "no_check": "χωρίς έλεγχο",
         "closing_azimuth": "με αζιμούθιο κλεισίματος",
         "yes": "ναι",
+        "sigma_low": "σ₀ χαμηλό · συντηρητικά σ",
         "adjustment": "Συνόρθωση ελαχίστων τετραγώνων",
         "adj_points": "Ακρίβεια σημείων (mm, έλλειψη 95 %)",
         "adj_obs": "Μεγαλύτερα τυποποιημένα σφάλματα (w-test)",
@@ -140,6 +141,7 @@ REPORT_LABELS = {
         "no_check": "no check",
         "closing_azimuth": "with closing azimuth",
         "yes": "yes",
+        "sigma_low": "σ₀ low · conservative σ",
         "adjustment": "Least-squares adjustment",
         "adj_points": "Point precision (mm, 95 % ellipse)",
         "adj_obs": "Largest standardised residuals (w-test)",
@@ -186,7 +188,14 @@ def _adjustment_section(result: ProjectResult, lang: str, d: int) -> dict | None
         return None
     el = lang == "el"
     gt = adj.global_test
-    status = "unchecked" if gt is None else ("ok" if gt.passed else "bad")
+    if gt is None:
+        status = "unchecked"
+    elif gt.passed:
+        status = "ok"
+    elif gt.statistic < gt.lower:
+        status = "low"  # a priori σ conservative: informational, not a failure
+    else:
+        status = "bad"
     kinds = {
         "direction": "διεύθυνση" if el else "direction",
         "distance": "απόσταση" if el else "distance",
@@ -231,7 +240,10 @@ def _adjustment_section(result: ProjectResult, lang: str, d: int) -> dict | None
             ],
         ],
         "global_test": (
-            f"χ² = {gt.statistic:.2f} ∈ [{gt.lower:.2f}, {gt.upper:.2f}]" if gt else "–"
+            f"χ² = {gt.statistic:.2f} · {'αποδεκτό διάστημα' if el else 'accepted interval'} "
+            f"[{gt.lower:.2f}, {gt.upper:.2f}]"
+            if gt
+            else "–"
         ),
         "points": points,
         "observations": [
