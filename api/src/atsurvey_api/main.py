@@ -28,7 +28,7 @@ from atsurvey.formats.base import FormatName
 from .audit import log_export
 from .auth import EXPORTS_BY_PLAN, Caller, get_caller, plan_for, require_compute
 from .config import Settings, get_settings
-from .routers import cogo
+from .routers import analysis, cogo, coords, instruments, parcels, setout, surfaces
 from .security import (
     BodySizeLimitMiddleware,
     JsonNumberSafetyMiddleware,
@@ -68,6 +68,12 @@ app.add_middleware(
 app.add_middleware(SecurityHeadersMiddleware)
 
 app.include_router(cogo.router)
+app.include_router(parcels.router)
+app.include_router(surfaces.router)
+app.include_router(setout.router)
+app.include_router(coords.router)
+app.include_router(analysis.router)
+app.include_router(instruments.router)
 
 SettingsDep = Annotated[Settings, Depends(get_settings)]
 ComputeCaller = Annotated[Caller, Depends(require_compute)]

@@ -265,6 +265,15 @@ const extraEn: typeof extraEl = {
     title: "Geometry tools",
     subtitle: "EGSA87 computations with project points or coordinates.",
     pickingHint: "Click a point on the map…",
+    groups: {
+      basic: "Basic",
+      parcels: "Parcels",
+      surfaces: "Terrain",
+      setout: "Setting out",
+      coords: "Coordinate systems",
+      analysis: "Network design",
+      instruments: "Instruments",
+    },
     tabs: {
       inverse: "Inverse",
       polar: "Polar",

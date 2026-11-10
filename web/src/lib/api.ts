@@ -65,7 +65,8 @@ async function handle(res: Response): Promise<Response> {
   throw new ApiError(res.status, message, detail);
 }
 
-async function request(path: string, init: RequestInit = {}): Promise<Response> {
+/** Shared by feature clients (lib/*Api.ts). */
+export async function request(path: string, init: RequestInit = {}): Promise<Response> {
   let res: Response;
   try {
     res = await fetch(`${env.apiUrl}${path}`, {
@@ -78,7 +79,7 @@ async function request(path: string, init: RequestInit = {}): Promise<Response> 
   return handle(res);
 }
 
-async function postJson<T>(path: string, body: unknown, signal?: AbortSignal): Promise<T> {
+export async function postJson<T>(path: string, body: unknown, signal?: AbortSignal): Promise<T> {
   const res = await request(path, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -88,7 +89,7 @@ async function postJson<T>(path: string, body: unknown, signal?: AbortSignal): P
   return (await res.json()) as T;
 }
 
-function filenameFrom(res: Response, fallback: string): string {
+export function filenameFrom(res: Response, fallback: string): string {
   const cd = res.headers.get("Content-Disposition") ?? "";
   const star = /filename\*=UTF-8''([^;]+)/i.exec(cd);
   if (star) return decodeURIComponent(star[1]);
