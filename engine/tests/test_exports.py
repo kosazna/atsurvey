@@ -268,3 +268,31 @@ def test_kml_and_geojson(computed):
     first = pts[0]
     assert first["properties"]["egsa87_x"] == res.points[0].x  # exact survey value kept
     assert any(f["geometry"]["type"] == "LineString" for f in gj["features"])
+
+
+def test_xlsx_adjustment_and_linework_sheets():
+    import zipfile as _zip
+
+    from atsurvey.core.models import (
+        AdjustmentSettings,
+        ComputeSettings,
+        LineworkSettings,
+    )
+
+    setups = traverse_setups(TRUTH, LINK)
+    setups.append(observe(TRUTH, "S1", ["T2", "D1", "D2"], codes={"D1": "OIK", "D2": "OIK"}))
+    inp = ProjectInput(
+        control_points=control(),
+        setups=setups,
+        traverses=[TraverseSpec(route=LINK)],
+        settings=ComputeSettings(
+            adjustment=AdjustmentSettings(method="least_squares"),
+            linework=LineworkSettings(line_codes=["OIK"]),
+        ),
+    )
+    res = compute_project(inp)
+    assert res.adjustment is not None and res.linework
+    data, *_ = export("xlsx", "t", inp, res)
+    z = _zip.ZipFile(io.BytesIO(data))
+    wbxml = z.read("xl/workbook.xml").decode()
+    assert "Συνόρθωση" in wbxml and "Γραμμές" in wbxml

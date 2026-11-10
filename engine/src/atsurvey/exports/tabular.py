@@ -283,6 +283,115 @@ def to_xlsx(
     ws.set_column(0, 11, 12)
     finish(ws, len(result.detail), 12)
 
+    # Least-squares adjustment
+    adj = result.adjustment
+    if adj is not None:
+        el = lang == "el"
+        ws = wb.add_worksheet("Συνόρθωση" if el else "Adjustment")
+        ws.hide_gridlines(2)
+        ws.write(
+            0, 0, "Συνόρθωση ελαχίστων τετραγώνων" if el else "Least-squares adjustment", title
+        )
+        gt = adj.global_test
+        stats = [
+            ("σ0", adj.sigma0),
+            ("Βαθμοί ελευθερίας" if el else "Degrees of freedom", adj.dof),
+            ("Μετρήσεις" if el else "Observations", adj.n_observations),
+            ("Άγνωστοι" if el else "Unknowns", adj.n_unknowns),
+            ("Κρίσιμη τιμή w" if el else "Critical w", adj.w_critical),
+            ("Μέγιστο |w|" if el else "Max |w|", adj.max_w),
+            ("χ² (vᵀPv)", gt.statistic if gt else None),
+            ("χ² κάτω όριο" if el else "χ² lower", gt.lower if gt else None),
+            ("χ² άνω όριο" if el else "χ² upper", gt.upper if gt else None),
+        ]
+        for i, (label, value) in enumerate(stats, 2):
+            ws.write_string(i, 0, label, muted)
+            if value is not None:
+                ws.write_number(i, 1, value)
+        r0 = len(stats) + 4
+        head(
+            ws,
+            r0,
+            [t["name"], "σX (mm)", "σY (mm)", "σZ (mm)", "a95 (mm)", "b95 (mm)", "θ (gon)"],
+            (0,),
+        )
+        row = r0
+        for pnt in result.points:
+            if pnt.sx is None and pnt.sz is None:
+                continue
+            row += 1
+            ws.write_string(row, 0, safe_text(pnt.name))
+            for c, v in ((1, pnt.sx), (2, pnt.sy), (3, pnt.sz)):
+                if v is not None:
+                    ws.write_number(row, c, round(v * 1000, 2))
+            if pnt.ellipse is not None:
+                e = pnt.ellipse
+                ws.write_number(row, 4, round(e.a * e.k95 * 1000, 2))
+                ws.write_number(row, 5, round(e.b * e.k95 * 1000, 2))
+                ws.write_number(row, 6, round(from_rad(e.theta, "gon"), 2))
+        r1 = row + 3
+        kinds = {
+            "direction": "διεύθυνση" if el else "direction",
+            "distance": "απόσταση" if el else "distance",
+            "height": "υψομ. διαφορά" if el else "height diff.",
+        }
+        head(
+            ws,
+            r1,
+            [
+                t["kind"],
+                t["station"],
+                t["point"],
+                "υπόλοιπο" if el else "residual",
+                "μονάδα" if el else "unit",
+                "r",
+                "w",
+                "!",
+            ],
+            (0, 1, 2, 4, 7),
+        )
+        flag = wb.add_format({"font_color": color("danger"), "bold": True})
+        for i, o in enumerate(sorted(adj.observations, key=lambda o: -abs(o.w or 0)), r1 + 1):
+            ws.write_string(i, 0, kinds[o.kind])
+            ws.write_string(i, 1, safe_text(o.station))
+            ws.write_string(i, 2, safe_text(o.target))
+            if o.kind == "direction":
+                ws.write_number(i, 3, round(rad_to_cc(o.residual), 2))
+                ws.write_string(i, 4, "cc")
+            else:
+                ws.write_number(i, 3, round(o.residual * 1000, 2))
+                ws.write_string(i, 4, "mm")
+            ws.write_number(i, 5, round(o.redundancy, 3))
+            if o.w is not None:
+                ws.write_number(i, 6, round(o.w, 2))
+            if o.flagged:
+                ws.write_string(i, 7, "●", flag)
+        ws.set_column(0, 0, 22)
+        ws.set_column(1, 7, 12)
+
+    # Line work
+    if result.linework:
+        ws = wb.add_worksheet("Γραμμές" if lang == "el" else "Lines")
+        head(
+            ws,
+            0,
+            [t["name"], t["code"], t["points"], t["kind"], "m", "m²"],
+            (0, 1, 2, 3),
+        )
+        for i, ln in enumerate(result.linework, 1):
+            ws.write_string(i, 0, safe_text(ln.name))
+            ws.write_string(i, 1, safe_text(ln.code))
+            ws.write_string(i, 2, safe_text(" → ".join(ln.points)))
+            closed = ("κλειστή" if lang == "el" else "closed") if ln.closed else "–"
+            ws.write_string(i, 3, closed)
+            ws.write_number(i, 4, round(ln.length, d))
+            if ln.area is not None:
+                ws.write_number(i, 5, round(ln.area, 3))
+        ws.set_column(0, 1, 14)
+        ws.set_column(2, 2, 50)
+        ws.set_column(3, 5, 12)
+        finish(ws, len(result.linework), 6)
+
     # Issues
     ws = wb.add_worksheet(t["issues"])
     head(ws, 0, [t["severity"], t["code"], t["message"]], (0, 1, 2))
