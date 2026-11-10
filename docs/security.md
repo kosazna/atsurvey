@@ -38,7 +38,8 @@ credentials); Paddle ↔ edge function (HMAC signature); CI ↔ VM (SSH key, env
 * Tests: `supabase/tests/run.sh`, **80 checks** (cross-tenant isolation on every table and storage).
 
 **Engine API**
-* JWT: JWKS (ES256/RS256 only) or HS256 secret; issuer `{SUPABASE_URL}/auth/v1`, audience
+* JWT: ES256/RS256 against JWKS public keys; HS256 only against the shared secret (if set), the
+  header's `alg` choosing the key type; issuer `{SUPABASE_URL}/auth/v1`, audience
   `authenticated`, `exp` and `sub` required, 30 s leeway; generic error messages.
 * Refuses to start with unsafe production config (`ENVIRONMENT=production` with auth disabled,
   non-HTTPS Supabase URL, `http://` CORS origins, or rate limiting off).
@@ -104,6 +105,7 @@ credentials); Paddle ↔ edge function (HMAC signature); CI ↔ VM (SSH key, env
 | API-3 | Medium | JWT issuer not verified; JWKS path didn't pin the algorithm family | Fixed |
 | API-4 | Low | Request bodies buffered before size checks | Fixed (ASGI limit) |
 | API-5 | Low | `AUTH_DISABLED` could reach production by mistake | Fixed (startup refusal) |
+| API-6 | Medium (availability) | With a JWT secret set, ES256 user tokens (Supabase CLI v2, new projects) were refused: every signed-in call got 401 | Fixed (both key types, tests for foreign keys and HS256-with-public-key) |
 | EXP-1 | Medium | CSV/XLSX formula injection via point names, codes, messages | Fixed (`sanitize.py`) |
 | PAR-1 | Low | Parsers unbounded on huge or binary input | Fixed (guards + fuzzing) |
 | WH-1 | Low | Webhook read unbounded bodies | Fixed (streamed limit) |

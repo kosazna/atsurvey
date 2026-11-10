@@ -15,6 +15,7 @@
 | [supabase.md](supabase.md) | database, auth, storage, billing webhook, tests |
 | [web.md](web.md) | web app structure, data layer, demo mode, build |
 | [design-system.md](design-system.md) | tokens, typography (IBM Plex Sans), visual rules |
+| [local-setup.md](local-setup.md) | **run the full app on your laptop** (Docker + local Supabase) and what to test |
 | [development.md](development.md) | local setup, commands, tests, CI, conventions |
 | [security.md](security.md) | threat model, controls by layer, audit findings, operational checklist |
 | [deploy.md](deploy.md) | going live: Supabase, Hetzner, Cloudflare Pages, checklist |

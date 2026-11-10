@@ -21,7 +21,9 @@ or `/openapi.json` and `/docs` on a running server.
 ## Authentication and plans
 
 `Authorization: Bearer <Supabase access token>`. Tokens are verified against the project's JWKS
-(`/auth/v1/.well-known/jwks.json`, ES256/RS256), or with `SUPABASE_JWT_SECRET` (HS256) if set.
+(`/auth/v1/.well-known/jwks.json`, ES256/RS256); HS256 tokens are accepted only when
+`SUPABASE_JWT_SECRET` is set, and only against that secret. The header's `alg` selects the key type,
+never the key itself (no algorithm confusion).
 Audience `authenticated`.
 
 The plan is looked up with the user's own token: `rpc/workspace_plan` when the request names a
@@ -52,7 +54,7 @@ A format outside the plan returns **402** with `{"detail": {"code": "plan_requir
 |---|---|---|
 | `SUPABASE_URL` | — | project URL (JWKS + plan lookup) |
 | `SUPABASE_ANON_KEY` | — | publishable key sent as `apikey` to PostgREST |
-| `SUPABASE_JWT_SECRET` | empty | legacy HS256 secret; leave empty to use JWKS |
+| `SUPABASE_JWT_SECRET` | empty | legacy HS256 secret; ES256/RS256 tokens are verified through JWKS either way |
 | `AUTH_DISABLED` | `false` | **dev only**: every caller is `pro` |
 | `ALLOW_ANONYMOUS_COMPUTE` | `true` | demo mode without login |
 | `CORS_ORIGINS` | `["http://localhost:5173","http://localhost:4173"]` | JSON list |

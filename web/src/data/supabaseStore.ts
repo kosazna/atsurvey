@@ -127,9 +127,15 @@ export class SupabaseStore implements ProjectStore {
       throw new ProjectLimitError();
     }
     const row = check(res) as ProjectRow;
-    if (seed?.control_points?.length) await this.saveControlPoints(row.id, seed.control_points);
-    if (seed?.setups?.length) await this.saveSetups(row.id, seed.setups);
-    if (seed?.traverses?.length) await this.saveTraverses(row.id, seed.traverses);
+    try {
+      if (seed?.control_points?.length) await this.saveControlPoints(row.id, seed.control_points);
+      if (seed?.setups?.length) await this.saveSetups(row.id, seed.setups);
+      if (seed?.traverses?.length) await this.saveTraverses(row.id, seed.traverses);
+    } catch (e) {
+      // Do not leave a half-seeded project behind (it would also count against the plan limit).
+      await this.sb.from("projects").delete().eq("id", row.id);
+      throw e;
+    }
     return this.toMeta(row);
   }
 

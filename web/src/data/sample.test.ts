@@ -92,3 +92,16 @@ describe("sample dataset", () => {
     }
   });
 });
+
+describe("sample ids", () => {
+  it("are UUIDs (Supabase stores them in uuid columns)", () => {
+    const d = buildSampleProject();
+    const ids = [
+      ...d.control_points.map((c) => c.id),
+      ...d.setups.flatMap((s) => [s.id, ...s.observations.map((o) => o.id)]),
+      ...d.traverses.map((t) => t.id),
+    ];
+    for (const id of ids) expect(id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+});

@@ -18,7 +18,10 @@ docs/        all documentation (this folder)
 * Python 3.13 and [uv](https://docs.astral.sh/uv/) (workspace with `engine` and `api`)
 * Node 22.18+ and pnpm 10 (web)
 * PostgreSQL 16 + PostGIS 3 for the database tests (`apt-get install postgresql-16 postgresql-16-postgis-3`)
-* Optional: Docker, Supabase CLI
+* Docker (local Supabase via `npx supabase@2`; Postgres 17, same as hosted)
+
+To run the whole app locally (Supabase in Docker, API, web): `bash scripts/dev.sh`, see
+[local-setup.md](local-setup.md).
 
 ## Everyday commands
 

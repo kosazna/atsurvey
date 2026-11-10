@@ -63,15 +63,19 @@ def _decode(token: str, settings: Settings) -> dict:
         "leeway": settings.jwt_leeway_s,
         "options": options,
     }
-    if settings.supabase_jwt_secret:
-        # legacy shared secret: HMAC only
+    # Supabase signs user tokens with asymmetric keys (ES256/RS256, published as JWKS) on new
+    # projects and the CLI; older projects and service tokens use the legacy HS256 secret.
+    # The path is chosen from the header, but each algorithm is only ever verified against its
+    # own key type: HS256 against the secret, ES256/RS256 against the JWKS public keys.
+    alg = jwt.get_unverified_header(token).get("alg")
+    if alg == "HS256":
+        if not settings.supabase_jwt_secret:
+            raise jwt.InvalidAlgorithmError("HS256 tokens are not accepted (no shared secret)")
         return jwt.decode(token, settings.supabase_jwt_secret, algorithms=["HS256"], **common)
     if not settings.supabase_url:
         raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "Auth is not configured")
-    # asymmetric keys only: an HS256 token signed with the public key is rejected
-    header = jwt.get_unverified_header(token)
-    if header.get("alg") not in ("ES256", "RS256"):
-        raise jwt.InvalidAlgorithmError(f"Algorithm {header.get('alg')!r} not allowed")
+    if alg not in ("ES256", "RS256"):
+        raise jwt.InvalidAlgorithmError(f"Algorithm {alg!r} not allowed")
     key = _jwks(settings).get_signing_key_from_jwt(token)
     return jwt.decode(token, key, algorithms=["ES256", "RS256"], **common)
 

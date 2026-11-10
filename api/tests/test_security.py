@@ -126,6 +126,78 @@ def test_hs256_rejected_in_jwks_mode():
     assert exc.value.status_code == 401
 
 
+def _es256_setup(monkeypatch):
+    """A JWKS with one EC P-256 key, served without network access."""
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric import ec
+
+    private = ec.generate_private_key(ec.SECP256R1())
+    jwk = json.loads(jwt.algorithms.ECAlgorithm.to_jwk(private.public_key()))
+    jwk.update(kid="k1", alg="ES256", use="sig")
+
+    class FakeJWKS:
+        def get_signing_key_from_jwt(self, tok):
+            if jwt.get_unverified_header(tok).get("kid") != "k1":
+                raise jwt.PyJWKClientError("unknown kid")
+            return jwt.PyJWK(jwk)
+
+    monkeypatch.setattr(auth, "_jwks", lambda settings: FakeJWKS())
+    pem = private.public_key().public_bytes(
+        serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo
+    )
+    return private, pem
+
+
+def _claims(iss="http://supabase.invalid/auth/v1"):
+    return {"sub": "u-es", "aud": "authenticated", "iss": iss, "exp": time.time() + 600}
+
+
+def test_es256_accepted_alongside_shared_secret(monkeypatch):
+    """Supabase CLI v2 and new projects sign user tokens with ES256 even when a legacy JWT
+    secret exists; both must verify (regression: local sign-in got 401 on /v1/compute)."""
+    private, _ = _es256_setup(monkeypatch)
+    auth._token_cache.clear()
+    s = make_settings()  # has both supabase_url and supabase_jwt_secret
+    tok = jwt.encode(_claims(), private, algorithm="ES256", headers={"kid": "k1"})
+    assert auth.verify_token(tok, s)["sub"] == "u-es"
+    # HS256 with the shared secret keeps working
+    assert auth.verify_token(jwt.encode(_claims(), SECRET, algorithm="HS256"), s)["sub"] == "u-es"
+
+
+def test_es256_from_foreign_key_rejected(monkeypatch):
+    from cryptography.hazmat.primitives.asymmetric import ec
+
+    _es256_setup(monkeypatch)
+    auth._token_cache.clear()
+    other = ec.generate_private_key(ec.SECP256R1())
+    tok = jwt.encode(_claims(), other, algorithm="ES256", headers={"kid": "k1"})
+    with pytest.raises(HTTPException) as exc:
+        auth.verify_token(tok, make_settings())
+    assert exc.value.status_code == 401
+
+
+def test_hs256_signed_with_public_key_rejected(monkeypatch):
+    """Algorithm confusion with both key types configured: HS256 is only checked against the
+    shared secret, never against the JWKS public key."""
+    _, pem = _es256_setup(monkeypatch)
+    auth._token_cache.clear()
+    # PyJWT itself refuses PEM keys as HMAC secrets, so forge the token by hand
+    import base64
+    import hashlib
+    import hmac
+
+    def b64(b: bytes) -> str:
+        return base64.urlsafe_b64encode(b).rstrip(b"=").decode()
+
+    head = b64(json.dumps({"alg": "HS256", "typ": "JWT", "kid": "k1"}).encode())
+    body = b64(json.dumps(_claims()).encode())
+    sig = b64(hmac.new(pem, f"{head}.{body}".encode(), hashlib.sha256).digest())
+    tok = f"{head}.{body}.{sig}"
+    with pytest.raises(HTTPException) as exc:
+        auth.verify_token(tok, make_settings())
+    assert exc.value.status_code == 401
+
+
 def test_oversized_token_rejected(client):
     r = client.post("/v1/compute", json=project_json(), headers=bearer("a" * 9000))
     assert r.status_code == 401

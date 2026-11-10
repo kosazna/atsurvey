@@ -6,6 +6,7 @@
 // (±4cc directions, ±2mm distances) so the traverse closes with a realistic misclosure.
 import { CC, gridAzimuth, wrap2pi } from "@/lib/angles";
 import { defaultSettings } from "@/lib/types";
+import { uid } from "@/lib/utils";
 import type { ProjectData, StoredControlPoint, StoredObservation, StoredSetup, StoredTraverse } from "./store";
 
 const R = 6371000;
@@ -97,7 +98,8 @@ export function buildSampleProject(): Omit<ProjectData, "meta"> {
   const pts = sampleTruePoints();
   const hi = 1.55;
   const ht = 1.6;
-  const id = (p: string) => `sample-${p}`;
+  // Real UUIDs: Supabase stores these ids in uuid columns (the label is only for readability).
+  const id = (_label: string) => uid();
 
   const traverseNeighbors: Record<string, string[]> = {
     T2: ["T1", "S1"],
