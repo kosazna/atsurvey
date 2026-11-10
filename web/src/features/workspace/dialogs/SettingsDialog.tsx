@@ -8,7 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { defaultSettings, type AdjustmentMethod, type AdjustmentSettings, type ComputeSettings, type DisplayAngleUnit, type ElevationMode, type ScaleMode, type Tolerances } from "@/lib/types";
+import { defaultSettings, type AdjustmentMethod, type AdjustmentSettings, type ComputeSettings, type DisplayAngleUnit, type ElevationMode, type ScaleMode, type TolerancePreset, type Tolerances } from "@/lib/types";
+import { api } from "@/lib/api";
 import { parseNum } from "@/lib/utils";
 import { useWorkspace } from "../useWorkspace";
 
@@ -48,7 +49,7 @@ function Row({ label, hint, children }: { label: string; hint?: string; children
 }
 
 export function SettingsDialog() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const ws = useWorkspace();
   const open = ws.dialog === "settings";
   const [s, setS] = useState<ComputeSettings>(ws.data.settings);
@@ -64,7 +65,43 @@ export function SettingsDialog() {
 
   const red = s.reduction;
   const setRed = (patch: Partial<ComputeSettings["reduction"]>) => setS({ ...s, reduction: { ...red, ...patch } });
-  const setTol = (k: keyof Tolerances, v: number) => setS({ ...s, tolerances: { ...s.tolerances, [k]: v } });
+  const setTol = (k: keyof Tolerances, v: number) =>
+    setS({ ...s, tolerances: { ...s.tolerances, [k]: v, preset: null } });
+  const [presets, setPresets] = useState<TolerancePreset[]>([]);
+  useEffect(() => {
+    let alive = true;
+    api
+      .tolerancePresets()
+      .then((p) => alive && setPresets(p))
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, []);
+  const applyPreset = (id: string) => {
+    const preset = presets.find((p) => p.id === id);
+    if (!preset) {
+      setS({ ...s, tolerances: { ...s.tolerances, preset: null } });
+      return;
+    }
+    const p = preset.tolerances;
+    setS({
+      ...s,
+      tolerances: {
+        ...s.tolerances,
+        angular_base_cc: p.angular_base_cc,
+        angular_per_sqrt_n_cc: p.angular_per_sqrt_n_cc,
+        linear_base_m: p.linear_base_m,
+        linear_per_sqrt_km_m: p.linear_per_sqrt_km_m,
+        linear_per_sqrt_m_m: p.linear_per_sqrt_m_m,
+        min_relative_precision: p.min_relative_precision,
+        preset: preset.id,
+      },
+    });
+  };
+  const numericTolKeys = (Object.keys(s.tolerances) as (keyof Tolerances)[]).filter(
+    (k) => typeof s.tolerances[k] === "number",
+  );
   const scaleModes: ScaleMode[] = ["leg_simpson", "leg_mean", "traverse_mean", "none", "fixed"];
   const adj = s.adjustment;
   const setAdj = (patch: Partial<AdjustmentSettings>) => setS({ ...s, adjustment: { ...adj, ...patch } });
@@ -186,10 +223,23 @@ export function SettingsDialog() {
               )}
             </TabsContent>
             <TabsContent value="tolerances" className="space-y-3">
-              <p className="rounded-lg bg-warning-subtle px-3 py-2 text-xs text-warning">{t("set.tolHint")}</p>
+              <div className="space-y-1.5">
+                <Label htmlFor="tol-preset">{t("set.tolPreset")}</Label>
+                <Select<string>
+                  value={s.tolerances.preset ?? "custom"}
+                  onValueChange={applyPreset}
+                  options={[
+                    { value: "custom", label: t("set.tolCustom") },
+                    ...presets.map((p) => ({ value: p.id, label: i18n.language === "en" ? p.label_en : p.label_el })),
+                  ]}
+                />
+              </div>
+              {!s.tolerances.preset && (
+                <p className="rounded-lg bg-warning-subtle px-3 py-2 text-xs text-warning">{t("set.tolHint")}</p>
+              )}
               <div className="grid gap-3 sm:grid-cols-2">
-                {(Object.keys(s.tolerances) as (keyof Tolerances)[]).map((k) => (
-                  <NumField key={k} id={`tol-${k}`} label={t(`set.tol.${k}`)} value={s.tolerances[k]} onChange={(v) => setTol(k, v)} />
+                {numericTolKeys.map((k) => (
+                  <NumField key={k} id={`tol-${k}`} label={t(`set.tol.${k}`)} value={s.tolerances[k] as number} onChange={(v) => setTol(k, v)} />
                 ))}
               </div>
             </TabsContent>

@@ -9,6 +9,7 @@ import type {
   ProjectInput,
   ProjectResult,
   RawFormat,
+  TolerancePreset,
   TraverseSpec,
 } from "./types";
 
@@ -133,6 +134,10 @@ export const api = {
   },
   compute(input: ProjectInput, signal?: AbortSignal): Promise<ProjectResult> {
     return postJson<ProjectResult>("/v1/compute", input, signal);
+  },
+  async tolerancePresets(): Promise<TolerancePreset[]> {
+    const res = await request("/v1/presets/tolerances");
+    return res.json();
   },
   async suggestTraverses(input: ProjectInput): Promise<TraverseSpec[]> {
     const r = await postJson<{ suggestions: TraverseSpec[] }>("/v1/suggest-traverses", input);

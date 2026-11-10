@@ -168,6 +168,19 @@ export interface LevelingRequest {
   tolerance_base_mm: number;
   tolerance_mm_per_sqrt_km: number;
   distribute: "distance" | "setups";
+  return_setups?: LevelingSetup[] | null;
+  section_points?: string[] | null;
+}
+export interface LevelingSection {
+  frm: string;
+  to: string;
+  dh_forward: number;
+  dh_return: number;
+  discrepancy: number;
+  dh_mean: number;
+  length: number | null;
+  tolerance: number | null;
+  within_tolerance: boolean | null;
 }
 export interface LevelingPoint {
   name: string;
@@ -194,6 +207,7 @@ export interface LevelingResult {
   length_km: number | null;
   n_setups: number;
   message?: string | null;
+  sections?: LevelingSection[];
 }
 
 // ------------------------------------------------------------------ stakeout

@@ -52,8 +52,20 @@ export function validateLeveling(d: LevelingData): LevelingProblem[] {
   return problems;
 }
 
+/** Parse "Σ22, Σ23 Σ24" into point names. */
+export function parseSectionPoints(text: string | undefined): string[] {
+  return (text ?? "")
+    .split(/[\s,;]+/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+}
+
 export function toLevelingRequest(d: LevelingData): LevelingRequest {
+  const ret = rowsToSetups(d.return_rows ?? []).filter((s) => s.readings.length >= 2);
+  const sections = parseSectionPoints(d.section_points);
   return {
+    return_setups: ret.length ? ret : null,
+    section_points: ret.length && sections.length ? sections : null,
     benchmarks: d.benchmarks
       .filter((b) => b.name.trim() && b.h !== null && Number.isFinite(b.h))
       .map((b) => ({ name: b.name.trim(), h: b.h as number })),

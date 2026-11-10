@@ -65,6 +65,10 @@ export interface LevelRow {
 export interface LevelingData {
   benchmarks: { id: string; name: string; h: number | null }[];
   rows: LevelRow[];
+  /** Return run of double-run levelling (μετάβαση–επιστροφή), measured end → start */
+  return_rows?: LevelRow[];
+  /** Comma-separated section points for double-run levelling (empty = automatic) */
+  section_points?: string;
   tolerance_base_mm: number;
   tolerance_mm_per_sqrt_km: number;
   distribute: "distance" | "setups";

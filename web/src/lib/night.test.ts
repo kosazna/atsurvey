@@ -163,3 +163,32 @@ describe("run diff", () => {
     expect(d.rmsDxy).toBeCloseTo(Math.sqrt((0.005 ** 2) / 2));
   });
 });
+
+describe("double-run levelling request", () => {
+  it("parses section points and includes the return run", async () => {
+    const { parseSectionPoints, toLevelingRequest, emptyLeveling } = await import("./leveling");
+    expect(parseSectionPoints("Rn, Σ22;Σ23  Σ24")).toEqual(["Rn", "Σ22", "Σ23", "Σ24"]);
+    const base = emptyLeveling();
+    const row = (setup: number, point: string, kind: "bs" | "fs", reading: number) => ({
+      id: `${setup}${point}${kind}`,
+      setup,
+      point,
+      kind,
+      reading,
+      distance: null,
+    });
+    const d = {
+      ...base,
+      benchmarks: [{ id: "b", name: "A", h: 100 }],
+      rows: [row(1, "A", "bs", 1.5), row(1, "B", "fs", 1.0)],
+      return_rows: [row(1, "B", "bs", 1.0), row(1, "A", "fs", 1.5)],
+      section_points: "A, B",
+    };
+    const req = toLevelingRequest(d);
+    expect(req.return_setups).toHaveLength(1);
+    expect(req.section_points).toEqual(["A", "B"]);
+    const single = toLevelingRequest({ ...d, return_rows: [] });
+    expect(single.return_setups).toBeNull();
+    expect(single.section_points).toBeNull();
+  });
+});

@@ -69,6 +69,8 @@ export interface Tolerances {
   angular_per_sqrt_n_cc: number;
   linear_base_m: number;
   linear_per_sqrt_km_m: number;
+  /** Coefficient of √L with L in metres (Greek specification form) */
+  linear_per_sqrt_m_m: number;
   min_relative_precision: number;
   height_base_m: number;
   height_per_sqrt_km_m: number;
@@ -78,6 +80,18 @@ export interface Tolerances {
   orientation_spread_cc: number;
   detail_duplicate_m: number;
   check_shot_m: number;
+  /** Id of the preset these values came from (null = custom) */
+  preset?: string | null;
+}
+
+export interface TolerancePreset {
+  id: string;
+  label_el: string;
+  label_en: string;
+  scale: string;
+  traverse_class: "primary" | "secondary";
+  terrain: "flat" | "sloped";
+  tolerances: Tolerances;
 }
 
 export type AdjustmentMethod = "bowditch" | "least_squares";
@@ -134,6 +148,7 @@ export const DEFAULT_TOLERANCES: Tolerances = {
   angular_per_sqrt_n_cc: 40.0,
   linear_base_m: 0.02,
   linear_per_sqrt_km_m: 0.05,
+  linear_per_sqrt_m_m: 0.0,
   min_relative_precision: 5000.0,
   height_base_m: 0.02,
   height_per_sqrt_km_m: 0.05,
@@ -143,6 +158,7 @@ export const DEFAULT_TOLERANCES: Tolerances = {
   orientation_spread_cc: 60.0,
   detail_duplicate_m: 0.03,
   check_shot_m: 0.03,
+  preset: null,
 };
 
 export const DEFAULT_ADJUSTMENT: AdjustmentSettings = {

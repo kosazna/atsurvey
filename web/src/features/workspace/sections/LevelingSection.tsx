@@ -32,6 +32,9 @@ export default function LevelingSection() {
   const [busy, setBusy] = useState(false);
   const [res, setRes] = useState<LevelingResult | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [run, setRun] = useState<"forward" | "return">("forward");
+  const runRows = run === "forward" ? lv.rows : (lv.return_rows ?? []);
+  const saveRun = (rows: LevelRow[]) => save(run === "forward" ? { rows } : { return_rows: rows });
 
   const save = (patch: Partial<LevelingData>) => ws.update({ extras: { ...ws.data.extras, leveling: { ...lv, ...patch } } });
   const problems = validateLeveling(lv);
@@ -110,7 +113,7 @@ export default function LevelingSection() {
   );
 
   const makeRow = (): LevelRow => {
-    const last = lv.rows[lv.rows.length - 1];
+    const last = runRows[runRows.length - 1];
     const setup = last ? (last.kind === "fs" ? last.setup + 1 : last.setup) : 1;
     const kind: ReadingKind = !last || last.kind === "fs" ? "bs" : "fs";
     return { id: uid(), setup, point: kind === "bs" && last?.kind === "fs" ? last.point : "", kind, reading: null, distance: null };
@@ -181,13 +184,41 @@ export default function LevelingSection() {
           <Card className="overflow-hidden">
             <div className="flex flex-wrap items-center gap-2 border-b px-3 py-2">
               <span className="text-sm font-medium">{t("lev.readings")}</span>
-              <span className="text-xs text-muted">{t("lev.readingsHint")}</span>
+              <div className="ml-auto inline-flex rounded-md border p-0.5 text-xs" role="tablist">
+                {(["forward", "return"] as const).map((r) => (
+                  <button
+                    key={r}
+                    type="button"
+                    role="tab"
+                    aria-selected={run === r}
+                    data-testid={`lev-run-${r}`}
+                    onClick={() => setRun(r)}
+                    className={cn("rounded px-2 py-1", run === r ? "bg-surface-sunken font-medium" : "text-muted")}
+                  >
+                    {t(`lev.run.${r}`)}
+                    {r === "return" && (lv.return_rows?.length ?? 0) > 0 && <span className="ml-1 text-subtle">{lv.return_rows?.length}</span>}
+                  </button>
+                ))}
+              </div>
+              <span className="w-full text-xs text-muted">{run === "forward" ? t("lev.readingsHint") : t("lev.returnHint")}</span>
             </div>
             <div className="h-80" data-testid="grid-leveling">
               <Suspense fallback={<Skeleton className="m-3 h-64" />}>
-                <DataGrid rows={lv.rows} columns={rowCols} onChange={(rows) => save({ rows })} makeRow={makeRow} appendLabel={t("lev.addReading")} />
+                <DataGrid key={run} rows={runRows} columns={rowCols} onChange={saveRun} makeRow={makeRow} appendLabel={t("lev.addReading")} />
               </Suspense>
             </div>
+            {(lv.return_rows?.length ?? 0) > 0 && (
+              <div className="space-y-1.5 border-t px-3 py-2">
+                <Label htmlFor="lv-sections">{t("lev.sectionPoints")}</Label>
+                <Input
+                  id="lv-sections"
+                  placeholder={t("lev.sectionPointsPlaceholder")}
+                  value={lv.section_points ?? ""}
+                  onChange={(e) => save({ section_points: e.target.value })}
+                />
+                <p className="text-xs text-muted">{t("lev.sectionPointsHint")}</p>
+              </div>
+            )}
           </Card>
           <Card className="grid gap-3 p-3 sm:grid-cols-2">
             <div className="space-y-1.5">
@@ -267,6 +298,41 @@ export default function LevelingSection() {
                   </Button>
                 </div>
               </div>
+              {(res.sections?.length ?? 0) > 0 && (
+                <Card className="overflow-hidden" data-testid="lev-sections">
+                  <div className="border-b px-3 py-2 text-sm font-medium">{t("lev.sections")}</div>
+                  <table className="w-full text-sm tabular">
+                    <thead>
+                      <tr className="border-b bg-surface-sunken text-xs text-muted">
+                        <th className="px-3 py-2 text-left font-medium">{t("lev.section")}</th>
+                        <th className="px-3 py-2 text-right font-medium">{t("lev.dhForward")}</th>
+                        <th className="px-3 py-2 text-right font-medium">{t("lev.dhReturn")}</th>
+                        <th className="px-3 py-2 text-right font-medium">{t("lev.discrepancy")}</th>
+                        <th className="px-3 py-2 text-right font-medium">{t("lev.dhMean")}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {res.sections!.map((sec) => {
+                        const bad = sec.within_tolerance === false || (sec.tolerance === null && Math.abs(sec.discrepancy) > 0.01);
+                        return (
+                          <tr key={`${sec.frm}-${sec.to}`} className={cn("border-b last:border-0", bad && "bg-danger-subtle")}>
+                            <td className="whitespace-nowrap px-3 py-1.5 font-medium">
+                              {sec.frm} <ArrowRight className="inline size-3 text-subtle" /> {sec.to}
+                            </td>
+                            <td className="px-3 py-1.5 text-right">{fmtSigned(sec.dh_forward, 4)}</td>
+                            <td className="px-3 py-1.5 text-right">{fmtSigned(sec.dh_return, 4)}</td>
+                            <td className={cn("whitespace-nowrap px-3 py-1.5 text-right", bad ? "font-semibold text-danger" : "text-muted")}>
+                              {fmtSigned(sec.discrepancy * 1000, 1)} mm
+                              {sec.tolerance !== null && <span className="ml-1 text-xs text-subtle">/ ±{(sec.tolerance * 1000).toFixed(1)}</span>}
+                            </td>
+                            <td className="px-3 py-1.5 text-right font-semibold">{fmtSigned(sec.dh_mean, 4)}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </Card>
+              )}
               <Card className="overflow-hidden">
                 <table className="w-full text-sm tabular">
                   <thead>
