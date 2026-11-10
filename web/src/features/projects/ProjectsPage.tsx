@@ -1,12 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, Navigate, useNavigate } from "@tanstack/react-router";
-import { FolderOpen, MoreHorizontal, Pencil, Plus, Search, Sparkles, Trash2, Triangle } from "lucide-react";
+import { FolderInput, FolderOpen, MoreHorizontal, Pencil, Plus, Search, Sparkles, Trash2, Triangle } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { usePageCommands, type Command } from "@/components/commands";
 import { Logo } from "@/components/Logo";
 import { UserMenu } from "@/components/UserMenu";
+import { WorkspaceSwitcher } from "@/components/WorkspaceSwitcher";
+import { type MyWorkspace, canManage, canWrite, teams } from "@/data/teams";
+import { teamErrorMessage, useCurrentWorkspace } from "@/data/useTeams";
+import { supabase } from "@/lib/supabase";
+import { InvitationsBanner } from "./InvitationsBanner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -110,8 +115,22 @@ function ProjectFormDialog({
   );
 }
 
-function ProjectCard({ p, onRename, onDelete }: { p: ProjectMeta; onRename: () => void; onDelete: () => void }) {
+interface ProjectCardProps {
+  p: ProjectMeta;
+  onRename: () => void;
+  onDelete: () => void;
+  /** caller's role in the current workspace (undefined in demo mode: everything allowed) */
+  role?: MyWorkspace["role"];
+  /** other workspaces the project can be moved to (caller is owner/admin there) */
+  moveTargets: MyWorkspace[];
+  onMove: (ws: MyWorkspace) => void;
+}
+
+function ProjectCard({ p, onRename, onDelete, role, moveTargets, onMove }: ProjectCardProps) {
   const { t, i18n } = useTranslation();
+  const demo = role === undefined;
+  const mayRename = demo || canWrite(role);
+  const mayManage = demo || canManage(role);
   return (
     <div className="group relative flex flex-col rounded-xl border bg-surface p-4 transition-colors hover:border-border-strong ">
       <Link to="/p/$projectId" params={{ projectId: p.id }} className="absolute inset-0 rounded-xl" aria-label={p.name} />
@@ -132,13 +151,26 @@ function ProjectCard({ p, onRename, onDelete }: { p: ProjectMeta; onRename: () =
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem onSelect={onRename}>
-              <Pencil /> {t("common.rename")}
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem destructive onSelect={onDelete}>
-              <Trash2 /> {t("common.delete")}
-            </DropdownMenuItem>
+            {mayRename && (
+              <DropdownMenuItem onSelect={onRename}>
+                <Pencil /> {t("common.rename")}
+              </DropdownMenuItem>
+            )}
+            {mayManage &&
+              moveTargets.map((w) => (
+                <DropdownMenuItem key={w.id} onSelect={() => onMove(w)}>
+                  <FolderInput /> {t("team.move")} {w.personal ? t("team.personal") : w.name}
+                </DropdownMenuItem>
+              ))}
+            {mayManage && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem destructive onSelect={onDelete}>
+                  <Trash2 /> {t("common.delete")}
+                </DropdownMenuItem>
+              </>
+            )}
+            {!mayRename && <DropdownMenuItem disabled>{t("team.readOnly")}</DropdownMenuItem>}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
@@ -158,15 +190,19 @@ export function ProjectsPage() {
   const { mode, store } = useSession();
   const qc = useQueryClient();
   const navigate = useNavigate();
+  const { workspaces, current } = useCurrentWorkspace();
+  const cloud = mode === "cloud";
+  const role = cloud ? current?.role : undefined;
+  const moveTargets = cloud && current ? workspaces.filter((w) => w.id !== current.id && canManage(w.role)) : [];
   const [q, setQ] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
   const [renaming, setRenaming] = useState<ProjectMeta | null>(null);
   const [deleting, setDeleting] = useState<ProjectMeta | null>(null);
 
   const projects = useQuery({
-    queryKey: ["projects", mode],
+    queryKey: ["projects", mode, cloud ? current?.id : null],
     queryFn: () => store!.listProjects(),
-    enabled: Boolean(store),
+    enabled: Boolean(store) && (!cloud || Boolean(current)),
   });
 
   const createSample = useMutation({
@@ -198,6 +234,17 @@ export function ProjectsPage() {
   );
   usePageCommands(commands);
 
+  async function moveProject(p: ProjectMeta, w: MyWorkspace) {
+    try {
+      await teams.moveProject(supabase!, p.id, w.id);
+      toast.success(t("team.moved", { workspace: w.personal ? t("team.personal") : w.name }));
+    } catch (e) {
+      toast.error(teamErrorMessage(t, e));
+    } finally {
+      await qc.invalidateQueries({ queryKey: ["projects"] });
+    }
+  }
+
   if (mode === "none") return <Navigate to="/" />;
 
   const filtered = (projects.data ?? []).filter((p) => !q || `${p.name} ${p.description ?? ""}`.toLowerCase().includes(q.toLowerCase()));
@@ -208,6 +255,7 @@ export function ProjectsPage() {
         <div className="mx-auto flex h-14 max-w-6xl items-center gap-3 px-4">
           <Logo />
           {mode === "demo" && <Badge variant="warning">{t("common.demo")}</Badge>}
+          {cloud && <WorkspaceSwitcher />}
           <div className="ml-auto flex items-center gap-2">
             <button
               className="hidden h-8 items-center gap-2 rounded-md border bg-surface px-2.5 text-xs text-muted hover:text-fg sm:flex"
@@ -220,6 +268,7 @@ export function ProjectsPage() {
         </div>
       </header>
       <main className="mx-auto max-w-6xl px-4 py-8">
+        {cloud && <InvitationsBanner />}
         <div className="flex flex-wrap items-end gap-3">
           <div>
             <h1 className="text-xl font-semibold tracking-tight">{t("projects.title")}</h1>
@@ -230,12 +279,16 @@ export function ProjectsPage() {
               <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted" />
               <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("common.search")} className="w-48 pl-8 sm:w-64" aria-label={t("common.search")} />
             </div>
+            {(!cloud || canWrite(role)) && (
+              <>
             <Button variant="outline" onClick={() => createSample.mutate()} disabled={createSample.isPending}>
               <Sparkles /> <span className="hidden sm:inline">{t("projects.openSample")}</span>
             </Button>
             <Button onClick={() => setCreateOpen(true)} data-testid="new-project">
               <Plus /> {t("projects.new")}
             </Button>
+              </>
+            )}
           </div>
         </div>
 
@@ -269,7 +322,15 @@ export function ProjectsPage() {
           ) : (
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {filtered.map((p) => (
-                <ProjectCard key={p.id} p={p} onRename={() => setRenaming(p)} onDelete={() => setDeleting(p)} />
+                <ProjectCard
+                  key={p.id}
+                  p={p}
+                  role={role}
+                  moveTargets={moveTargets}
+                  onMove={(w) => void moveProject(p, w)}
+                  onRename={() => setRenaming(p)}
+                  onDelete={() => setDeleting(p)}
+                />
               ))}
             </div>
           )}

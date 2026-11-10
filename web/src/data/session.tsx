@@ -22,10 +22,22 @@ interface SessionCtx {
   clearDemoData: () => void;
   /** Re-check the assurance level after verifying or removing an authenticator. */
   refreshMfa: () => Promise<void>;
+  /** Selected workspace (signed in): its projects are listed and new ones created in it. */
+  workspaceId: string | null;
+  setWorkspaceId: (id: string | null) => void;
 }
 
 const Ctx = createContext<SessionCtx | null>(null);
 const DEMO_KEY = "ats-mode";
+const WORKSPACE_KEY = "ats-workspace";
+
+function storedWorkspace(): string | null {
+  try {
+    return localStorage.getItem(WORKSPACE_KEY);
+  } catch {
+    return null;
+  }
+}
 const localStore = new LocalStore();
 
 type MfaState = "unknown" | "ok" | "needed";
@@ -86,7 +98,28 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.user.id, aal]);
 
-  const cloudStore = useMemo(() => (supabase && session ? new SupabaseStore(supabase) : null), [session?.user.id]);
+  const [workspaceId, setWorkspaceState] = useState<string | null>(storedWorkspace);
+  const cloudStore = useMemo(() => {
+    if (!supabase || !session) return null;
+    const s = new SupabaseStore(supabase);
+    s.setWorkspace(storedWorkspace());
+    return s;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.user.id]);
+
+  const setWorkspaceId = useCallback(
+    (id: string | null) => {
+      try {
+        if (id) localStorage.setItem(WORKSPACE_KEY, id);
+        else localStorage.removeItem(WORKSPACE_KEY);
+      } catch {
+        /* per-browser convenience only */
+      }
+      cloudStore?.setWorkspace(id);
+      setWorkspaceState(id);
+    },
+    [cloudStore],
+  );
 
   const enterDemo = useCallback(() => {
     try {
@@ -104,6 +137,12 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       /* ignore */
     }
     setDemo(false);
+    try {
+      localStorage.removeItem(WORKSPACE_KEY);
+    } catch {
+      /* ignore */
+    }
+    setWorkspaceState(null);
     if (supabase) await supabase.auth.signOut({ scope });
   }, []);
 
@@ -129,8 +168,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const store = mode === "cloud" ? cloudStore : mode === "demo" ? localStore : null;
 
   const value = useMemo(
-    () => ({ mode, session, store, enterDemo, signOut, clearDemoData, refreshMfa }),
-    [mode, session, store, enterDemo, signOut, clearDemoData, refreshMfa],
+    () => ({ mode, session, store, enterDemo, signOut, clearDemoData, refreshMfa, workspaceId, setWorkspaceId }),
+    [mode, session, store, enterDemo, signOut, clearDemoData, refreshMfa, workspaceId, setWorkspaceId],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

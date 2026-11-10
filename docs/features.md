@@ -29,11 +29,14 @@ screen yet) · 📋 planned (see [PLAN.md](PLAN.md))
 | Feature | What it offers | Where | Status | Docs |
 |---|---|---|---|---|
 | Personal workspace | Created at sign-up; holds the user's projects; cannot be shared away or orphaned | automatic | ✅ | [supabase.md](supabase.md) |
-| Team workspaces (Pro) | Shared projects for an office | database ready; screens 📋 Phase 3 | 🛠 | [security.md](security.md) |
-| Roles | **owner** (everything, incl. ownership), **admin** (manage members, delete/move projects), **member** (edit project data, upload, save runs), **viewer** (read-only: clients, reviewers) | enforced in the database | 🛠 (UI 📋 Phase 3) | [security.md](security.md#controls-by-layer) |
-| Move a project between workspaces | Only someone who is owner/admin in *both* workspaces; stored files follow the project | database ready | 🛠 | [security.md](security.md) |
-| Invitations, member list with names, transfer ownership | Membership by invitation and consent only | — | 📋 Phase 3 | — |
-| Activity log | Who created, renamed, archived, moved, deleted or exported a project; who joined, left or changed role; files uploaded/deleted; runs saved/deleted. Visible to owners/admins; cannot be edited or deleted by anyone | recorded now; viewer screen 📋 Phase 3 | 🛠 | [security.md](security.md#controls-by-layer) |
+| Workspace switcher | Personal workspace and every team the user belongs to (with role); projects list per workspace | `/projects` header | ✅ | [web.md](web.md) |
+| Team workspaces (Pro) | Shared projects for an office; create from the switcher ("Νέα ομάδα…") | `/projects`, `/team` | ✅ | [security.md](security.md) |
+| Roles | **owner** (everything, incl. transfer/delete workspace, require two-factor), **admin** (members, invitations, move/delete projects), **member** (edit data, import, save runs), **viewer** (read and export only: clients, reviewers; the project page shows "Μόνο ανάγνωση") | `/team`; enforced in the database | ✅ | [security.md](security.md#controls-by-layer) |
+| Invitations (consent) | Owner/admin invites an e-mail with a role; the person sees it on `/projects` after signing in with that confirmed e-mail and accepts or declines. No secret links; owners cannot add anyone directly. Owners invite admins; admins invite members/viewers; 7-day expiry; revocable | `/team` → Προσκλήσεις; banner on `/projects` | ✅ (e-mail notification 📋 with custom SMTP) | [supabase.md](supabase.md) |
+| Members | Names, e-mails and two-factor status of fellow members (visible to members only); change role, remove, leave, transfer ownership | `/team` | ✅ | — |
+| Workspace settings | Rename; require two-factor for everyone (owner, from a two-factor session); delete workspace (typed confirmation) | `/team` | ✅ | — |
+| Move a project between workspaces | "Μετακίνηση σε…" in the project menu, only where the user is owner/admin on both sides; stored files follow the project | `/projects` card menu | ✅ | [security.md](security.md) |
+| Activity log | Who created, renamed, archived, moved, deleted or exported a project; who was invited, joined, left or changed role; files, runs, two-factor setting. Owners/admins; nobody can edit or delete it | `/team` → Δραστηριότητα | ✅ | [security.md](security.md#controls-by-layer) |
 
 ## 3. Projects
 
@@ -102,6 +105,17 @@ are recorded in the workspace activity log. Payments (Paddle) are built but park
   tokens verified on every request, no data in logs. Details: [security.md](security.md).
 
 ## Changelog (for developers and agents)
+
+* **2026-11-11: team workspaces (security plan, phase 3).** Migration `20261111000006_teams.sql`:
+  `workspace_invitations`, `invite_member` / `my_invitations` / `accept_invitation` /
+  `decline_invitation` / `revoke_invitation`, `workspace_roster`, `my_workspaces`,
+  `transfer_ownership`; direct `workspace_members` inserts removed (consent only). Web:
+  `data/teams.ts` (+ tests), `data/useTeams.ts`, `components/WorkspaceSwitcher.tsx`,
+  `features/projects/InvitationsBanner.tsx`, `features/team/*` (`/team`), viewer read-only mode
+  (`WorkspaceProvider readOnly`), move-project menu, role-aware project actions, locales
+  `teams.*.ts`. Store: `setWorkspace()`, `ProjectMeta.workspace_id`; **fixed** uploads into team
+  projects (path used the personal workspace). Seed: viewer user, team project, pending invite.
+  Tests: 159 DB checks.
 
 * **2026-11-11: account security (security plan, phase 2).** Migration `20261111000005_mfa.sql`
   (`require_mfa`, `mfa_satisfied()` inside every access helper, owner+aal2 guard). Web:

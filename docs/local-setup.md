@@ -59,6 +59,9 @@ cd web && pnpm install && pnpm dev
    | `owner@atsurvey.test` | Pro | owner of the team workspace (Pro) |
    | `admin@atsurvey.test` | Pro (via team) | team admin |
    | `member@atsurvey.test` | Pro (via team) | team member, English UI |
+   | `viewer@atsurvey.test` | Pro (via team) | team viewer: read-only project page |
+
+   The team has one project, and `free@` has a pending invitation to it (accept it on `/projects`).
 3. **Projects.** Open the example as a signed-in user, or create a project and import a field file
    (GSI, JobXML, RAW, RW5, CSV, DXF). Reload the page: everything is stored in the local database.
 4. **Runs and exports.** Compute, save a run (history), export CSV / XLSX (free plan). PDF, DXF and

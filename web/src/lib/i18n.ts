@@ -6,6 +6,8 @@ import extraEl from "@/locales/extra.el";
 import extraEn from "@/locales/extra.en";
 import securityEl from "@/locales/security.el";
 import securityEn from "@/locales/security.en";
+import teamsEl from "@/locales/teams.el";
+import teamsEn from "@/locales/teams.en";
 
 type Tree = { [k: string]: unknown };
 function deepMerge<A extends Tree, B extends Tree>(a: A, b: B): A & B {
@@ -32,8 +34,8 @@ function initialLang(): "el" | "en" {
 
 void i18n.use(initReactI18next).init({
   resources: {
-    el: { translation: deepMerge(deepMerge(el, extraEl), securityEl) },
-    en: { translation: deepMerge(deepMerge(en, extraEn), securityEn) },
+    el: { translation: deepMerge(deepMerge(deepMerge(el, extraEl), securityEl), teamsEl) },
+    en: { translation: deepMerge(deepMerge(deepMerge(en, extraEn), securityEn), teamsEn) },
   },
   lng: initialLang(),
   fallbackLng: "el",

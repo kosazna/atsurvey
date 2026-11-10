@@ -39,6 +39,7 @@ import { Kbd } from "@/components/ui/kbd";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Tooltip } from "@/components/ui/tooltip";
+import { useMyWorkspaces } from "@/data/useTeams";
 import { useSession } from "@/data/session";
 import { toggleTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
@@ -99,6 +100,8 @@ export function WorkspacePage() {
 function WorkspaceLoader({ projectId, section, onSection }: { projectId: string; section: Section; onSection: (s: Section) => void }) {
   const { t } = useTranslation();
   const q = useProjectQuery(projectId);
+  const workspaces = useMyWorkspaces();
+  const role = workspaces.data?.find((w) => w.id === q.data?.data.meta.workspace_id)?.role;
   if (q.isLoading) {
     return (
       <div className="flex h-full flex-col">
@@ -137,7 +140,7 @@ function WorkspaceLoader({ projectId, section, onSection }: { projectId: string;
     );
   }
   return (
-    <WorkspaceProvider initial={q.data.data} initialRun={q.data.run} section={section} onSection={onSection}>
+    <WorkspaceProvider initial={q.data.data} initialRun={q.data.run} section={section} onSection={onSection} readOnly={role === "viewer"}>
       <WorkspaceLayout />
     </WorkspaceProvider>
   );
@@ -297,9 +300,17 @@ function WorkspaceLayout() {
           <StatusPill />
         </div>
         <div className="ml-auto flex items-center gap-1">
-          <Button variant="ghost" size="sm" onClick={() => ws.setDialog("import")} data-testid="btn-import">
-            <Upload /> <span className="hidden sm:inline">{t("common.import")}</span>
-          </Button>
+          {ws.readOnly ? (
+            <Tooltip content={t("team.readOnlyHint")}>
+              <Badge variant="warning" data-testid="badge-read-only">
+                {t("team.readOnly")}
+              </Badge>
+            </Tooltip>
+          ) : (
+            <Button variant="ghost" size="sm" onClick={() => ws.setDialog("import")} data-testid="btn-import">
+              <Upload /> <span className="hidden sm:inline">{t("common.import")}</span>
+            </Button>
+          )}
           <div className="flex items-center rounded-md border bg-surface">
             <Tooltip content={<span className="flex items-center gap-1.5">{t("ws.compute")} <Kbd className="border-bg bg-bg/10 text-bg">⌘↵</Kbd></span>}>
               <Button variant="ghost" size="sm" onClick={ws.compute} disabled={ws.status === "computing"} className="rounded-r-none" data-testid="btn-compute">
@@ -327,7 +338,7 @@ function WorkspaceLayout() {
             </Tooltip>
           </div>
           <Tooltip content={t("ws.saveRun")}>
-            <Button variant="ghost" size="icon-sm" onClick={() => void ws.saveRun()} disabled={!ws.result} aria-label={t("ws.saveRun")}>
+            <Button variant="ghost" size="icon-sm" onClick={() => void ws.saveRun()} disabled={!ws.result || ws.readOnly} aria-label={t("ws.saveRun")}>
               <Save />
             </Button>
           </Tooltip>

@@ -35,6 +35,11 @@ const billingRoute = createRoute({
   path: "/billing",
   component: lazyRouteComponent(() => import("@/features/account/BillingPage"), "BillingPage"),
 });
+const teamRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/team",
+  component: lazyRouteComponent(() => import("@/features/team/TeamPage"), "TeamPage"),
+});
 const projectsRoute = createRoute({ getParentRoute: () => rootRoute, path: "/projects", component: ProjectsPage });
 export const projectRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -46,7 +51,7 @@ export const projectRoute = createRoute({
   component: lazyRouteComponent(() => import("@/features/workspace/WorkspacePage"), "WorkspacePage"),
 });
 
-const routeTree = rootRoute.addChildren([indexRoute, loginRoute, resetRoute, accountRoute, billingRoute, projectsRoute, projectRoute]);
+const routeTree = rootRoute.addChildren([indexRoute, loginRoute, resetRoute, accountRoute, billingRoute, teamRoute, projectsRoute, projectRoute]);
 
 export const router = createRouter({ routeTree, defaultPreload: "intent" });
 

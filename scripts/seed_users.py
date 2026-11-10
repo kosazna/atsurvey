@@ -41,8 +41,11 @@ PERSONAS = (
     Persona("owner", "Μαρία Κωνσταντίνου", "el", "owner of the Pro team workspace"),
     Persona("admin", "Νίκος Αλεξίου", "el", "admin in the team (Pro through the team)"),
     Persona("member", "Anna Schmidt", "en", "member in the team, English UI"),
+    Persona("viewer", "Πελάτης Παπαδάκης", "el", "viewer in the team (read-only client)"),
 )
-TEAM_ROLES = {"admin": "admin", "member": "member"}
+TEAM_ROLES = {"admin": "admin", "member": "member", "viewer": "viewer"}
+TEAM_PROJECT = "Οικόπεδο Κηφισιάς (ομάδα)"
+INVITED = "free"  # gets a pending invitation to the team (accept it in the app)
 
 
 def email(persona: Persona) -> str:
@@ -169,6 +172,21 @@ def create_team(client: Client, ids: dict[str, str]) -> str:
     ]
     client.call("POST", "/rest/v1/workspace_members", members)
     make_pro(client, team_id, "team")
+    client.call(
+        "POST",
+        "/rest/v1/projects",
+        {"workspace_id": team_id, "name": TEAM_PROJECT, "created_by": ids["owner"]},
+    )
+    client.call(
+        "POST",
+        "/rest/v1/workspace_invitations",
+        {
+            "workspace_id": team_id,
+            "email": f"{INVITED}@{DOMAIN}",
+            "role": "member",
+            "invited_by": ids["owner"],
+        },
+    )
     return team_id
 
 
@@ -183,7 +201,8 @@ def main() -> int:
     width = max(len(email(p)) for p in PERSONAS)
     for p in PERSONAS:
         print(f"  {email(p):<{width}}  {p.full_name:<20}  {p.note}")
-    print(f"\n  Team workspace: {TEAM_NAME} (Pro)")
+    print(f"\n  Team workspace: {TEAM_NAME} (Pro), project “{TEAM_PROJECT}”")
+    print(f"  Pending invitation: {INVITED}@{DOMAIN} → team as member (accept on /projects)")
     return 0
 
 

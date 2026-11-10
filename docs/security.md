@@ -53,7 +53,10 @@ credentials); Paddle ↔ edge function (HMAC signature); CI ↔ VM (SSH key, env
 * Two-factor: users with a verified authenticator, and members of workspaces with
   `require_mfa`, reach those workspaces only from an `aal2` session (`mfa_satisfied()` inside
   every access helper). Only an owner in an `aal2` session can change `require_mfa` (audited).
-* Tests: `supabase/tests/run.sh` (CI) or `run_in_supabase.sh` (local), **133 checks**
+* Membership only by invitation and consent: an invitation names a confirmed e-mail; only that
+  user can see and accept it (`my_invitations`, `accept_invitation`); no direct inserts. Fellow
+  members' names and e-mails come from `workspace_roster()` (members only); profiles stay private.
+* Tests: `supabase/tests/run.sh` (CI) or `run_in_supabase.sh` (local), **159 checks**
   (cross-tenant isolation on every table and storage, roles, moves, audit immutability, erasure).
 
 **Engine API**
@@ -113,6 +116,7 @@ credentials); Paddle ↔ edge function (HMAC signature); CI ↔ VM (SSH key, env
 
 | ID | Severity | Finding | Status |
 |---|---|---|---|
+| DB-15 | Medium | Owners/admins could add any user id to their workspace without consent | Fixed 2026-11-11 (invitation to a confirmed e-mail, accepted by the invitee) |
 | DB-14 | High | No second factor: a leaked password opened every project | Fixed 2026-11-11 (TOTP; enforced in the database for two-factor users and for workspaces that require it) |
 | DB-8 | High | Any team member could delete a team project, or move it into their personal workspace and take the data with them | Fixed 2026-11-11 (owner/admin; move needs both sides) |
 | DB-11 | High | Deleting a project or workspace left its raw files in Storage forever | Fixed 2026-11-11 (queue + `storage-janitor`) |

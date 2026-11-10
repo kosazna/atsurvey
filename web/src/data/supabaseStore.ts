@@ -59,6 +59,10 @@ export class SupabaseStore implements ProjectStore {
     return data.user.id;
   }
 
+  setWorkspace(id: string | null) {
+    this.wsId = id;
+  }
+
   async workspace(): Promise<string> {
     if (this.wsId) return this.wsId;
     const rows = check(await this.sb.from("workspaces").select("id, personal").order("personal", { ascending: false })) as {
@@ -83,14 +87,17 @@ export class SupabaseStore implements ProjectStore {
       created_at: r.created_at,
       updated_at: r.updated_at,
       counts,
+      workspace_id: r.workspace_id,
     };
   }
 
   async listProjects() {
+    const workspace_id = await this.workspace();
     const rows = check(
       await this.sb
         .from("projects")
         .select("*, control_points(count), setups(count), traverses(count)")
+        .eq("workspace_id", workspace_id)
         .is("archived_at", null)
         .order("updated_at", { ascending: false }),
     ) as unknown as (ProjectRow & {
@@ -321,7 +328,10 @@ export class SupabaseStore implements ProjectStore {
   }
 
   async uploadRawFile(id: string, file: File, parsed: ParseResult) {
-    const workspace_id = await this.workspace();
+    // the path must name the project's own workspace (storage policy), not the selected one
+    const { workspace_id } = check(await this.sb.from("projects").select("workspace_id").eq("id", id).single()) as {
+      workspace_id: string;
+    };
     const path = `${workspace_id}/${id}/${uid()}-${file.name.replace(/[^\w.\-]+/g, "_")}`;
     const up = await this.sb.storage.from("raw-files").upload(path, file, { upsert: false, contentType: rawFileContentType(file.name) });
     if (up.error) throw new Error(up.error.message);

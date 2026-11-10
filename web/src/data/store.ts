@@ -29,6 +29,8 @@ export interface ProjectMeta {
   updated_at: string;
   counts?: ProjectCounts;
   demo?: boolean;
+  /** owning workspace (signed-in store only) */
+  workspace_id?: string;
 }
 
 export interface StoredControlPoint extends ControlPoint {
@@ -115,6 +117,8 @@ export interface ProjectStore {
   readonly kind: "local" | "supabase";
   /** Workspace id for entitlement checks (null in demo mode). */
   workspaceId(): Promise<string | null>;
+  /** Select the workspace whose projects are listed and created (signed-in store only). */
+  setWorkspace?(id: string | null): void;
   listProjects(): Promise<ProjectMeta[]>;
   createProject(input: CreateProjectInput, seed?: Partial<Omit<ProjectData, "meta">>): Promise<ProjectMeta>;
   renameProject(id: string, name: string, description?: string | null): Promise<void>;

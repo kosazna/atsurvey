@@ -82,6 +82,8 @@ export interface Workspace {
   ellipseScale: number;
   setEllipseScale: (v: number) => void;
   runsVersion: number;
+  /** viewer role: edits are refused here (and by the database); compute and export still work */
+  readOnly: boolean;
 }
 
 const Ctx = createContext<Workspace | null>(null);
@@ -110,12 +112,14 @@ export function WorkspaceProvider({
   initialRun,
   section,
   onSection,
+  readOnly = false,
   children,
 }: {
   initial: ProjectData;
   initialRun: StoredRun | null;
   section: Section;
   onSection: (s: Section) => void;
+  readOnly?: boolean;
   children: React.ReactNode;
 }) {
   const store = useStore();
@@ -202,6 +206,10 @@ export function WorkspaceProvider({
 
   const update = useCallback(
     (patch: WorkspacePatch) => {
+      if (readOnly) {
+        toast.info(t("team.readOnlyHint"), { id: "read-only" });
+        return;
+      }
       // undo history: coalesce rapid edits (typing, drag-fill) into one step
       const now = Date.now();
       if (now - lastPush.current > 600 || past.current.length === 0) {
@@ -216,7 +224,7 @@ export function WorkspaceProvider({
         (Object.keys(patch) as (keyof typeof patch)[]).map((k) => (k === "meta" ? "settings" : (k as SaveKey))),
       );
     },
-    [scheduleSave],
+    [scheduleSave, readOnly, t],
   );
 
   const restore = useCallback(
@@ -293,7 +301,7 @@ export function WorkspaceProvider({
   }, [autoCompute, input, inputKey, runCompute]);
 
   const saveRun = useCallback(async () => {
-    if (!result) return;
+    if (!result || readOnly) return;
     try {
       const run = await store.saveRun(projectId, result, data.settings);
       setLastRun(run);
@@ -302,7 +310,7 @@ export function WorkspaceProvider({
     } catch (e) {
       toast.error((e as Error).message);
     }
-  }, [data.settings, projectId, result, store, t]);
+  }, [data.settings, projectId, result, store, t, readOnly]);
 
   const setAutoCompute = useCallback((v: boolean) => {
     setAutoComputeState(v);
@@ -352,6 +360,7 @@ export function WorkspaceProvider({
     ellipseScale,
     setEllipseScale,
     runsVersion,
+    readOnly,
     status,
     error,
     compute,

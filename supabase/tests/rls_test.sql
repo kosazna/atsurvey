@@ -348,10 +348,14 @@ set local role authenticated;
 select tests.login('11111111-1111-1111-1111-111111111111');
 insert into public.workspaces (id, name, personal, created_by)
 values ('cccccccc-0000-0000-0000-000000000001', 'Team', false, '11111111-1111-1111-1111-111111111111');
+select tests.throws(
+  $q$insert into public.workspace_members (workspace_id, user_id, role)
+     values ('cccccccc-0000-0000-0000-000000000001', '22222222-2222-2222-2222-222222222222', 'admin')$q$,
+  'owners cannot add members directly (invitation and consent only)', '42501');
+commit;
+-- B joins through the invitation tests below; set up here directly (as the database owner)
 insert into public.workspace_members (workspace_id, user_id, role)
 values ('cccccccc-0000-0000-0000-000000000001', '22222222-2222-2222-2222-222222222222', 'admin');
-select tests.ok(true, 'owner can add an admin to a team workspace');
-commit;
 
 begin;
 set local role authenticated;
@@ -762,6 +766,163 @@ select tests.login_aal2('44444444-4444-4444-4444-444444444444');
 select tests.ok(
   (select count(*) from public.projects where workspace_id = 'cccccccc-0000-0000-0000-000000000001') = 1,
   'with a two-factor session the member is back in');
+commit;
+
+-- ================================================================ invitations (DB-15)
+insert into public.subscriptions (workspace_id, plan, status)
+values ('cccccccc-0000-0000-0000-000000000001', 'pro', 'active');
+insert into auth.users (id, email, email_confirmed_at) values
+  ('77777777-7777-7777-7777-777777777777', 'e@example.test', now()),
+  ('88888888-8888-8888-8888-888888888888', 'u@example.test', null),
+  ('99999999-9999-9999-9999-999999999999', 'f@example.test', now());
+
+begin;
+set local role authenticated;
+select tests.login_aal2('11111111-1111-1111-1111-111111111111');
+select public.invite_member('cccccccc-0000-0000-0000-000000000001', 'e@example.test', 'viewer');
+select set_config('tests.inv_e', public.invite_member('cccccccc-0000-0000-0000-000000000001', '  E@Example.TEST ', 'member')::text, false);
+select public.invite_member('cccccccc-0000-0000-0000-000000000001', 'u@example.test', 'member');
+select public.invite_member('cccccccc-0000-0000-0000-000000000001', 'f@example.test', 'member');
+select tests.ok(
+  (select count(*) from public.workspace_invitations
+   where email = 'e@example.test' and revoked_at is null and accepted_at is null) = 1,
+  'a new invitation replaces the pending one for the same (normalised) e-mail');
+select tests.throws(
+  $q$select public.invite_member('cccccccc-0000-0000-0000-000000000001', 'x@example.test', 'owner')$q$,
+  'nobody is invited as owner', '22023');
+select tests.throws(
+  $q$select public.invite_member('cccccccc-0000-0000-0000-000000000001', 'not-an-email', 'member')$q$,
+  'malformed e-mails are rejected', '22023');
+select tests.throws(
+  $q$select public.invite_member('cccccccc-0000-0000-0000-000000000001', 'd@example.test', 'member')$q$,
+  'existing members are not invited again', 'P0001');
+select tests.throws(
+  format($q$select public.invite_member(%L, 'x@example.test', 'member')$q$,
+    tests.ws_of('11111111-1111-1111-1111-111111111111')),
+  'personal workspaces take no invitations', 'P0001');
+select tests.throws(
+  $q$insert into public.workspace_invitations (workspace_id, email, role)
+     values ('cccccccc-0000-0000-0000-000000000001', 'y@example.test', 'member')$q$,
+  'invitations cannot be inserted directly', '42501');
+select tests.ok((select count(*) from public.workspace_invitations) >= 4, 'owner sees the team invitations');
+commit;
+
+begin;
+set local role authenticated;
+select tests.login_aal2('22222222-2222-2222-2222-222222222222');
+select tests.throws(
+  $q$select public.invite_member('cccccccc-0000-0000-0000-000000000001', 'x@example.test', 'admin')$q$,
+  'only owners invite admins', '42501');
+select public.invite_member('cccccccc-0000-0000-0000-000000000001', 'viewer2@example.test', 'viewer');
+select tests.ok(true, 'admins invite members and viewers');
+commit;
+
+begin;
+set local role authenticated;
+select tests.login_aal2('44444444-4444-4444-4444-444444444444');
+select tests.throws(
+  $q$select public.invite_member('cccccccc-0000-0000-0000-000000000001', 'x@example.test', 'member')$q$,
+  'members cannot invite', '42501');
+select tests.ok((select count(*) from public.workspace_invitations) = 0, 'members cannot see invitations');
+select tests.throws(
+  format($q$select public.revoke_invitation(%L)$q$, current_setting('tests.inv_e')),
+  'members cannot revoke invitations', '42501');
+commit;
+
+-- the invitee, and only the invitee, sees and answers it
+begin;
+set local role authenticated;
+select tests.login('55555555-5555-5555-5555-555555555555');
+select tests.ok((select count(*) from public.my_invitations()) = 0, 'others do not see the invitation');
+select tests.throws(
+  format($q$select public.accept_invitation(%L)$q$, current_setting('tests.inv_e')),
+  'others cannot accept it', 'P0001');
+commit;
+
+begin;
+set local role authenticated;
+select tests.login('88888888-8888-8888-8888-888888888888');
+select tests.ok((select count(*) from public.my_invitations()) = 0,
+  'an unconfirmed e-mail sees no invitations');
+commit;
+
+begin;
+set local role authenticated;
+select tests.login('77777777-7777-7777-7777-777777777777');
+select tests.ok(
+  (select count(*) from public.my_invitations() where workspace_name = 'Team' and role = 'member') = 1,
+  'the invitee sees the invitation with workspace and role');
+select public.accept_invitation(current_setting('tests.inv_e')::uuid);
+select tests.throws(
+  format($q$select public.accept_invitation(%L)$q$, current_setting('tests.inv_e')),
+  'an invitation is accepted once', 'P0001');
+commit;
+select tests.ok(
+  exists (select 1 from public.workspace_members where user_id = '77777777-7777-7777-7777-777777777777'
+          and workspace_id = 'cccccccc-0000-0000-0000-000000000001' and role = 'member'),
+  'accepting adds the member with the invited role');
+
+begin;
+set local role authenticated;
+select tests.login('99999999-9999-9999-9999-999999999999');
+select public.decline_invitation((select id from public.my_invitations() limit 1));
+select tests.ok((select count(*) from public.my_invitations()) = 0, 'a declined invitation disappears');
+commit;
+
+-- roster: members only (the team requires two-factor, so aal2)
+begin;
+set local role authenticated;
+select tests.login_aal2('77777777-7777-7777-7777-777777777777');
+select tests.ok(
+  (select count(*) from public.workspace_roster('cccccccc-0000-0000-0000-000000000001')
+   where email = 'a@example.test' and role = 'owner') = 1,
+  'members see fellow members with e-mail and role');
+select tests.ok(
+  (select role from public.my_workspaces() where id = 'cccccccc-0000-0000-0000-000000000001') = 'member'
+  and (select plan from public.my_workspaces() where id = 'cccccccc-0000-0000-0000-000000000001') = 'pro',
+  'my_workspaces lists role and plan');
+commit;
+
+begin;
+set local role authenticated;
+select tests.login('77777777-7777-7777-7777-777777777777');
+select tests.throws(
+  $q$select * from public.workspace_roster('cccccccc-0000-0000-0000-000000000001')$q$,
+  'the roster obeys the team two-factor requirement', '42501');
+commit;
+
+begin;
+set local role authenticated;
+select tests.login_aal2('66666666-6666-6666-6666-666666666666');
+select tests.throws(
+  $q$select * from public.workspace_roster('cccccccc-0000-0000-0000-000000000001')$q$,
+  'outsiders cannot read a roster', '42501');
+commit;
+
+-- ownership transfer
+begin;
+set local role authenticated;
+select tests.login_aal2('11111111-1111-1111-1111-111111111111');
+select public.transfer_ownership('cccccccc-0000-0000-0000-000000000001', '22222222-2222-2222-2222-222222222222');
+select tests.ok(
+  (select role from public.workspace_members where user_id = '22222222-2222-2222-2222-222222222222'
+     and workspace_id = 'cccccccc-0000-0000-0000-000000000001') = 'owner'
+  and (select role from public.workspace_members where user_id = '11111111-1111-1111-1111-111111111111'
+     and workspace_id = 'cccccccc-0000-0000-0000-000000000001') = 'admin',
+  'ownership transfer swaps owner and admin atomically');
+select tests.throws(
+  $q$select public.transfer_ownership('cccccccc-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111111')$q$,
+  'a former owner cannot transfer again', '42501');
+commit;
+
+begin;
+set local role authenticated;
+select tests.login_aal2('22222222-2222-2222-2222-222222222222');
+select public.transfer_ownership('cccccccc-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111111');
+select tests.ok(
+  exists (select 1 from public.audit_events where action = 'member.role_changed'
+          and workspace_id = 'cccccccc-0000-0000-0000-000000000001'),
+  'role changes from a transfer are audited');
 commit;
 
 -- ---------------------------------------------------------------- RLS enabled everywhere
