@@ -69,5 +69,9 @@ Chain gates with `&&` before `git commit` so a failure stops the commit.
   specs and synthetic files: **validate on real instrument exports** before launch.
 * Tolerance table: sloped 1/10000 constant (0.3 m) < 1/5000 (0.4 m) looks like a workbook copy
   error; awaiting the owner's confirmation.
+* Surveying tools (parcels, ΔΓΜ, surfaces, setout, analysis, instruments, coords) are blocked on
+  owner input listed as D1–D10 in docs/science-roadmap.md. HEPOS grids must NEVER be committed
+  (licence); they are mounted via `ATSURVEY_HEPOS_GRID_DIR`. New tool groups register in
+  web/src/features/workspace/sections/ToolsSection.tsx with strings in locales/<pkg>.{el,en}.ts.
 * Hosted Supabase (Frankfurt), custom SMTP, domain + Hetzner deploy (docs/deploy.md), Paddle.
 * Colour palette not chosen yet: change design/tokens.json only, never hard-code colours.
