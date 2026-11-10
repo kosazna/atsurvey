@@ -33,9 +33,11 @@ supabase/
 
 * **URL configuration**
   * Site URL: `https://app.atsurvey.gr` (production web app)
-  * Redirect URLs: `https://app.atsurvey.gr/auth/callback`, `http://localhost:5173/auth/callback`
+  * Redirect URLs: `https://app.atsurvey.gr/**` (the app sends users back to its own routes, e.g.
+    `/projects`; same list as `supabase/config.toml`)
 * **Providers**
-  * Email: enabled, confirm email on, minimum password length ≥ 10.
+  * Email: enabled, confirm email on, minimum password length 10 (the sign-up form and local
+    `config.toml` use the same value).
   * Google: create an OAuth client in Google Cloud Console (type *Web*), authorised redirect URI
     `https://<project-ref>.supabase.co/auth/v1/callback`, then paste client id/secret into the
     Google provider. Locally: export `SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID` / `..._SECRET` and set

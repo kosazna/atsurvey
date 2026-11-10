@@ -165,7 +165,7 @@ export function AuthPage() {
                           type="password"
                           autoComplete={signUp ? "new-password" : "current-password"}
                           required
-                          minLength={8}
+                          minLength={signUp ? 10 : undefined}
                           value={password}
                           onChange={(e) => setPassword(e.target.value)}
                         />

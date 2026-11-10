@@ -40,12 +40,14 @@ file_size_limit = "20MiB"
 [auth]
 enabled = true
 site_url = "http://localhost:5173"
+# The app redirects to its own routes (e.g. /projects) after e-mail links and OAuth.
 additional_redirect_urls = [
-  "http://localhost:5173",
-  "http://localhost:5173/auth/callback",
-  "http://127.0.0.1:5173/auth/callback",
-  "https://app.atsurvey.gr/auth/callback",
+  "http://localhost:5173/**",
+  "http://127.0.0.1:5173/**",
+  "https://app.atsurvey.gr/**",
 ]
+# Same as the hosted project (docs/supabase.md) and the sign-up form.
+minimum_password_length = 10
 jwt_expiry = 3600
 enable_refresh_token_rotation = true
 refresh_token_reuse_interval = 10

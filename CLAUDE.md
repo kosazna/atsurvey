@@ -25,6 +25,7 @@ docs/     ALL documentation lives here; index in docs/README.md. Update docs wit
 ```bash
 bash scripts/dev.sh                 # whole stack: local Supabase (Docker), API :8000, web :5173
                                     # sign-up e-mails → Mailpit http://127.0.0.1:54324
+uv run python scripts/seed_users.py # dummy users (free/pro/team) in LOCAL Supabase, see docs/local-setup.md
 uv run pytest                       # engine + API (pyproject already passes -q; don't add another)
 uv run ruff check engine api && uv run ruff format --check engine api && uv run pyright
 cd web && pnpm typecheck && pnpm test && pnpm build

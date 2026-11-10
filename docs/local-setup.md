@@ -49,6 +49,16 @@ cd web && pnpm install && pnpm dev
    browser). Open the example project: traverse, detail points, map, exports.
 2. **Sign up.** Create an account with any e-mail (e.g. `you@example.com`). The confirmation e-mail
    appears in Mailpit (http://127.0.0.1:54324); click the link and you are signed in.
+   **Or use the dummy users:** `uv run python scripts/seed_users.py` creates five confirmed users
+   (password `atsurvey-dev-pass`); re-running it replaces them. It refuses non-local stacks.
+
+   | E-mail | Plan | Role |
+   |---|---|---|
+   | `free@atsurvey.test` | free | personal workspace only |
+   | `pro@atsurvey.test` | Pro | Pro on the personal workspace |
+   | `owner@atsurvey.test` | Pro | owner of the team workspace (Pro) |
+   | `admin@atsurvey.test` | Pro (via team) | team admin |
+   | `member@atsurvey.test` | Pro (via team) | team member, English UI |
 3. **Projects.** Open the example as a signed-in user, or create a project and import a field file
    (GSI, JobXML, RAW, RW5, CSV, DXF). Reload the page: everything is stored in the local database.
 4. **Runs and exports.** Compute, save a run (history), export CSV / XLSX (free plan). PDF, DXF and
